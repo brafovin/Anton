@@ -150,7 +150,7 @@ function spawnGround(d,r,sx,noBall) {
   else if (r<0.60)  spawnBlock(sx);
   else if (r<0.72)  spawnSaw(sx, GY-TILE*0.7, false);
   else if (r<0.84)  spawnBouncer(sx);
-  else              { spawnBlock(sx); spawnGroundSpike(sx+TILE*2.8); }
+  else              { if(noBall) spawnGroundSpike(sx); else { spawnBlock(sx); spawnGroundSpike(sx+TILE*2.8); } }
 }
 function spawnAir(d,r,sx) {
   const gap=Math.max(80,130-(d-1)*40), gapY=30+Math.random()*(GY-gap-50);
@@ -248,7 +248,13 @@ function update() {
   // Normal obstacle spawning (only when not paused by portal/finish)
   if (spawnNext < 9000) {
     spawnT++;
-    if (spawnT>=spawnNext) { spawnT=0; spawnNext=Math.max(38,85-d*18+Math.random()*28); spawnObstacle(); }
+    if (spawnT>=spawnNext) {
+      spawnT=0;
+      // Ball mode: enforce minimum 2-tile gap (≈76px ÷ gameSpeed frames)
+      const minGap = PL.mode==='ball' ? Math.ceil(76/gameSpeed)+30 : 38;
+      spawnNext=Math.max(minGap, 85-d*18+Math.random()*28);
+      spawnObstacle();
+    }
   }
 
   // Physics
