@@ -176,6 +176,34 @@ function spawnPortal() {
   const opts=MODE_LIST.filter(k=>k!==PL.mode);
   const next=opts[Math.floor(Math.random()*opts.length)];
   portals.push({x:W+70,y:0,w:32,h:GY,anim:0,next});
+  // Clear space before the portal — no obstacles until player passes through
+  spawnT=0; spawnNext=9999;
+  // Also remove any obstacles that are still right of the player (in the approach corridor)
+  for(let i=obstacles.length-1;i>=0;i--) {
+    const o=obstacles[i];
+    const ox=o.type==='saw'?o.x:o.x;
+    if(ox > PL.x+200) obstacles.splice(i,1);
+  }
+}
+
+function spawnModeIntro(mode) {
+  // Spawn a short handcrafted intro sequence for the new mode
+  const sx = W+120;
+  const d  = diff();
+  if (mode==='cube'||mode==='ball') {
+    spawnBlock(sx);
+    spawnBouncer(sx+TILE*3);
+    spawnGroundSpike(sx+TILE*5.5);
+  } else if (mode==='rocket'||mode==='ufo') {
+    const gap=100, gapY=GY/2-gap/2;
+    spawnWallGap(sx, gapY, gap);
+    spawnSaw(sx+TILE*4, GY/3, true);
+  } else if (mode==='wave') {
+    spawnLaser(sx);
+    spawnLaser(sx+TILE*5);
+  }
+  // Resume normal spawning after the intro
+  spawnT=0; spawnNext=Math.max(80, 140-d*20);
 }
 
 // ── Core update ────────────────────────────────────────────────────────────────
@@ -223,6 +251,9 @@ function update() {
       PL.vy=0; PL.jumpsLeft=2;
       if(MODES[PL.mode].ground) { PL.y=GY-PL.h; PL.onGround=true; }
       else if(PL.mode==='wave') PL.y=GY/2-PL.h/2;
+      // Clear all obstacles and start mode-specific intro
+      obstacles=[];
+      spawnModeIntro(PL.mode);
       updateModeUI();
     }
   }
