@@ -211,7 +211,7 @@ function update() {
     }
     if (player.y < 0) { player.y = 0; player.vy = 0; }
   } else {
-    if (spaceDown) player.vy -= 0.38;
+    if (spaceDown) player.vy -= 0.60;
     player.vy += 0.30;
     player.vy = Math.max(-7, Math.min(7, player.vy));
     player.y += player.vy;
