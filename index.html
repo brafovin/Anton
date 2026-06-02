@@ -163,7 +163,7 @@ function updateModeUI() {
 function jump() {
   if (state !== 'playing') return;
   if (player.mode === 'cube' && player.jumpsLeft > 0) {
-    player.vy = -13.5;
+    player.vy = -11.5;
     player.jumpsLeft--;
     spawnParticles(player.x + player.w/2, player.y + player.h, '#88aaff', 8);
   }
@@ -200,8 +200,8 @@ function update() {
 
   // ── Physics
   if (player.mode === 'cube') {
-    player.angle += player.onGround ? 0 : gameSpeed * 0.04;
-    player.vy += 0.62;
+    player.angle += player.onGround ? 0 : gameSpeed * 0.028;
+    player.vy += 0.44;
     player.y += player.vy;
     player.onGround = false;
     if (player.y + player.h >= GROUND_Y) {
@@ -211,9 +211,9 @@ function update() {
     }
     if (player.y < 0) { player.y = 0; player.vy = 0; }
   } else {
-    if (spaceDown) player.vy -= 0.55;
-    player.vy += 0.45;
-    player.vy = Math.max(-10, Math.min(10, player.vy));
+    if (spaceDown) player.vy -= 0.38;
+    player.vy += 0.30;
+    player.vy = Math.max(-7, Math.min(7, player.vy));
     player.y += player.vy;
     player.rocketFlame = (player.rocketFlame + 1) % 8;
     if (player.y + player.h >= GROUND_Y) { player.y = GROUND_Y - player.h; player.vy = 0; }
