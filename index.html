@@ -5,37 +5,43 @@
 <title>Cube Runner</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; overflow: hidden; }
   canvas { border: 2px solid #16213e; display: block; }
-  #ui { color: #eee; margin-bottom: 10px; font-size: 18px; display: flex; gap: 40px; }
+  #ui { color: #eee; margin-bottom: 8px; font-size: 16px; display: flex; gap: 30px; align-items: center; }
+  #modeTag { padding: 2px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; transition: all 0.3s; background: #1976d2; color: #fff; }
   #overlay {
     position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.75); color: white; font-family: monospace; border-radius: 12px;
-    padding: 40px 60px; gap: 16px;
+    background: rgba(0,0,0,0.82); color: white; font-family: monospace; border-radius: 14px;
+    padding: 36px 56px; gap: 14px;
   }
-  #overlay h1 { font-size: 42px; color: #e94560; }
-  #overlay p { font-size: 18px; color: #aaa; }
-  #overlay .score { font-size: 28px; color: #f5a623; }
+  #overlay h1 { font-size: 40px; color: #e94560; letter-spacing: 4px; }
+  #overlay .sub { font-size: 15px; color: #aaa; text-align: center; line-height: 1.6; }
+  #overlay .score { font-size: 26px; color: #f5a623; }
   #overlay button {
-    margin-top: 10px; padding: 12px 36px; font-size: 20px; font-family: monospace;
+    margin-top: 8px; padding: 12px 40px; font-size: 19px; font-family: monospace;
     background: #e94560; color: white; border: none; border-radius: 8px; cursor: pointer;
-    transition: background 0.2s;
   }
   #overlay button:hover { background: #c73652; }
+  .hint { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .hint span { background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 8px; font-size: 13px; }
 </style>
 </head>
 <body>
 <div id="ui">
   <span>Score: <b id="score">0</b></span>
-  <span>Highscore: <b id="highscore">0</b></span>
+  <span>Best: <b id="highscore">0</b></span>
   <span>Speed: <b id="speed">1.0x</b></span>
+  <span>Modus: <b id="modeTag">WÜRFEL</b></span>
 </div>
-<canvas id="c" width="900" height="400"></canvas>
+<canvas id="c" width="920" height="420"></canvas>
 <div id="overlay">
   <h1>CUBE RUNNER</h1>
-  <p>Bewege dich konstant nach rechts. Springe über Hindernisse!</p>
-  <p><b>LEERTASTE</b> oder <b>Klick/Touch</b> = Springen</p>
-  <p style="color:#aaa;font-size:14px">Auf Würfel kannst du draufspringen • Spikes töten dich sofort</p>
+  <div class="sub">Weiche Hindernissen aus, springe auf Blöcke<br>Portale wechseln deinen Modus!</div>
+  <div class="hint">
+    <span>🟦 WÜRFEL — Leertaste = Springen (2x)</span>
+    <span>🚀 RAKETE — Leertaste halten = steigen</span>
+  </div>
+  <div class="sub" style="color:#f5a623">Treppen führen auf höhere Ebenen • Nicht hängen bleiben!</div>
   <button id="startBtn">STARTEN</button>
 </div>
 
@@ -46,205 +52,213 @@ const overlay = document.getElementById('overlay');
 const scoreEl = document.getElementById('score');
 const highscoreEl = document.getElementById('highscore');
 const speedEl = document.getElementById('speed');
-const startBtn = document.getElementById('startBtn');
+const modeTag = document.getElementById('modeTag');
 
 const W = canvas.width, H = canvas.height;
-const GROUND = H - 60;
-const TILE = 40;
+const GROUND_Y = H - 60;
+const TILE = 38;
 
-let state = 'menu'; // menu | playing | dead
+const MODES = {
+  cube:   { name: 'WÜRFEL', color: '#64b5f6', glow: '#1976d2', tag: '#1976d2' },
+  rocket: { name: 'RAKETE', color: '#ff7043', glow: '#e64a19', tag: '#e64a19' }
+};
+
+let state = 'menu';
 let score = 0, highscore = 0, frameCount = 0;
 let gameSpeed = 4;
 let bgOffset = 0;
+let spaceDown = false;
 
-// Player
 const player = {
-  x: 120, y: GROUND - TILE,
+  x: 130, y: GROUND_Y - TILE,
   w: TILE, h: TILE,
   vy: 0,
   onGround: false,
   jumpsLeft: 0,
-  dead: false,
-  deathAnim: 0,
-  trail: []
+  mode: 'cube',
+  dead: false, deathAnim: 0,
+  trail: [],
+  angle: 0,
+  rocketFlame: 0
 };
 
 let obstacles = [];
 let particles = [];
+let portals = [];
 let stars = [];
+let spawnTimer = 0, nextSpawnIn = 70;
+let portalTimer = 0, nextPortalIn = 450;
 
-// Generate background stars once
-for (let i = 0; i < 80; i++) {
-  stars.push({ x: Math.random() * W, y: Math.random() * (H - 100), r: Math.random() * 1.5 + 0.5, speed: Math.random() * 0.5 + 0.2 });
-}
+for (let i = 0; i < 90; i++)
+  stars.push({ x: Math.random()*W, y: Math.random()*(H-100), r: Math.random()*1.5+0.5, speed: Math.random()*0.5+0.2 });
 
-function reset() {
-  player.x = 120;
-  player.y = GROUND - TILE;
-  player.vy = 0;
-  player.onGround = false;
-  player.jumpsLeft = 0;
-  player.dead = false;
-  player.deathAnim = 0;
-  player.trail = [];
-  obstacles = [];
-  particles = [];
-  score = 0;
-  frameCount = 0;
-  gameSpeed = 4;
-  bgOffset = 0;
-  spawnTimer = 0;
-  nextSpawnIn = 60;
-}
+function diff() { return 1 + Math.floor(score / 600) * 0.15; }
 
-let spawnTimer = 0;
-let nextSpawnIn = 60;
-
-function difficulty() {
-  // Increases every 500 score
-  return 1 + Math.floor(score / 500) * 0.15;
-}
-
+// ── Spawner ────────────────────────────────────────────────────────────────────
 function spawnObstacle() {
-  const diff = difficulty();
-  const rng = Math.random();
-  const sx = W + 60;
-
-  // At higher difficulties, allow more complex patterns
-  if (diff > 1.6 && Math.random() < 0.3) {
-    // Double obstacle
-    spawnSingle(sx);
-    spawnSingle(sx + TILE * 2.5 + Math.random() * TILE);
+  const d = diff();
+  const r = Math.random();
+  if (r < 0.28 && d > 1.1) {
+    spawnStaircase();
+  } else if (r < 0.52) {
+    spawnSpike();
+  } else if (r < 0.76) {
+    spawnCube();
   } else {
-    spawnSingle(sx);
+    spawnCube(W + 60);
+    if (d > 1.3) spawnSpike(W + 60 + TILE * 3.8);
   }
 }
 
-function spawnSingle(sx) {
-  const diff = difficulty();
-  const rng = Math.random();
-  // spike chance increases with difficulty
-  const spikeChance = Math.min(0.5, 0.2 + (diff - 1) * 0.3);
+function spawnCube(sx) {
+  sx = sx || W + 60;
+  const tall = diff() > 1.5 && Math.random() < 0.35;
+  const ch = tall ? TILE * 2 : TILE;
+  obstacles.push({ type: 'cube', x: sx, y: GROUND_Y - ch, w: TILE, h: ch });
+}
 
-  if (rng < spikeChance) {
-    // Spike (deadly, can't jump on)
-    const count = Math.random() < 0.4 && diff > 1.3 ? 2 : 1;
-    obstacles.push({ type: 'spike', x: sx, y: GROUND - 34, w: 24 * count, h: 34, count });
-  } else {
-    // Cube obstacle (can jump on top)
-    const tall = diff > 1.5 && Math.random() < 0.3;
-    const cubeH = tall ? TILE * 2 : TILE;
-    obstacles.push({ type: 'cube', x: sx, y: GROUND - cubeH, w: TILE, h: cubeH });
+function spawnSpike(sx) {
+  sx = sx || W + 60;
+  const d = diff();
+  const count = d > 1.4 && Math.random() < 0.4 ? 2 : 1;
+  const ceiling = player.mode === 'rocket' && d > 1.6 && Math.random() < 0.3;
+  obstacles.push({ type: 'spike', x: sx, y: ceiling ? 0 : GROUND_Y - 34, w: 24 * count, h: 34, count, ceiling });
+}
+
+function spawnStaircase() {
+  const sx = W + 60;
+  const steps = Math.random() < 0.5 ? 3 : 4;
+  for (let i = 0; i < steps; i++) {
+    const sh = TILE * (i + 1);
+    obstacles.push({ type: 'stair', x: sx + i * (TILE + 5), y: GROUND_Y - sh, w: TILE, h: sh, step: i });
   }
+  // Landing platform after stairs
+  const lx = sx + steps * (TILE + 5) + TILE * 0.6;
+  obstacles.push({ type: 'platform', x: lx, y: GROUND_Y - TILE * steps, w: TILE * 2.2, h: TILE * 0.38 });
+}
+
+function spawnPortal() {
+  portals.push({ x: W + 60, y: GROUND_Y - TILE * 3.2, w: 28, h: TILE * 2.6, anim: 0 });
+}
+
+// ── Reset / Start ──────────────────────────────────────────────────────────────
+function reset() {
+  player.x = 130; player.y = GROUND_Y - TILE;
+  player.vy = 0; player.onGround = false; player.jumpsLeft = 0;
+  player.mode = 'cube'; player.dead = false; player.deathAnim = 0;
+  player.trail = []; player.angle = 0; player.rocketFlame = 0;
+  obstacles = []; particles = []; portals = [];
+  score = 0; frameCount = 0; gameSpeed = 4; bgOffset = 0;
+  spawnTimer = 0; nextSpawnIn = 70;
+  portalTimer = 0; nextPortalIn = 450;
+  updateModeUI();
+}
+
+function updateModeUI() {
+  const m = MODES[player.mode];
+  modeTag.textContent = m.name;
+  modeTag.style.background = m.tag;
 }
 
 function jump() {
   if (state !== 'playing') return;
-  if (player.jumpsLeft > 0) {
-    player.vy = -13;
+  if (player.mode === 'cube' && player.jumpsLeft > 0) {
+    player.vy = -13.5;
     player.jumpsLeft--;
-    spawnParticles(player.x + player.w / 2, player.y + player.h, '#88aaff', 8);
+    spawnParticles(player.x + player.w/2, player.y + player.h, '#88aaff', 8);
   }
 }
 
-function spawnParticles(x, y, color, count) {
-  for (let i = 0; i < count; i++) {
-    particles.push({
-      x, y,
-      vx: (Math.random() - 0.5) * 5,
-      vy: Math.random() * -4 - 1,
-      life: 30 + Math.random() * 20,
-      maxLife: 50,
-      color,
-      r: Math.random() * 4 + 2
-    });
-  }
-}
-
-function deathExplosion() {
-  for (let i = 0; i < 30; i++) {
-    const angle = (Math.PI * 2 * i) / 30;
-    particles.push({
-      x: player.x + player.w / 2,
-      y: player.y + player.h / 2,
-      vx: Math.cos(angle) * (Math.random() * 6 + 2),
-      vy: Math.sin(angle) * (Math.random() * 6 + 2),
-      life: 50,
-      maxLife: 50,
-      color: `hsl(${Math.random() * 60}, 100%, 60%)`,
-      r: Math.random() * 6 + 2
-    });
-  }
-}
-
-function checkCollision(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-}
-
+// ── Update ─────────────────────────────────────────────────────────────────────
 function update() {
   if (state !== 'playing') return;
 
   frameCount++;
-  score += 1;
+  score++;
   scoreEl.textContent = score;
 
-  const diff = difficulty();
-  gameSpeed = 4 + (diff - 1) * 3;
-  speedEl.textContent = diff.toFixed(1) + 'x';
-
+  const d = diff();
+  gameSpeed = 4 + (d - 1) * 3.2;
+  speedEl.textContent = d.toFixed(1) + 'x';
   bgOffset = (bgOffset + gameSpeed * 0.3) % W;
 
-  // Gravity
-  player.vy += 0.6;
-  player.y += player.vy;
-  player.onGround = false;
-
-  // Trail
-  player.trail.push({ x: player.x + player.w / 2, y: player.y + player.h / 2 });
-  if (player.trail.length > 12) player.trail.shift();
-
-  // Ground collision
-  if (player.y + player.h >= GROUND) {
-    player.y = GROUND - player.h;
-    player.vy = 0;
-    player.onGround = true;
-    player.jumpsLeft = 2; // double jump allowed
+  // Portal spawn
+  portalTimer++;
+  if (portalTimer >= nextPortalIn) {
+    portalTimer = 0;
+    nextPortalIn = 380 + Math.random() * 280;
+    spawnPortal();
   }
 
-  // Spawn obstacles
+  // Obstacle spawn
   spawnTimer++;
   if (spawnTimer >= nextSpawnIn) {
     spawnTimer = 0;
-    // Gap between obstacles shrinks with difficulty
-    nextSpawnIn = Math.max(40, 90 - diff * 20 + Math.random() * 30);
+    nextSpawnIn = Math.max(38, 85 - d * 18 + Math.random() * 28);
     spawnObstacle();
   }
 
-  // Update obstacles
+  // ── Physics
+  if (player.mode === 'cube') {
+    player.angle += player.onGround ? 0 : gameSpeed * 0.04;
+    player.vy += 0.62;
+    player.y += player.vy;
+    player.onGround = false;
+    if (player.y + player.h >= GROUND_Y) {
+      player.y = GROUND_Y - player.h;
+      player.vy = 0; player.onGround = true; player.jumpsLeft = 2;
+      player.angle = Math.round(player.angle / (Math.PI/2)) * (Math.PI/2);
+    }
+    if (player.y < 0) { player.y = 0; player.vy = 0; }
+  } else {
+    if (spaceDown) player.vy -= 0.55;
+    player.vy += 0.45;
+    player.vy = Math.max(-10, Math.min(10, player.vy));
+    player.y += player.vy;
+    player.rocketFlame = (player.rocketFlame + 1) % 8;
+    if (player.y + player.h >= GROUND_Y) { player.y = GROUND_Y - player.h; player.vy = 0; }
+    if (player.y < 0) { player.y = 0; player.vy = 0; }
+  }
+
+  // Trail
+  player.trail.push({ x: player.x + player.w/2, y: player.y + player.h/2, mode: player.mode });
+  if (player.trail.length > 14) player.trail.shift();
+
+  // Portals
+  for (let i = portals.length - 1; i >= 0; i--) {
+    const po = portals[i];
+    po.x -= gameSpeed; po.anim++;
+    if (po.x + po.w < -60) { portals.splice(i, 1); continue; }
+    if (!player.dead && rectsOverlap(player, po)) {
+      player.mode = player.mode === 'cube' ? 'rocket' : 'cube';
+      portals.splice(i, 1);
+      spawnParticles(player.x + player.w/2, player.y + player.h/2,
+        player.mode === 'rocket' ? '#ff7043' : '#64b5f6', 22);
+      player.vy = 0; player.jumpsLeft = 2;
+      updateModeUI();
+    }
+  }
+
+  // Obstacles
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const o = obstacles[i];
     o.x -= gameSpeed;
-    if (o.x + o.w < -100) { obstacles.splice(i, 1); continue; }
-
+    if (o.x + o.w < -120) { obstacles.splice(i, 1); continue; }
     if (player.dead) continue;
 
     if (o.type === 'spike') {
-      // Build spike hitbox (slightly smaller than visual)
-      const hitbox = { x: o.x + 4, y: o.y + 4, w: o.w - 8, h: o.h - 4 };
-      if (checkCollision({ x: player.x, y: player.y, w: player.w, h: player.h }, hitbox)) {
-        killPlayer();
-      }
-    } else if (o.type === 'cube') {
-      if (checkCollision({ x: player.x + 2, y: player.y, w: player.w - 4, h: player.h }, o)) {
-        // Land on top?
+      const hb = { x: o.x + 5, y: o.ceiling ? o.y : o.y + 5, w: o.w - 10, h: o.h - 6 };
+      if (rectsOverlap(player, hb)) killPlayer();
+    } else {
+      const px = { x: player.x + 2, y: player.y, w: player.w - 4, h: player.h };
+      if (rectsOverlap(px, o)) {
         const prevBottom = player.y + player.h - player.vy;
-        if (prevBottom <= o.y + 4 && player.vy >= 0) {
+        if (prevBottom <= o.y + 6 && player.vy >= 0) {
           player.y = o.y - player.h;
-          player.vy = 0;
-          player.onGround = true;
-          player.jumpsLeft = 2;
+          player.vy = 0; player.onGround = true; player.jumpsLeft = 2;
+          if (player.mode === 'cube')
+            player.angle = Math.round(player.angle / (Math.PI/2)) * (Math.PI/2);
         } else {
-          // Side / bottom collision = death
           killPlayer();
         }
       }
@@ -254,14 +268,11 @@ function update() {
   // Particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.15;
-    p.life--;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
     if (p.life <= 0) particles.splice(i, 1);
   }
 
-  // Stars parallax
+  // Stars
   for (const s of stars) {
     s.x -= s.speed * (gameSpeed / 4);
     if (s.x < 0) s.x = W;
@@ -269,8 +280,12 @@ function update() {
 
   if (player.dead) {
     player.deathAnim++;
-    if (player.deathAnim > 80) showDead();
+    if (player.deathAnim > 85) showDead();
   }
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
 function killPlayer() {
@@ -287,7 +302,7 @@ function showDead() {
     <h1>GAME OVER</h1>
     <div class="score">Score: ${score}</div>
     <div class="score" style="color:#aaf">Highscore: ${highscore}</div>
-    <p>Distanz: ${Math.floor(score / 10)}m • Speed: ${difficulty().toFixed(1)}x</p>
+    <p style="color:#aaa;font-size:14px">Distanz: ${Math.floor(score/10)}m &nbsp;•&nbsp; Speed: ${diff().toFixed(1)}x</p>
     <button id="startBtn">NOCHMAL</button>
   `;
   document.getElementById('startBtn').addEventListener('click', startGame);
@@ -295,185 +310,260 @@ function showDead() {
 
 function startGame() {
   overlay.style.display = 'none';
-  reset();
-  state = 'playing';
+  reset(); state = 'playing';
 }
 
-// Drawing
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random()-0.5)*6, vy: Math.random()*-5-1,
+      life: 35 + Math.random()*20, maxLife: 55,
+      color, r: Math.random()*5+2
+    });
+  }
+}
+
+function deathExplosion() {
+  for (let i = 0; i < 35; i++) {
+    const angle = (Math.PI*2*i)/35;
+    particles.push({
+      x: player.x + player.w/2, y: player.y + player.h/2,
+      vx: Math.cos(angle)*(Math.random()*7+2),
+      vy: Math.sin(angle)*(Math.random()*7+2),
+      life: 55, maxLife: 55,
+      color: `hsl(${Math.random()*60},100%,60%)`,
+      r: Math.random()*6+2
+    });
+  }
+}
+
+// ── Draw ───────────────────────────────────────────────────────────────────────
 function drawBackground() {
-  // Sky gradient
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0f0c29');
-  grad.addColorStop(1, '#302b63');
+  if (player.mode === 'rocket') {
+    grad.addColorStop(0, '#1a0a00'); grad.addColorStop(1, '#3d1a00');
+  } else {
+    grad.addColorStop(0, '#0f0c29'); grad.addColorStop(1, '#302b63');
+  }
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Stars
   for (const s of stars) {
     ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255,255,255,${0.4 + s.r * 0.3})`;
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${0.4+s.r*0.3})`;
     ctx.fill();
   }
 
-  // Ground
   ctx.fillStyle = '#16213e';
-  ctx.fillRect(0, GROUND, W, H - GROUND);
-
-  // Ground line with glow
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#4fc3f7';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  ctx.shadowBlur = 8; ctx.shadowColor = '#4fc3f7';
   ctx.fillStyle = '#4fc3f7';
-  ctx.fillRect(0, GROUND, W, 3);
+  ctx.fillRect(0, GROUND_Y, W, 3);
   ctx.shadowBlur = 0;
 
-  // Ground tiles
-  const tileW = 60;
-  const offset = bgOffset % tileW;
-  ctx.strokeStyle = 'rgba(79,195,247,0.15)';
-  ctx.lineWidth = 1;
-  for (let x = -offset; x < W; x += tileW) {
-    ctx.beginPath();
-    ctx.moveTo(x, GROUND);
-    ctx.lineTo(x, H);
-    ctx.stroke();
+  const tW = 60, off = bgOffset % tW;
+  ctx.strokeStyle = 'rgba(79,195,247,0.12)'; ctx.lineWidth = 1;
+  for (let x = -off; x < W; x += tW) {
+    ctx.beginPath(); ctx.moveTo(x, GROUND_Y); ctx.lineTo(x, H); ctx.stroke();
   }
 }
 
-function drawPlayer() {
-  if (player.dead && player.deathAnim > 5) return;
+function drawPortals() {
+  for (const po of portals) {
+    const nextMode = player.mode === 'cube' ? 'rocket' : 'cube';
+    const col = MODES[nextMode].color;
+    const pulse = Math.sin(po.anim * 0.1) * 0.3 + 0.7;
 
-  // Trail
-  for (let i = 0; i < player.trail.length; i++) {
-    const t = player.trail[i];
-    const alpha = (i / player.trail.length) * 0.4;
-    const size = (i / player.trail.length) * player.w * 0.7;
-    ctx.fillStyle = `rgba(100,160,255,${alpha})`;
-    ctx.fillRect(t.x - size / 2, t.y - size / 2, size, size);
+    ctx.save();
+    ctx.shadowBlur = 22 * pulse; ctx.shadowColor = col;
+    ctx.strokeStyle = col; ctx.lineWidth = 3;
+    ctx.strokeRect(po.x, po.y, po.w, po.h);
+
+    const g = ctx.createLinearGradient(po.x, po.y, po.x, po.y + po.h);
+    g.addColorStop(0, col + '55'); g.addColorStop(1, col + '11');
+    ctx.fillStyle = g;
+    ctx.fillRect(po.x, po.y, po.w, po.h);
+
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(nextMode === 'rocket' ? '🚀' : '🟦', po.x + po.w/2, po.y + po.h/2 + 5);
+    ctx.restore();
   }
-
-  // Glow
-  ctx.shadowBlur = 15;
-  ctx.shadowColor = '#4fc3f7';
-
-  // Player cube
-  const grad = ctx.createLinearGradient(player.x, player.y, player.x + player.w, player.y + player.h);
-  grad.addColorStop(0, '#64b5f6');
-  grad.addColorStop(1, '#1976d2');
-  ctx.fillStyle = grad;
-  ctx.fillRect(player.x, player.y, player.w, player.h);
-
-  // Shine
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillRect(player.x + 4, player.y + 4, player.w - 8, 8);
-  ctx.fillRect(player.x + 4, player.y + 4, 8, player.h - 8);
-
-  // Border
-  ctx.strokeStyle = '#90caf9';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(player.x, player.y, player.w, player.h);
-
-  ctx.shadowBlur = 0;
 }
 
 function drawObstacles() {
   for (const o of obstacles) {
-    if (o.type === 'cube') {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#ff7043';
-      const g = ctx.createLinearGradient(o.x, o.y, o.x + o.w, o.y + o.h);
-      g.addColorStop(0, '#ef5350');
-      g.addColorStop(1, '#b71c1c');
-      ctx.fillStyle = g;
-      ctx.fillRect(o.x, o.y, o.w, o.h);
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.fillRect(o.x + 3, o.y + 3, o.w - 6, 7);
-      ctx.strokeStyle = '#ff8a65';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(o.x, o.y, o.w, o.h);
-      ctx.shadowBlur = 0;
-    } else if (o.type === 'spike') {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#ffd600';
-      const count = o.count || 1;
-      const sw = 24;
-      for (let i = 0; i < count; i++) {
+    ctx.save();
+    if (o.type === 'spike') {
+      ctx.shadowBlur = 10; ctx.shadowColor = '#ffd600';
+      const cnt = o.count || 1, sw = 24;
+      for (let i = 0; i < cnt; i++) {
         const sx = o.x + i * sw;
         ctx.beginPath();
-        ctx.moveTo(sx, GROUND);
-        ctx.lineTo(sx + sw / 2, GROUND - 34);
-        ctx.lineTo(sx + sw, GROUND);
+        if (o.ceiling) {
+          ctx.moveTo(sx, 0); ctx.lineTo(sx+sw/2, 34); ctx.lineTo(sx+sw, 0);
+        } else {
+          ctx.moveTo(sx, GROUND_Y); ctx.lineTo(sx+sw/2, GROUND_Y-34); ctx.lineTo(sx+sw, GROUND_Y);
+        }
         ctx.closePath();
-        const sg = ctx.createLinearGradient(sx, GROUND - 34, sx, GROUND);
-        sg.addColorStop(0, '#fff176');
-        sg.addColorStop(1, '#f9a825');
-        ctx.fillStyle = sg;
-        ctx.fill();
-        ctx.strokeStyle = '#ffd600';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        const sg = ctx.createLinearGradient(sx,0,sx,34);
+        sg.addColorStop(0, '#fff176'); sg.addColorStop(1, '#f9a825');
+        ctx.fillStyle = sg; ctx.fill();
+        ctx.strokeStyle = '#ffd600'; ctx.lineWidth = 1.5; ctx.stroke();
       }
-      ctx.shadowBlur = 0;
+    } else if (o.type === 'cube' || o.type === 'stair') {
+      const hue = o.step !== undefined ? o.step * 18 : 0;
+      ctx.shadowBlur = 10; ctx.shadowColor = `hsl(${hue+10},80%,50%)`;
+      const g = ctx.createLinearGradient(o.x, o.y, o.x+o.w, o.y+o.h);
+      g.addColorStop(0, `hsl(${hue},80%,55%)`); g.addColorStop(1, `hsl(${hue},80%,30%)`);
+      ctx.fillStyle = g; ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(o.x+3, o.y+3, o.w-6, 7);
+      ctx.strokeStyle = `hsl(${hue+20},90%,65%)`; ctx.lineWidth = 2; ctx.strokeRect(o.x, o.y, o.w, o.h);
+    } else if (o.type === 'platform') {
+      ctx.shadowBlur = 8; ctx.shadowColor = '#a5d6a7';
+      ctx.fillStyle = '#66bb6a'; ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(o.x+3, o.y+2, o.w-6, 4);
     }
+    ctx.restore();
   }
+}
+
+function drawPlayer() {
+  if (player.dead && player.deathAnim > 4) return;
+
+  for (let i = 0; i < player.trail.length; i++) {
+    const t = player.trail[i];
+    const alpha = (i / player.trail.length) * 0.45;
+    const size = (i / player.trail.length) * player.w * 0.75;
+    const col = t.mode === 'cube' ? '100,160,255' : '255,120,60';
+    ctx.fillStyle = `rgba(${col},${alpha})`;
+    ctx.fillRect(t.x - size/2, t.y - size/2, size, size);
+  }
+
+  ctx.save();
+  ctx.translate(player.x + player.w/2, player.y + player.h/2);
+
+  if (player.mode === 'cube') {
+    ctx.rotate(player.angle);
+    ctx.shadowBlur = 16; ctx.shadowColor = '#4fc3f7';
+    const g = ctx.createLinearGradient(-player.w/2, -player.h/2, player.w/2, player.h/2);
+    g.addColorStop(0, '#64b5f6'); g.addColorStop(1, '#1976d2');
+    ctx.fillStyle = g;
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(-player.w/2+4, -player.h/2+4, player.w-8, 8);
+    ctx.strokeStyle = '#90caf9'; ctx.lineWidth = 2;
+    ctx.strokeRect(-player.w/2, -player.h/2, player.w, player.h);
+
+  } else {
+    // Rocket
+    ctx.shadowBlur = 20; ctx.shadowColor = '#ff7043';
+
+    // Flame
+    const fl = 14 + Math.sin(player.rocketFlame * 0.8) * 6;
+    const fg = ctx.createLinearGradient(player.w/2, 0, player.w/2 + fl, 0);
+    fg.addColorStop(0, 'rgba(255,200,50,0.9)');
+    fg.addColorStop(0.5, 'rgba(255,100,20,0.6)');
+    fg.addColorStop(1, 'rgba(255,50,0,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(player.w/2-2, -6);
+    ctx.lineTo(player.w/2+fl, 0);
+    ctx.lineTo(player.w/2-2, 6);
+    ctx.closePath(); ctx.fill();
+
+    // Body
+    const rg = ctx.createLinearGradient(-player.w/2, -player.h/2, player.w/2, player.h/2);
+    rg.addColorStop(0, '#ff8a65'); rg.addColorStop(1, '#bf360c');
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.roundRect(-player.w/2, -player.h/3, player.w*0.75, player.h*0.66, 4);
+    ctx.fill();
+
+    // Nose
+    ctx.beginPath();
+    ctx.moveTo(player.w*0.25/2, -player.h/3);
+    ctx.lineTo(-player.w/2, 0);
+    ctx.lineTo(player.w*0.25/2, player.h/3);
+    ctx.closePath();
+    ctx.fillStyle = '#ffccbc'; ctx.fill();
+
+    // Window
+    ctx.beginPath();
+    ctx.arc(-player.w/8, 0, 6, 0, Math.PI*2);
+    ctx.fillStyle = '#80d8ff'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Fin
+    ctx.beginPath();
+    ctx.moveTo(player.w*0.6/2, player.h/3);
+    ctx.lineTo(player.w/2, player.h/2+6);
+    ctx.lineTo(player.w/2, player.h/3);
+    ctx.closePath();
+    ctx.fillStyle = '#ff7043'; ctx.fill();
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 function drawParticles() {
   for (const p of particles) {
-    const alpha = p.life / p.maxLife;
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, p.r * (p.life/p.maxLife), 0, Math.PI*2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
 
 function drawHUD() {
-  // Speed bar
-  const diff = difficulty();
-  const barW = 150, barH = 12;
-  const bx = W - barW - 20, by = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(bx, by, barW, barH);
-  const prog = Math.min(1, (diff - 1) / 2);
-  const hue = 120 - prog * 120;
-  ctx.fillStyle = `hsl(${hue},100%,50%)`;
-  ctx.fillRect(bx, by, barW * prog, barH);
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(bx, by, barW, barH);
-  ctx.fillStyle = '#fff';
-  ctx.font = '10px monospace';
-  ctx.fillText('DANGER', bx + 50, by + 10);
+  const d = diff();
+  const bW = 140, bH = 11, bx = W - bW - 16, by = 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(bx, by, bW, bH);
+  const prog = Math.min(1, (d-1)/2);
+  ctx.fillStyle = `hsl(${120-prog*120},100%,50%)`;
+  ctx.fillRect(bx, by, bW*prog, bH);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bW, bH);
+  ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('DANGER', bx + 44, by + 9);
+
+  const m = MODES[player.mode];
+  ctx.shadowBlur = 8; ctx.shadowColor = m.color;
+  ctx.fillStyle = m.color; ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(m.name + ' MODE', W - 16, H - 72);
+  ctx.shadowBlur = 0;
 }
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
   drawBackground();
+  drawPortals();
   drawObstacles();
   drawParticles();
   drawPlayer();
   if (state === 'playing') drawHUD();
 }
 
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
+function loop() { update(); draw(); requestAnimationFrame(loop); }
 
-// Input
+// ── Input ──────────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space') { e.preventDefault(); jump(); }
-  if (state === 'menu' || state === 'dead') return;
+  if (e.code === 'Space') {
+    e.preventDefault(); spaceDown = true; jump();
+    if (state !== 'playing') startGame();
+  }
 });
-
-canvas.addEventListener('click', () => jump());
-canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, { passive: false });
-
-startBtn.addEventListener('click', startGame);
+document.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
+canvas.addEventListener('mousedown', () => { spaceDown = true; jump(); if (state !== 'playing') startGame(); });
+canvas.addEventListener('mouseup', () => { spaceDown = false; });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); spaceDown = true; jump(); if (state !== 'playing') startGame(); }, { passive: false });
+canvas.addEventListener('touchend', e => { e.preventDefault(); spaceDown = false; }, { passive: false });
+document.getElementById('startBtn').addEventListener('click', startGame);
 
 loop();
 </script>
