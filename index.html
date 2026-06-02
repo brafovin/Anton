@@ -98,15 +98,53 @@ function diff() { return 1 + Math.floor(score / 600) * 0.15; }
 function spawnObstacle() {
   const d = diff();
   const r = Math.random();
-  if (r < 0.28 && d > 1.1) {
-    spawnStaircase();
-  } else if (r < 0.52) {
-    spawnSpike();
-  } else if (r < 0.76) {
-    spawnCube();
+  if (player.mode === 'rocket') {
+    spawnRocketObstacle(d, r);
   } else {
-    spawnCube(W + 60);
-    if (d > 1.3) spawnSpike(W + 60 + TILE * 3.8);
+    if (r < 0.28 && d > 1.1) {
+      spawnStaircase();
+    } else if (r < 0.52) {
+      spawnSpike();
+    } else if (r < 0.76) {
+      spawnCube();
+    } else {
+      spawnCube(W + 60);
+      if (d > 1.3) spawnSpike(W + 60 + TILE * 3.8);
+    }
+  }
+}
+
+// Rocket-mode obstacles: gaps between floor/ceiling spike walls
+function spawnRocketObstacle(d, r) {
+  const sx = W + 60;
+  const gap = Math.max(80, 130 - (d - 1) * 40); // gap shrinks with difficulty
+  const gapY = 30 + Math.random() * (GROUND_Y - gap - 50);
+
+  if (r < 0.45) {
+    // Spike wall: floor spikes + ceiling spikes with a gap in between
+    const floorCount = Math.ceil((GROUND_Y - (gapY + gap)) / 24);
+    const ceilCount  = Math.ceil(gapY / 24);
+    // Ceiling spikes
+    for (let i = 0; i < ceilCount; i++)
+      obstacles.push({ type: 'spike', x: sx + i * 1, y: 0, w: 24, h: Math.min(gapY, 50), count: 1, ceiling: true, single: true });
+    // Floor spikes
+    const fh = Math.min(GROUND_Y - gapY - gap, 50);
+    if (fh > 10)
+      for (let i = 0; i < Math.ceil(fh / 24) + 1; i++)
+        obstacles.push({ type: 'spike', x: sx, y: GROUND_Y - fh, w: 24, h: fh, count: 1, ceiling: false, single: true });
+    // Actual gap marker (invisible, just the two walls)
+    obstacles.push({ type: 'wall', x: sx, gapY, gap, w: 18, h: GROUND_Y });
+  } else if (r < 0.75) {
+    // Floating block the rocket must fly around
+    const blockH = TILE + (d > 1.3 ? TILE : 0);
+    const blockY = gapY + gap / 2 - blockH / 2;
+    obstacles.push({ type: 'cube', x: sx, y: Math.max(5, blockY), w: TILE * 1.2, h: blockH });
+  } else {
+    // Double floating blocks stacked with a gap
+    const gap2 = Math.max(55, 90 - (d-1)*30);
+    const b1y = 10 + Math.random() * ((GROUND_Y - gap2) / 2 - 20);
+    obstacles.push({ type: 'cube', x: sx, y: b1y, w: TILE, h: TILE * 1.5 });
+    obstacles.push({ type: 'cube', x: sx, y: b1y + TILE * 1.5 + gap2, w: TILE, h: TILE * 1.5 });
   }
 }
 
@@ -121,8 +159,7 @@ function spawnSpike(sx) {
   sx = sx || W + 60;
   const d = diff();
   const count = d > 1.4 && Math.random() < 0.4 ? 2 : 1;
-  const ceiling = player.mode === 'rocket' && d > 1.6 && Math.random() < 0.3;
-  obstacles.push({ type: 'spike', x: sx, y: ceiling ? 0 : GROUND_Y - 34, w: 24 * count, h: 34, count, ceiling });
+  obstacles.push({ type: 'spike', x: sx, y: GROUND_Y - 34, w: 24 * count, h: 34, count, ceiling: false });
 }
 
 function spawnStaircase() {
@@ -138,7 +175,8 @@ function spawnStaircase() {
 }
 
 function spawnPortal() {
-  portals.push({ x: W + 60, y: GROUND_Y - TILE * 3.2, w: 28, h: TILE * 2.6, anim: 0 });
+  // Full-height portal so the player always passes through it
+  portals.push({ x: W + 60, y: 0, w: 32, h: GROUND_Y, anim: 0 });
 }
 
 // ── Reset / Start ──────────────────────────────────────────────────────────────
@@ -246,6 +284,7 @@ function update() {
     if (o.x + o.w < -120) { obstacles.splice(i, 1); continue; }
     if (player.dead) continue;
 
+    if (o.type === 'wall') continue;
     if (o.type === 'spike') {
       const hb = { x: o.x + 5, y: o.ceiling ? o.y : o.y + 5, w: o.w - 10, h: o.h - 6 };
       if (rectsOverlap(player, hb)) killPlayer();
@@ -395,6 +434,7 @@ function drawPortals() {
 
 function drawObstacles() {
   for (const o of obstacles) {
+    if (o.type === 'wall') continue;
     ctx.save();
     if (o.type === 'spike') {
       ctx.shadowBlur = 10; ctx.shadowColor = '#ffd600';
@@ -403,9 +443,9 @@ function drawObstacles() {
         const sx = o.x + i * sw;
         ctx.beginPath();
         if (o.ceiling) {
-          ctx.moveTo(sx, 0); ctx.lineTo(sx+sw/2, 34); ctx.lineTo(sx+sw, 0);
+          ctx.moveTo(sx, 0); ctx.lineTo(sx+sw/2, o.h); ctx.lineTo(sx+sw, 0);
         } else {
-          ctx.moveTo(sx, GROUND_Y); ctx.lineTo(sx+sw/2, GROUND_Y-34); ctx.lineTo(sx+sw, GROUND_Y);
+          ctx.moveTo(sx, GROUND_Y); ctx.lineTo(sx+sw/2, GROUND_Y - o.h); ctx.lineTo(sx+sw, GROUND_Y);
         }
         ctx.closePath();
         const sg = ctx.createLinearGradient(sx,0,sx,34);
