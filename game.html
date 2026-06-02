@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Cube Runner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; }
+  canvas { border: 2px solid #16213e; display: block; }
+  #ui { color: #eee; margin-bottom: 10px; font-size: 18px; display: flex; gap: 40px; }
+  #overlay {
+    position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.75); color: white; font-family: monospace; border-radius: 12px;
+    padding: 40px 60px; gap: 16px;
+  }
+  #overlay h1 { font-size: 42px; color: #e94560; }
+  #overlay p { font-size: 18px; color: #aaa; }
+  #overlay .score { font-size: 28px; color: #f5a623; }
+  #overlay button {
+    margin-top: 10px; padding: 12px 36px; font-size: 20px; font-family: monospace;
+    background: #e94560; color: white; border: none; border-radius: 8px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  #overlay button:hover { background: #c73652; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <span>Score: <b id="score">0</b></span>
+  <span>Highscore: <b id="highscore">0</b></span>
+  <span>Speed: <b id="speed">1.0x</b></span>
+</div>
+<canvas id="c" width="900" height="400"></canvas>
+<div id="overlay">
+  <h1>CUBE RUNNER</h1>
+  <p>Bewege dich konstant nach rechts. Springe über Hindernisse!</p>
+  <p><b>LEERTASTE</b> oder <b>Klick/Touch</b> = Springen</p>
+  <p style="color:#aaa;font-size:14px">Auf Würfel kannst du draufspringen • Spikes töten dich sofort</p>
+  <button id="startBtn">STARTEN</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const scoreEl = document.getElementById('score');
+const highscoreEl = document.getElementById('highscore');
+const speedEl = document.getElementById('speed');
+const startBtn = document.getElementById('startBtn');
+
+const W = canvas.width, H = canvas.height;
+const GROUND = H - 60;
+const TILE = 40;
+
+let state = 'menu'; // menu | playing | dead
+let score = 0, highscore = 0, frameCount = 0;
+let gameSpeed = 4;
+let bgOffset = 0;
+
+// Player
+const player = {
+  x: 120, y: GROUND - TILE,
+  w: TILE, h: TILE,
+  vy: 0,
+  onGround: false,
+  jumpsLeft: 0,
+  dead: false,
+  deathAnim: 0,
+  trail: []
+};
+
+let obstacles = [];
+let particles = [];
+let stars = [];
+
+// Generate background stars once
+for (let i = 0; i < 80; i++) {
+  stars.push({ x: Math.random() * W, y: Math.random() * (H - 100), r: Math.random() * 1.5 + 0.5, speed: Math.random() * 0.5 + 0.2 });
+}
+
+function reset() {
+  player.x = 120;
+  player.y = GROUND - TILE;
+  player.vy = 0;
+  player.onGround = false;
+  player.jumpsLeft = 0;
+  player.dead = false;
+  player.deathAnim = 0;
+  player.trail = [];
+  obstacles = [];
+  particles = [];
+  score = 0;
+  frameCount = 0;
+  gameSpeed = 4;
+  bgOffset = 0;
+  spawnTimer = 0;
+  nextSpawnIn = 60;
+}
+
+let spawnTimer = 0;
+let nextSpawnIn = 60;
+
+function difficulty() {
+  // Increases every 500 score
+  return 1 + Math.floor(score / 500) * 0.15;
+}
+
+function spawnObstacle() {
+  const diff = difficulty();
+  const rng = Math.random();
+  const sx = W + 60;
+
+  // At higher difficulties, allow more complex patterns
+  if (diff > 1.6 && Math.random() < 0.3) {
+    // Double obstacle
+    spawnSingle(sx);
+    spawnSingle(sx + TILE * 2.5 + Math.random() * TILE);
+  } else {
+    spawnSingle(sx);
+  }
+}
+
+function spawnSingle(sx) {
+  const diff = difficulty();
+  const rng = Math.random();
+  // spike chance increases with difficulty
+  const spikeChance = Math.min(0.5, 0.2 + (diff - 1) * 0.3);
+
+  if (rng < spikeChance) {
+    // Spike (deadly, can't jump on)
+    const count = Math.random() < 0.4 && diff > 1.3 ? 2 : 1;
+    obstacles.push({ type: 'spike', x: sx, y: GROUND - 34, w: 24 * count, h: 34, count });
+  } else {
+    // Cube obstacle (can jump on top)
+    const tall = diff > 1.5 && Math.random() < 0.3;
+    const cubeH = tall ? TILE * 2 : TILE;
+    obstacles.push({ type: 'cube', x: sx, y: GROUND - cubeH, w: TILE, h: cubeH });
+  }
+}
+
+function jump() {
+  if (state !== 'playing') return;
+  if (player.jumpsLeft > 0) {
+    player.vy = -13;
+    player.jumpsLeft--;
+    spawnParticles(player.x + player.w / 2, player.y + player.h, '#88aaff', 8);
+  }
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: Math.random() * -4 - 1,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color,
+      r: Math.random() * 4 + 2
+    });
+  }
+}
+
+function deathExplosion() {
+  for (let i = 0; i < 30; i++) {
+    const angle = (Math.PI * 2 * i) / 30;
+    particles.push({
+      x: player.x + player.w / 2,
+      y: player.y + player.h / 2,
+      vx: Math.cos(angle) * (Math.random() * 6 + 2),
+      vy: Math.sin(angle) * (Math.random() * 6 + 2),
+      life: 50,
+      maxLife: 50,
+      color: `hsl(${Math.random() * 60}, 100%, 60%)`,
+      r: Math.random() * 6 + 2
+    });
+  }
+}
+
+function checkCollision(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function update() {
+  if (state !== 'playing') return;
+
+  frameCount++;
+  score += 1;
+  scoreEl.textContent = score;
+
+  const diff = difficulty();
+  gameSpeed = 4 + (diff - 1) * 3;
+  speedEl.textContent = diff.toFixed(1) + 'x';
+
+  bgOffset = (bgOffset + gameSpeed * 0.3) % W;
+
+  // Gravity
+  player.vy += 0.6;
+  player.y += player.vy;
+  player.onGround = false;
+
+  // Trail
+  player.trail.push({ x: player.x + player.w / 2, y: player.y + player.h / 2 });
+  if (player.trail.length > 12) player.trail.shift();
+
+  // Ground collision
+  if (player.y + player.h >= GROUND) {
+    player.y = GROUND - player.h;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumpsLeft = 2; // double jump allowed
+  }
+
+  // Spawn obstacles
+  spawnTimer++;
+  if (spawnTimer >= nextSpawnIn) {
+    spawnTimer = 0;
+    // Gap between obstacles shrinks with difficulty
+    nextSpawnIn = Math.max(40, 90 - diff * 20 + Math.random() * 30);
+    spawnObstacle();
+  }
+
+  // Update obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    o.x -= gameSpeed;
+    if (o.x + o.w < -100) { obstacles.splice(i, 1); continue; }
+
+    if (player.dead) continue;
+
+    if (o.type === 'spike') {
+      // Build spike hitbox (slightly smaller than visual)
+      const hitbox = { x: o.x + 4, y: o.y + 4, w: o.w - 8, h: o.h - 4 };
+      if (checkCollision({ x: player.x, y: player.y, w: player.w, h: player.h }, hitbox)) {
+        killPlayer();
+      }
+    } else if (o.type === 'cube') {
+      if (checkCollision({ x: player.x + 2, y: player.y, w: player.w - 4, h: player.h }, o)) {
+        // Land on top?
+        const prevBottom = player.y + player.h - player.vy;
+        if (prevBottom <= o.y + 4 && player.vy >= 0) {
+          player.y = o.y - player.h;
+          player.vy = 0;
+          player.onGround = true;
+          player.jumpsLeft = 2;
+        } else {
+          // Side / bottom collision = death
+          killPlayer();
+        }
+      }
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Stars parallax
+  for (const s of stars) {
+    s.x -= s.speed * (gameSpeed / 4);
+    if (s.x < 0) s.x = W;
+  }
+
+  if (player.dead) {
+    player.deathAnim++;
+    if (player.deathAnim > 80) showDead();
+  }
+}
+
+function killPlayer() {
+  if (player.dead) return;
+  player.dead = true;
+  deathExplosion();
+  if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; }
+}
+
+function showDead() {
+  state = 'dead';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <h1>GAME OVER</h1>
+    <div class="score">Score: ${score}</div>
+    <div class="score" style="color:#aaf">Highscore: ${highscore}</div>
+    <p>Distanz: ${Math.floor(score / 10)}m • Speed: ${difficulty().toFixed(1)}x</p>
+    <button id="startBtn">NOCHMAL</button>
+  `;
+  document.getElementById('startBtn').addEventListener('click', startGame);
+}
+
+function startGame() {
+  overlay.style.display = 'none';
+  reset();
+  state = 'playing';
+}
+
+// Drawing
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0f0c29');
+  grad.addColorStop(1, '#302b63');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (const s of stars) {
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.4 + s.r * 0.3})`;
+    ctx.fill();
+  }
+
+  // Ground
+  ctx.fillStyle = '#16213e';
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+
+  // Ground line with glow
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#4fc3f7';
+  ctx.fillStyle = '#4fc3f7';
+  ctx.fillRect(0, GROUND, W, 3);
+  ctx.shadowBlur = 0;
+
+  // Ground tiles
+  const tileW = 60;
+  const offset = bgOffset % tileW;
+  ctx.strokeStyle = 'rgba(79,195,247,0.15)';
+  ctx.lineWidth = 1;
+  for (let x = -offset; x < W; x += tileW) {
+    ctx.beginPath();
+    ctx.moveTo(x, GROUND);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+}
+
+function drawPlayer() {
+  if (player.dead && player.deathAnim > 5) return;
+
+  // Trail
+  for (let i = 0; i < player.trail.length; i++) {
+    const t = player.trail[i];
+    const alpha = (i / player.trail.length) * 0.4;
+    const size = (i / player.trail.length) * player.w * 0.7;
+    ctx.fillStyle = `rgba(100,160,255,${alpha})`;
+    ctx.fillRect(t.x - size / 2, t.y - size / 2, size, size);
+  }
+
+  // Glow
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#4fc3f7';
+
+  // Player cube
+  const grad = ctx.createLinearGradient(player.x, player.y, player.x + player.w, player.y + player.h);
+  grad.addColorStop(0, '#64b5f6');
+  grad.addColorStop(1, '#1976d2');
+  ctx.fillStyle = grad;
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(player.x + 4, player.y + 4, player.w - 8, 8);
+  ctx.fillRect(player.x + 4, player.y + 4, 8, player.h - 8);
+
+  // Border
+  ctx.strokeStyle = '#90caf9';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(player.x, player.y, player.w, player.h);
+
+  ctx.shadowBlur = 0;
+}
+
+function drawObstacles() {
+  for (const o of obstacles) {
+    if (o.type === 'cube') {
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#ff7043';
+      const g = ctx.createLinearGradient(o.x, o.y, o.x + o.w, o.y + o.h);
+      g.addColorStop(0, '#ef5350');
+      g.addColorStop(1, '#b71c1c');
+      ctx.fillStyle = g;
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(o.x + 3, o.y + 3, o.w - 6, 7);
+      ctx.strokeStyle = '#ff8a65';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(o.x, o.y, o.w, o.h);
+      ctx.shadowBlur = 0;
+    } else if (o.type === 'spike') {
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#ffd600';
+      const count = o.count || 1;
+      const sw = 24;
+      for (let i = 0; i < count; i++) {
+        const sx = o.x + i * sw;
+        ctx.beginPath();
+        ctx.moveTo(sx, GROUND);
+        ctx.lineTo(sx + sw / 2, GROUND - 34);
+        ctx.lineTo(sx + sw, GROUND);
+        ctx.closePath();
+        const sg = ctx.createLinearGradient(sx, GROUND - 34, sx, GROUND);
+        sg.addColorStop(0, '#fff176');
+        sg.addColorStop(1, '#f9a825');
+        ctx.fillStyle = sg;
+        ctx.fill();
+        ctx.strokeStyle = '#ffd600';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+    }
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Speed bar
+  const diff = difficulty();
+  const barW = 150, barH = 12;
+  const bx = W - barW - 20, by = 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(bx, by, barW, barH);
+  const prog = Math.min(1, (diff - 1) / 2);
+  const hue = 120 - prog * 120;
+  ctx.fillStyle = `hsl(${hue},100%,50%)`;
+  ctx.fillRect(bx, by, barW * prog, barH);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, barW, barH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.fillText('DANGER', bx + 50, by + 10);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  drawObstacles();
+  drawParticles();
+  drawPlayer();
+  if (state === 'playing') drawHUD();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Input
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); jump(); }
+  if (state === 'menu' || state === 'dead') return;
+});
+
+canvas.addEventListener('click', () => jump());
+canvas.addEventListener('touchstart', e => { e.preventDefault(); jump(); }, { passive: false });
+
+startBtn.addEventListener('click', startGame);
+
+loop();
+</script>
+</body>
+</html>
