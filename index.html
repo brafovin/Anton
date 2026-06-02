@@ -5,11 +5,11 @@
 <title>Cube Runner</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: monospace; overflow: hidden; }
-  canvas { border: 2px solid #16213e; display: block; }
-  #ui { color: #eee; margin-bottom: 8px; font-size: 15px; display: flex; gap: 24px; align-items: center; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+  canvas { display: block; position: fixed; top: 0; left: 0; }
+  #ui { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); color: #eee; font-size: 15px; display: flex; gap: 24px; align-items: center; z-index: 10; background: rgba(0,0,0,0.4); padding: 4px 18px; border-radius: 20px; }
   #modeTag { padding: 2px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; background: #1565c0; color: #fff; transition: background 0.4s; }
-  #overlay { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.88); color: white; font-family: monospace; border-radius: 14px; padding: 28px 52px; gap: 12px; }
+  #overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.88); color: white; font-family: monospace; border-radius: 14px; padding: 28px 52px; gap: 12px; z-index: 20; }
   #overlay h1 { font-size: 36px; letter-spacing: 4px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
   .card { background: rgba(255,255,255,0.07); border-radius: 8px; padding: 7px 11px; font-size: 11px; text-align: center; line-height: 1.5; }
@@ -20,13 +20,13 @@
 </style>
 </head>
 <body>
+<canvas id="c"></canvas>
 <div id="ui">
   <span>Score: <b id="score">0</b></span>
   <span>Best: <b id="highscore">0</b></span>
   <span id="sectionLabel" style="color:#ffd54f;font-weight:bold">Abschnitt 1/5</span>
   <span>Modus: <b id="modeTag">WÜRFEL</b></span>
 </div>
-<canvas id="c" width="920" height="420"></canvas>
 <div id="overlay">
   <h1 style="color:#e94560">CUBE RUNNER</h1>
   <p style="color:#f5a623;font-size:13px">5 Abschnitte — 1 Ziel</p>
@@ -50,9 +50,18 @@ const highscoreEl  = document.getElementById('highscore');
 const modeTagEl    = document.getElementById('modeTag');
 const sectionLbl   = document.getElementById('sectionLabel');
 
-const W = canvas.width, H = canvas.height;
-const GY   = H - 60;   // ground y
-const TILE = 38;
+let W, H, GY, TILE;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = W;
+  canvas.height = H;
+  GY   = H - Math.round(H * 0.14);   // ground ~14% from bottom
+  TILE = Math.round(Math.min(W, H) * 0.075);
+}
+resize();
+window.addEventListener('resize', () => { resize(); if (state === 'playing') reset(); });
 
 const MODES = {
   cube:   { name:'WÜRFEL', color:'#64b5f6', tag:'#1565c0', bg0:'#0f0c29', bg1:'#302b63', ground:true  },
