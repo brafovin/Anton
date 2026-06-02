@@ -109,7 +109,7 @@ function onJump() {
   if (state !== 'playing') return;
   if (PL.mode === 'cube' && PL.jumpsLeft > 0) { PL.vy=-11.5; PL.jumpsLeft--; burst(PL.x+PL.w/2, PL.y+PL.h, '#88aaff', 8); }
   else if (PL.mode === 'ball' && PL.jumpsLeft > 0) { PL.vy=-13; PL.jumpsLeft--; burst(PL.x+PL.w/2, PL.y+PL.h, '#a5d6a7', 8); }
-  else if (PL.mode === 'ufo') { PL.vy=Math.max(PL.vy-5,-7); burst(PL.x+PL.w/2, PL.y+PL.h, '#80deea', 6); }
+  else if (PL.mode === 'ufo') { PL.vy=Math.max(PL.vy-9,-10); burst(PL.x+PL.w/2, PL.y+PL.h, '#80deea', 10); }
 }
 
 // ── Spawners ───────────────────────────────────────────────────────────────────
