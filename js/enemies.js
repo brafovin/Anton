@@ -19,7 +19,12 @@ IDLE.reaper = { ...DEF, hx: -0.18, hy: 0.32, hz: 0.38, dx: 0.1, dy: 0.85, dz: 0.
 IDLE.shade = { ...IDLE.hollow, lean: 0.12 };
 const REACT = { // Torso-Reaktionen
   stagger: (b) => compile([{ t: 0 }, { t: 0.12, lean: -0.5, shift: -0.2, hx: b.hx - 0.1, hy: b.hy + 0.2, head: 0.4, e: 2 }, { t: 0.55, ...b, e: 0 }], b),
-  parried: (b) => compile([{ t: 0 }, { t: 0.18, lean: -0.5, shift: -0.25, hx: -0.3, hy: 0.85, hz: 0.1, dx: -0.4, dy: 0.8, dz: -0.4, twist: -0.6, head: 0.5, lfree: 0, e: 2 }, { t: 3, lean: -0.55, twist: -0.65, e: 3 }], b),
+  // Benommen (Parry / Ansturm gegen die Wand): taumelt, sinkt auf die Knie und bleibt gebeugt hocken (wie Elden Ring), steht am Ende wieder auf
+  parried: (b, dur = 2.6) => {
+    const KN = { lean: 0.4, shift: 0.1, crouch: 0.45, kneel: 1, head: 0.55, twist: -0.2, hx: -0.05, hy: -0.05, hz: 0.35, dx: 0, dy: -0.7, dz: 0.75, lg: -0.2, lfree: 1, lx: 0.25, ly: -0.1, lz: 0.3, glow: 0 };
+    return compile([{ t: 0 }, { t: 0.18, lean: -0.5, shift: -0.25, hx: -0.3, hy: 0.85, hz: 0.1, dx: -0.4, dy: 0.8, dz: -0.4, twist: -0.6, head: 0.5, lfree: 0, e: 2 },
+      { t: 0.62, ...KN, e: 2 }, { t: Math.max(1, dur - 0.55), ...KN, lean: 0.46, e: 3 }, { t: dur, ...b, e: 0 }], b);
+  },
   dead: (b) => compile([{ t: 0 }, { t: 0.4, lean: -0.3, bpitch: -0.5, crouch: 0.3, hx: -0.3, hy: 0.5, e: 2 }, { t: 1.2, lean: 0, bpitch: -Math.PI / 2, crouch: 0.77, tuck: 0.2, hx: -0.5, hy: 0.3, dx: 0.5, dz: 0.3, e: 1 }], b),
 };
 
@@ -243,7 +248,7 @@ export class Enemy {
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
   }
   useBow(v) { if (!!v === !!this._bow || !this.h.weapons.kingbow) return; this._bow = !!v; this.h.setWeapon(v ? 'kingbow' : 'kingsword'); }
-  setState(s, blend = 0.1) { if (s !== 'attack') this.useBow(false); this.prev = { ...this.pose }; this.state = s; this.t = 0; this.blendT = 0; this.blendDur = blend; }
+  setState(s, blend = 0.1) { if (s !== 'attack') this.useBow(false); this.prev = { ...this.pose }; this.state = s; this.t = 0; if (s === 'parried') this.flags = {}; this.blendT = 0; this.blendDur = blend; }
   dispose() { this.G.scene.remove(this.h.root); this.h.root.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
 
   aggroNow() { if (this.state === 'idle' || this.state === 'return') this.setState('chase', 0.2); }
@@ -446,14 +451,21 @@ export class Enemy {
         break;
       }
       case 'parried': {
-        target = sample(REACT.parried(T.idle), this.t, {});
+        target = sample(REACT.parried(T.idle, this.parriedDur), this.t, {});
+        if (!this.flags?.knelt && this.t >= 0.5) { // Aufprall der Knie
+          this.flags = { ...this.flags, knelt: true }; const c = this.pos.clone(); G.fx.dust(c, this.isBoss ? 18 : 8); Sound.play('step');
+          if (this.isBoss) { G.shake(0.35); Sound.play('bossSlam'); }
+        }
         if (this.t >= this.parriedDur) { this.setState('chase', 0.2); this.cd = 0.2; }
         break;
       }
       case 'riposted': {
-        target = sample(REACT.stagger(T.idle), Math.min(this.t, 0.12) + 0.0, {});
+        { // getroffen: bleibt kniend, wird vom Stich nach hinten gedrueckt
+          const kn = sample(REACT.parried(T.idle, 3), 1.5, {}), jolt = Math.exp(-this.t * 5);
+          target = { ...kn, lean: kn.lean - 0.7 * jolt, head: kn.head - 0.5 * jolt };
+        }
         this.riposteT -= dt;
-        if (this.t >= 1.25 || this.riposteT <= 0) { this.setState('stagger', 0.1); this.staggerDur = 0.8; this.cd = 0.8; }
+        if (this.t >= 1.25 || this.riposteT <= 0) { this.setState('stagger', 0.45); this.staggerDur = 0.8; this.cd = 0.8; }
         break;
       }
       case 'return': {
