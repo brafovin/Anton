@@ -309,6 +309,7 @@ export function createPlayer(G) {
       return true;
     }
     if (it.type === 'item') { G.pickupWeapon(); return true; }
+    if (it.type === 'locked') { Sound.play('error'); G.ui.toast(it.text); return false; }
     if (it.type === 'fog') {
       const g = it.fight.arena.gate;
       P.fogFight = it.fight; P.setState('fogwalk', { blend: 0.2 });
@@ -535,7 +536,11 @@ export function createPlayer(G) {
         for (const f of G.fights) {
           if (f.dead || !f.enemy) continue;
           const g = f.arena.gate, rx = P.pos.x - g.x, rz = P.pos.z - g.z, along = rx * g.nx + rz * g.nz, lat = Math.abs(rx * g.nz - rz * g.nx);
-          if (along > 0 && along < 3.4 && lat < g.w / 2) { P.interact = { type: 'fog', fight: f, text: 'E  Nebeltor durchschreiten' }; break; }
+          if (along > 0 && along < 3.4 && lat < g.w / 2) {
+            if (G.isUnlocked(f)) P.interact = { type: 'fog', fight: f, text: 'E  Nebeltor durchschreiten' };
+            else { const pv = G.fights[G.fights.indexOf(f) - 1]; P.interact = { type: 'locked', text: 'Versiegelt – besiege zuerst ' + pv.arena.bossName.split(',')[0] }; }
+            break;
+          }
         }
       }
     }
