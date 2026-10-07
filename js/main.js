@@ -76,13 +76,36 @@ createPlayer(G);
 const P = G.player;
 
 // ------------------------------------------------------------------ Speicherstand
-const SAVE_KEY = 'aschenfeuer-save-v1';
+const LEGACY_KEY = 'aschenfeuer-save-v1';
+const SLOT_COUNT = 5, SLOT_PREFIX = 'aschenfeuer-slot-', LAST_SLOT_KEY = 'aschenfeuer-lastslot';
+const slotKey = (i) => SLOT_PREFIX + i;
+G.slot = 1; // aktiver Spielstand-Slot (1..SLOT_COUNT)
+G.SLOT_COUNT = SLOT_COUNT;
+G.readSlot = (i) => { try { return JSON.parse(localStorage.getItem(slotKey(i)) || 'null'); } catch (e) { return null; } };
+G.deleteSlot = (i) => { try { localStorage.removeItem(slotKey(i)); } catch (e) { /* ignore */ } };
+// Alter Einzel-Spielstand wandert in den ersten freien Slot
+try {
+  const old = localStorage.getItem(LEGACY_KEY);
+  if (old) {
+    let target = 0;
+    for (let i = 1; i <= SLOT_COUNT; i++) if (!G.readSlot(i)) { target = i; break; }
+    if (target) { localStorage.setItem(slotKey(target), old); localStorage.setItem(LAST_SLOT_KEY, String(target)); }
+    localStorage.removeItem(LEGACY_KEY);
+  }
+} catch (e) { /* ignore */ }
+G.lastSlot = () => {
+  let n = 1; try { n = parseInt(localStorage.getItem(LAST_SLOT_KEY), 10) || 1; } catch (e) { /* ignore */ }
+  n = clamp(n, 1, SLOT_COUNT);
+  if (!G.readSlot(n)) for (let i = 1; i <= SLOT_COUNT; i++) if (G.readSlot(i)) return i; // Fallback: erster vorhandener Slot
+  return n;
+};
 G.save = () => {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({
-      finished: !!G.ended, cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+    localStorage.setItem(slotKey(G.slot), JSON.stringify({
+      ts: Date.now(), finished: !!G.ended, cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
       dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
+    localStorage.setItem(LAST_SLOT_KEY, String(G.slot));
   } catch (e) { /* Speichern nicht moeglich */ }
 };
 function ensureArenaBonfire(f) {
@@ -97,9 +120,7 @@ function ensurePlazaBonfire() {
   if (!b) b = G.world.makeBonfire(PLAZA_BONFIRE.id, PLAZA_BONFIRE.name, PLAZA_BONFIRE.x, PLAZA_BONFIRE.z);
   return b;
 }
-let saved = null;
-try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
-G.hasSave = !!saved;
+G.hasSave = (() => { for (let i = 1; i <= SLOT_COUNT; i++) if (G.readSlot(i)) return true; return false; })();
 const startPos = G.world.bonfires[0].pos;
 function placePlayer() {
   if (P.lastBonfire) P.warpTo(P.lastBonfire);
@@ -107,8 +128,10 @@ function placePlayer() {
   P.pos.y = groundHeight(P.pos.x, P.pos.z); P.camYaw = P.yaw; if (G.snapCamera) G.snapCamera();
 }
 // Spielstand laden (nur aus dem frischen Hauptmenue heraus)
-G.loadGame = () => {
+G.loadGame = (slot = G.lastSlot()) => {
+  const saved = G.readSlot(slot);
   if (!saved) return false;
+  G.slot = slot;
   P.applyClass(saved.cls || 'ninja');
   Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0;
   P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, ...(saved.owned || {}) };
@@ -125,8 +148,8 @@ G.loadGame = () => {
   P.applyStats(false); populate(); placePlayer();
   return true;
 };
-G.newGame = (clsId) => {
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+G.newGame = (clsId, slot = G.slot) => {
+  G.slot = slot; G.deleteSlot(slot);
   P.applyClass(clsId); P.souls = 0; P.hp = P.maxHp; P.fp = P.maxFp; placePlayer(); G.save();
 };
 
@@ -335,10 +358,10 @@ document.addEventListener('pointerlockchange', () => {
   wasLocked = locked;
 });
 const $ = (id) => document.getElementById(id);
-function pause() { G.paused = true; $('pause-msg').textContent = ''; $('pause').classList.add('show'); if (document.pointerLockElement) document.exitPointerLock(); }
+function pause() { G.paused = true; $('pause-msg').textContent = `Spielstand-Slot ${G.slot}`; $('pause').classList.add('show'); if (document.pointerLockElement) document.exitPointerLock(); }
 function resume() { $('pause').classList.remove('show'); G.paused = false; try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (_) { /* ignore */ } }
 $('resume').addEventListener('click', resume);
-$('btn-save').addEventListener('click', () => { G.save(); $('pause-msg').textContent = 'Spiel gespeichert.'; Sound.play('ui'); });
+$('btn-save').addEventListener('click', () => { G.save(); $('pause-msg').textContent = `Gespeichert in Slot ${G.slot}.`; Sound.play('ui'); });
 $('btn-menu').addEventListener('click', () => { G.save(); location.href = location.pathname; });
 
 // ---- Hauptmenue: Neues Spiel / Spiel laden / Klassenwahl ----
@@ -360,22 +383,63 @@ function selectClass(id) {
 }
 function showScreen(name) {
   G.menu = name; document.body.classList.toggle('inmenu', !!name);
-  $('overlay').classList.toggle('show', name === 'title'); $('classes').classList.toggle('show', name === 'classes');
+  $('overlay').classList.toggle('show', name === 'title'); $('classes').classList.toggle('show', name === 'classes'); $('slots').classList.toggle('show', name === 'slots');
 }
-(function initTitle() {
-  const lv = saved ? Object.values(saved.stats || { a: 10, b: 10, c: 10, d: 10 }).reduce((a, b) => a + b, 0) - 40 + 1 : 0;
-  $('btn-load').disabled = !saved;
-  $('save-info').textContent = saved ? `Spielstand: ${CLASSES[saved.cls || 'ninja'].name} · Level ${lv} · Bosse ${(saved.dead || (saved.bossDead ? ['x'] : [])).length}/5${saved.finished ? ' · Durchgespielt ✓' : ''}` : 'Kein Spielstand vorhanden.';
-  showScreen('title');
-})();
+const slotLevel = (sv) => Object.values(sv.stats || { a: 10, b: 10, c: 10, d: 10 }).reduce((x, y) => x + y, 0) - 40 + 1;
+const slotSummary = (sv) => `${(CLASSES[sv.cls] || CLASSES.ninja).name} · Level ${slotLevel(sv)} · Bosse ${(sv.dead || (sv.bossDead ? ['x'] : [])).length}/5${sv.finished ? ' · Durchgespielt ✓' : ''}`;
+const slotDate = (sv) => { if (!sv.ts) return ''; const d = new Date(sv.ts); return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+function refreshTitle() {
+  const n = Array.from({ length: SLOT_COUNT }, (_, i) => G.readSlot(i + 1)).filter(Boolean).length;
+  G.hasSave = n > 0;
+  $('btn-load').disabled = !n;
+  $('save-info').textContent = n ? `${n} Spielstand${n > 1 ? 'stände' : ''} vorhanden.` : 'Kein Spielstand vorhanden.';
+  const last = G.readSlot(G.lastSlot());
+  P.applyClass(last ? (last.cls || 'ninja') : 'ninja');
+}
+// ---- Spielstand-Slots: mode 'load' (laden/loeschen) oder 'new' (Slot fuer neues Spiel waehlen) ----
+let slotMode = 'load', pendingDelete = 0;
+function renderSlots() {
+  $('slots-title').textContent = slotMode === 'new' ? 'Neues Spiel – Slot wählen' : 'Spielstand laden';
+  $('slots-sub').textContent = slotMode === 'new' ? 'Ein belegter Slot wird überschrieben.' : '';
+  const list = $('slot-list'); list.innerHTML = '';
+  for (let i = 1; i <= SLOT_COUNT; i++) {
+    const sv = G.readSlot(i);
+    const row = document.createElement('div'); row.className = 'svslot' + (sv ? '' : ' empty');
+    const main = document.createElement('button'); main.className = 'svslot-main';
+    main.disabled = slotMode === 'load' && !sv;
+    main.innerHTML = `<span class="svslot-n">${i}</span><span class="svslot-txt"><b>${sv ? slotSummary(sv) : 'Leer'}</b><small>${sv ? slotDate(sv) : (slotMode === 'new' ? 'Neuen Spielstand anlegen' : '')}</small></span>`;
+    main.addEventListener('click', () => {
+      Sound.play('ui');
+      if (slotMode === 'load') { if (G.loadGame(i)) start(); }
+      else {
+        G.slot = i;
+        $('cl-warn').textContent = sv ? `Achtung: Slot ${i} wird überschrieben.` : `Neuer Spielstand in Slot ${i}.`;
+        showScreen('classes'); selectClass(chosenClass);
+      }
+    });
+    row.appendChild(main);
+    if (sv) {
+      const del = document.createElement('button'); del.className = 'svslot-del ghost';
+      del.textContent = pendingDelete === i ? 'Sicher?' : 'Löschen';
+      del.addEventListener('click', () => {
+        Sound.play('ui');
+        if (pendingDelete === i) { G.deleteSlot(i); pendingDelete = 0; refreshTitle(); if (!G.hasSave && slotMode === 'load') { showScreen('title'); return; } }
+        else pendingDelete = i;
+        renderSlots();
+      });
+      row.appendChild(del);
+    }
+    list.appendChild(row);
+  }
+}
+function openSlots(mode) { slotMode = mode; pendingDelete = 0; renderSlots(); showScreen('slots'); }
+refreshTitle(); showScreen('title');
 $('btn-controls').addEventListener('click', () => $('controls').classList.toggle('hidden'));
-$('btn-new').addEventListener('click', () => {
-  $('cl-warn').textContent = saved ? 'Achtung: Ein vorhandener Spielstand wird überschrieben.' : '';
-  showScreen('classes'); selectClass(chosenClass);
-});
-$('btn-back').addEventListener('click', () => { showScreen('title'); P.applyClass(saved ? (saved.cls || 'ninja') : 'ninja'); });
-$('btn-begin').addEventListener('click', () => { G.newGame(chosenClass); start(); });
-$('btn-load').addEventListener('click', () => { if (G.loadGame()) start(); });
+$('btn-new').addEventListener('click', () => openSlots('new'));
+$('btn-load').addEventListener('click', () => openSlots('load'));
+$('btn-slots-back').addEventListener('click', () => { showScreen('title'); refreshTitle(); });
+$('btn-back').addEventListener('click', () => { openSlots('new'); P.applyClass('ninja'); });
+$('btn-begin').addEventListener('click', () => { G.newGame(chosenClass, G.slot); start(); });
 
 function start() {
   Sound.init();
@@ -388,7 +452,7 @@ function start() {
 }
 {
   const q = new URLSearchParams(location.search);
-  if (q.has('autostart')) { if (G.hasSave) G.loadGame(); else G.newGame(q.get('class') || 'ninja'); start(); }
+  if (q.has('autostart')) { const sl = parseInt(q.get('slot'), 10) || G.lastSlot(); if (!G.loadGame(sl)) G.newGame(q.get('class') || 'ninja', sl); start(); }
 }
 
 $('btn-continue').addEventListener('click', () => { $('ending').classList.remove('show'); G.paused = false; try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (_) { /* ignore */ } });
