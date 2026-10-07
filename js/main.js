@@ -79,7 +79,7 @@ G.save = () => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
-      dead: G.fights.filter((f) => f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
+      dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
   } catch (e) { /* Speichern nicht moeglich */ }
 };
@@ -96,6 +96,7 @@ if (saved) {
   P.maxEstus = saved.maxEstus || P.maxEstus; P.maxMana = saved.maxMana || P.maxMana; P.estus = P.maxEstus; P.mana = P.maxMana;
   const dead = new Set(saved.dead || (saved.bossDead ? ['hadrian'] : []));
   for (const f of G.fights) if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); }
+  for (const f of G.fights) if ((saved.seen || []).includes(f.id) || dead.has(f.id)) f.introSeen = true;
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
@@ -144,6 +145,11 @@ G.startBoss = (f) => {
   if (!f || !f.enemy) return;
   G.activeFight = f; G.boss = f.enemy; G.world.setGateSealed(f.id, true);
   f.enemy.setState('intro', 0.3);
+  if (f.introSeen) { // Wiederholung (z. B. nach dem Tod): keine Cutscene, nur kurzes Brüllen
+    f.enemy.cd = 0.8; G.ui.setBoss(f.arena.bossName, true); Sound.bossMusic(true); G.ui.banner(f.arena.bossName.split(',')[0].toUpperCase(), 'gold', 3);
+    return;
+  }
+  f.introSeen = true; G.save(); // Cutscene nur beim ersten Mal
   G.cutscenes.playIntro(f, () => { f.enemy.setState('chase', 0.3); f.enemy.cd = Math.max(f.enemy.cd, 0.8); G.ui.setBoss(f.arena.bossName, true); });
 };
 G.onBossDefeated = (b) => {
