@@ -79,3 +79,13 @@ button{font:inherit;font-size:20px;letter-spacing:.2em;text-transform:uppercase;
 button:hover{background:rgba(110,80,30,.6);box-shadow:0 0 22px #a8782a88}
 .hint{font-size:13px;color:#8d8570;margin-top:20px}
 @media (max-width:720px){.grid{grid-template-columns:1fr}#equip{transform:scale(.8);transform-origin:left bottom}}
+
+.ico.gsword{background:linear-gradient(135deg,transparent 42%,#f0a860 45% 55%,transparent 58%),linear-gradient(135deg,transparent 0 76%,#2a2226 76% 92%,transparent 92%);transform:scale(1.6);filter:drop-shadow(0 0 5px #ff8a30)}
+.ico.ash.fire{background:radial-gradient(circle,#ffd08a 0 18%,transparent 20%),conic-gradient(from 200deg,transparent,#ff8a30 8%,transparent 20%);filter:drop-shadow(0 0 6px #f73)}
+#rest-list .dim{opacity:.6;font-size:14px;margin-left:12px}
+#rest-list .val{display:inline-block;min-width:34px;text-align:right;margin-left:14px;color:#fff;font-size:20px}
+#rest-list .poor{opacity:.5}
+#rest-list .lvl{display:flex;gap:26px;margin-bottom:14px;font-size:15px;letter-spacing:.08em;color:#a99a74}
+#rest-list .lvl b{color:#f2e6c4;font-size:19px;margin-left:5px}
+#newgame{margin-left:10px;font-size:15px;padding:12px 24px;opacity:.75}
+#ash-lbl{bottom:auto!important;top:-18px}

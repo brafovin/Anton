@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff } from './util.js';
-import { buildWorld, groundHeight, ARENA, FOG_GATE } from './world.js';
+import { buildWorld, groundHeight, ARENA, FOG_GATE, GLOW } from './world.js';
+import { makeSword } from './models.js';
+import { WEAPON_INFO } from './player.js';
 import { makeFX } from './fx.js';
 import { createUI } from './ui.js';
 import { createPlayer } from './player.js';
@@ -43,18 +45,68 @@ G.shake = (a) => { G.shakeAmt = Math.max(G.shakeAmt, a); };
 
 // ------------------------------------------------------------------ Gegner
 function populate() {
+  const P = G.player;
   G.enemies.forEach((e) => e.dispose()); G.enemies = spawnAll(G);
   G.boss = null;
   if (!G.bossDead) { G.boss = spawnBoss(G); G.enemies.push(G.boss); }
   G.bossEngaged = false;
   G.world.setGateSealed(!G.bossDead); G.world.setGateVisible(!G.bossDead);
+  if (G.bossDead && !P.owned.greatsword) G.spawnDrop(ARENA.x, ARENA.z - 2);
 }
 G.player = null;
 createPlayer(G);
-populate();
 const P = G.player;
+
+// ------------------------------------------------------------------ Speicherstand
+const SAVE_KEY = 'aschenfeuer-save-v1';
+G.save = () => {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, bossDead: G.bossDead, lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null }));
+  } catch (e) { /* Speichern nicht moeglich */ }
+};
+function ensureArenaBonfire() {
+  let nb = G.world.bonfires.find((b) => b.id === 3);
+  if (!nb) nb = G.world.makeBonfire(3, 'Arena des Wächters', ARENA.x, ARENA.z + 8);
+  return nb;
+}
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
+if (saved) {
+  Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0; Object.assign(P.owned, saved.owned || {});
+  G.bossDead = !!saved.bossDead;
+  if (G.bossDead) ensureArenaBonfire();
+  for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
+  if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
+  if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
+  P.applyStats(false);
+  document.getElementById('newgame').style.display = '';
+  document.getElementById('start').textContent = 'Fortsetzen';
+}
+document.getElementById('newgame').addEventListener('click', () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } location.reload(); });
+
+// ------------------------------------------------------------------ Boss-Waffe (Beute)
+G.drop = null;
+G.spawnDrop = (x, z) => {
+  if (G.drop) return;
+  const g = new THREE.Group(); const y = groundHeight(x, z); g.position.set(x, y, z);
+  const l = new THREE.PointLight(0xff8a30, 40, 14, 2); l.position.y = 1.2; g.add(l);
+  const sw = makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.9 }); sw.scale.setScalar(0.55); sw.rotation.z = Math.PI; sw.position.y = 1.4; g.add(sw);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xff9a40, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); halo.scale.set(3.2, 3.2, 1); halo.position.y = 1.2; g.add(halo);
+  const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.5, 4, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xff9a40, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); pil.position.y = 2; g.add(pil);
+  scene.add(g); G.drop = { pos: g.position.clone(), mesh: g, sword: sw };
+};
+G.pickupWeapon = () => {
+  if (!G.drop) return;
+  scene.remove(G.drop.mesh); G.drop = null;
+  P.owned.greatsword = true; P.setWeapon('greatsword');
+  Sound.play('victory'); G.ui.banner('KLINGE ERHALTEN', 'gold', 4.5); G.ui.toast(WEAPON_INFO.greatsword.name + ' – mit C Waffe wechseln');
+  G.fx.souls(P.pos.clone().setY(P.pos.y + 1), 40);
+  G.save();
+};
+populate();
 const startPos = G.world.bonfires[0].pos;
-P.pos.set(startPos.x, 0, startPos.z + 3.2); P.spawn.copy(P.pos);
+if (P.lastBonfire) { P.warpTo(P.lastBonfire); }
+else { P.pos.set(startPos.x, 0, startPos.z + 3.2); P.spawn.copy(P.pos); }
 P.pos.y = groundHeight(P.pos.x, P.pos.z);
 
 // ------------------------------------------------------------------ Spielereignisse
@@ -64,8 +116,9 @@ G.lightBonfire = (b) => {
   G.fx.flash(b.pos.clone().setY(b.pos.y + 1.4), 0xffaa44, 160, 0.9);
   G.fx.add.emit(b.pos.clone().setY(b.pos.y + 0.6), 50, { vel: 4, up: 2, life: 1.4, size: 0.18, color: [1, 0.7, 0.3], gravity: -1 });
   P.lastBonfire = b; P.spawn.copy(b.pos).add(new THREE.Vector3(Math.sin(P.yaw) * -1.8, 0, Math.cos(P.yaw) * -1.8)); P.spawnYaw = P.yaw;
+  G.save();
 };
-G.restAt = (b) => { populate(); };
+G.restAt = (b) => { populate(); G.save(); };
 G.startBoss = () => {
   if (!G.boss) return;
   G.bossEngaged = true; G.world.setGateSealed(true);
@@ -76,7 +129,9 @@ G.onBossDefeated = (b) => {
   G.ui.banner('FEIND GEFALLEN', 'gold', 5.5); Sound.play('victory'); Sound.bossMusic(false); G.ui.setBoss(null, false);
   G.world.setGateSealed(false); G.world.setGateVisible(false);
   G.fx.ring(b.pos.clone(), { color: 0xffe0a0, r: 16, dur: 1.5 }); G.fx.souls(b.pos.clone().setY(2), 120);
-  const nb = G.world.makeBonfire(3, 'Arena des Wächters', ARENA.x, ARENA.z + 8); nb.lit = true;
+  ensureArenaBonfire().lit = true;
+  G.spawnDrop(ARENA.x, ARENA.z - 2);
+  G.save();
 };
 G.dropStain = (pos, souls) => {
   if (G.stain) { scene.remove(G.stain.mesh); }
@@ -152,9 +207,17 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') Sound.toggleMute();
   if (e.code === 'Escape' && G.running && !G.paused) pause();
   if (G.menuOpen && G.running) {
-    if (['KeyE', 'Enter', 'Space', 'Escape'].includes(e.code)) { P.getUp(); I.pressed.delete(e.code); P.buf = null; }
-    const m = /^Digit(\d)$/.exec(e.code);
-    if (m) { const b = G.ui.restMap[+m[1] - 1]; if (b) warp(b); }
+    if (G.ui.menuMode === 'level') {
+      const m = /^Digit([1-4])$/.exec(e.code);
+      if (m) { if (P.levelUp(['vit', 'mnd', 'end', 'str'][+m[1] - 1])) G.save(); G.ui.showLevel(); }
+      else if (['KeyE', 'KeyU', 'Enter', 'Escape', 'Space'].includes(e.code)) { G.ui.showRest(G.ui.restCtx.lit, G.ui.restCtx.current); }
+    } else {
+      if (e.code === 'KeyU') { G.ui.showLevel(); }
+      else if (['KeyE', 'Enter', 'Space', 'Escape'].includes(e.code)) { P.getUp(); I.pressed.delete(e.code); P.buf = null; }
+      const m = /^Digit(\d)$/.exec(e.code);
+      if (m) { const b = G.ui.restMap[+m[1] - 1]; if (b) warp(b); }
+    }
+    I.pressed.delete(e.code); P.buf = null;
   }
 });
 addEventListener('keyup', (e) => {
@@ -211,6 +274,7 @@ function frame(now) {
   G.world.updateGate(G.time);
   G.fx.update(dt);
   G.ui.update(dt);
+  if (G.drop) { G.drop.sword.rotation.y += dt * 1.2; G.drop.sword.position.y = 1.4 + Math.sin(G.time * 2) * 0.12; }
   if (G.stain) { G.stain.dot.position.y = 0.5 + Math.sin(G.time * 2.5) * 0.15; G.stain.pil.rotation.y += dt; }
   // Todes-/Respawn-Ablauf
   if (G.deathTimer > 0) {

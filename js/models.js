@@ -219,18 +219,51 @@ export function makeHumanoid(o) {
     p.position.set(s * SH_X * 1.02, SH_Y + 0.02, 0); p.scale.set(1.1, 0.8, 1); p.rotation.z = -s * 0.25; torso.add(p);
     const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * bulk, 0.13 * bulk, 0.05, 10), trim); p2.position.set(s * (SH_X + 0.06), SH_Y - 0.06, 0); p2.rotation.z = -s * 0.5; torso.add(p2);
   }
+  // Opulente Ruestung (Boss): Stachel-Schulterpanzer, Beinplatten, glühendes Emblem, Kragen
+  if (O.ornate) {
+    const ember = new THREE.MeshStandardMaterial({ color: 0xff8a20, emissive: 0xff5a10, emissiveIntensity: 2.2, roughness: 0.4 });
+    h.mats.push(ember);
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.045 * bulk, 0.3 - i * 0.05, 6), trim);
+        sp.position.set(s * (SH_X + 0.08 + i * 0.05), SH_Y + 0.18 - i * 0.02, (i - 1) * 0.08); sp.rotation.z = -s * (0.5 + i * 0.28); torso.add(sp);
+      }
+      const big = new THREE.Mesh(new THREE.SphereGeometry(0.2 * bulk, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), armor);
+      big.position.set(s * (SH_X + 0.03), SH_Y + 0.05, 0); big.scale.set(1.25, 0.85, 1.15); big.rotation.z = -s * 0.3; torso.add(big);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19 * bulk, 0.022, 6, 14), trim);
+      rim.position.set(s * (SH_X + 0.05), SH_Y - 0.03, 0); rim.rotation.set(Math.PI / 2, 0, -s * 0.3); rim.scale.set(1.25, 1.1, 1); torso.add(rim);
+    }
+    // Brustemblem
+    const em = new THREE.Mesh(new THREE.CircleGeometry(0.075, 8), ember); em.position.set(0, 0.42, 0.172 * bulk); torso.add(em);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.014, 6, 16), trim); ring.position.copy(em.position); ring.position.z += 0.004; torso.add(ring);
+    for (const [ox, oy] of [[0, 0.17], [0, -0.17], [0.17, 0], [-0.17, 0]]) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.09, 4), trim); t.position.set(ox, 0.42 + oy, 0.172 * bulk); t.rotation.z = ox ? (ox > 0 ? -Math.PI / 2 : Math.PI / 2) : (oy > 0 ? 0 : Math.PI); torso.add(t); }
+    // Kragen + Beinplatten (Tassets)
+    const gorget = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * bulk, 0.22 * bulk, 0.1, 10), trim); gorget.position.y = 0.66; gorget.scale.z = 0.8; torso.add(gorget);
+    for (let i = 0; i < 5; i++) {
+      const a = (i - 2) * 0.42, pl = new THREE.Mesh(new THREE.BoxGeometry(0.15 * bulk, 0.34, 0.025), i % 2 ? armor : trim);
+      pl.geometry.translate(0, -0.17, 0); pl.position.set(Math.sin(a) * 0.2 * bulk, 0.0, Math.cos(a) * 0.15 * bulk); pl.rotation.y = a; pl.rotation.x = 0.1; torso.add(pl);
+      const pb = pl.clone(); pb.position.set(Math.sin(a) * 0.2 * bulk, 0.0, -Math.cos(a) * 0.15 * bulk); pb.rotation.y = Math.PI - a; pb.rotation.x = 0.1; torso.add(pb);
+    }
+  }
   // Cape
   if (O.cape) {
     const geo = new THREE.BoxGeometry(0.5 * bulk, 0.95, 0.025); geo.translate(0, -0.475, 0);
     const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
   }
   // Waffe
-  let weapon;
-  if (O.weapon === 'katana') weapon = makeKatana();
-  else if (O.weapon === 'greatsword') weapon = makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 });
-  else weapon = makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
-  torso.add(weapon); h.weapon = weapon;
-  if (O.weapon === 'katana') {
+  const mkWeapon = (n) => n === 'katana' ? makeKatana()
+    : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
+      : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
+  h.weapons = {};
+  for (const n of (O.weapons || [O.weapon])) { const w = mkWeapon(n); w.visible = n === O.weapon; torso.add(w); h.weapons[n] = w; }
+  h.weapon = h.weapons[O.weapon];
+  h.setWeapon = (n) => {
+    if (!h.weapons[n]) return;
+    for (const k in h.weapons) h.weapons[k].visible = k === n;
+    h.weapon = h.weapons[n]; h.opts.weapon = n;
+    if (h.saya) h.saya.visible = n === 'katana';
+  };
+  if (O.weapon === 'katana' || (O.weapons || []).includes('katana')) {
     const saya = makeSaya(); saya.position.set(0.27, 0.02, 0.1); saya.rotation.x = -1.3; saya.rotation.z = -0.1; torso.add(saya); h.saya = saya;
   }
   if (O.shield) { h.shield = makeShield(O.shieldColor ?? 0x555a63, O.trim); torso.add(h.shield); }

@@ -79,18 +79,71 @@ const ATK = {
   l2: { f: FR.l2, dur: 0.76, hs: 0.22, he: 0.36, st: 13, dmg: 34, range: 2.6, arc: 170, cancel: 0.46, roll: 0.46, next: 'l3', lunge: [0.08, 0.3, 2.6], sfx: 'swing', trail: [0.1, 0.48] },
   l3: { f: FR.l3, dur: 1.0, hs: 0.3, he: 0.44, st: 17, dmg: 50, range: 3.2, arc: 70, cancel: 0.72, roll: 0.62, next: null, lunge: [0.16, 0.36, 6.0], sfx: 'swing', trail: [0.2, 0.5] },
   heavy: { f: FR.heavy, dur: 1.3, hs: 0.66, he: 0.8, st: 28, dmg: 78, range: 3.0, arc: 130, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.72, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.54, 0.9] },
-  ash: { f: FR.ash, dur: 1.55, hs: 0.64, he: 0.72, st: 10, fp: 25, dmg: 110, range: 9.5, arc: 28, cancel: 1.25, roll: 1.2, next: null, lunge: [0.56, 0.74, 15], sfx: 'ash', sfxAt: 0.58, poise: true, line: true, trail: [0.58, 0.95] },
+  ash: { f: FR.ash, dur: 1.55, hs: 0.64, he: 0.72, st: 10, fp: 25, dmg: 110, range: 9.5, arc: 28, cancel: 1.25, roll: 1.2, next: null, lunge: [0.56, 0.74, 15], sfx: 'ash', sfxAt: 0.58, poise: true, line: true, fx: 'wave', trail: [0.58, 0.95] },
   riposte: { f: FR.riposte, dur: 1.75, hs: 0.5, he: 0.52, st: 0, dmg: 170, range: 3, arc: 90, cancel: 1.4, roll: 1.35, next: null, sfx: 'swing', sfxAt: 0.35, trail: [0.38, 0.7] },
+};
+
+
+// ---------------- Großschwert (Waffe des Bosses) ----------------
+export const READY_GS = { ...DEF, hx: -0.1, hy: 0.3, hz: 0.42, dx: 0.1, dy: 0.2, dz: 1, lg: -0.22, twist: 0.1, lean: 0.06, crouch: 0.07 };
+const CG = (frames) => compile(frames, READY_GS);
+const FRG = {
+  g1: CG([R0,
+    { t: 0.3, hx: 0.3, hy: 0.65, hz: 0.05, dx: 1, dy: 0.1, dz: -0.3, twist: 0.95, crouch: 0.12, e: 2 },
+    { t: 0.5, hx: -0.3, hy: 0.55, hz: 0.5, dx: -1, dy: 0.05, dz: 0.5, twist: -1.0, shift: 0.3, crouch: 0.1, e: 1 },
+    { t: 0.66, hx: -0.34, hy: 0.52, hz: 0.45, dx: -1, dy: -0.1, dz: 0.2, twist: -1.1, shift: 0.3, e: 2 },
+    { t: 1.1, ...READY_GS, e: 0 }]),
+  g2: CG([R0,
+    { t: 0.3, hx: -0.35, hy: 0.6, hz: 0.0, dx: -1, dy: 0.15, dz: -0.3, twist: -0.95, crouch: 0.12, e: 2 },
+    { t: 0.5, hx: 0.3, hy: 0.5, hz: 0.5, dx: 1, dy: -0.1, dz: 0.5, twist: 1.0, shift: 0.3, crouch: 0.1, e: 1 },
+    { t: 0.66, hx: 0.34, hy: 0.48, hz: 0.45, dx: 1, dy: -0.15, dz: 0.2, twist: 1.1, shift: 0.3, e: 2 },
+    { t: 1.1, ...READY_GS, e: 0 }]),
+  g3: CG([R0,
+    { t: 0.55, hx: -0.05, hy: 1.0, hz: -0.02, dx: 0, dy: 1, dz: -0.4, lean: -0.4, glow: 0, e: 2 },
+    { t: 0.68, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, shift: 0.3, crouch: 0.15, e: 1 },
+    { t: 0.95, hx: -0.1, hy: 0.28, hz: 0.58, dx: 0, dy: -0.7, dz: 1, lean: 0.45, shift: 0.3, crouch: 0.15, e: 3 },
+    { t: 1.5, ...READY_GS, e: 0 }]),
+  heavy: CG([R0,
+    { t: 0.7, crouch: 0.45, hx: 0, hy: 0.4, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: 0.3, e: 2 },
+    { t: 0.98, crouch: -0.05, hx: 0, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.4, e: 1 },
+    { t: 1.14, hx: -0.1, hy: 0.28, hz: 0.6, dx: 0, dy: -0.8, dz: 1, lean: 0.55, crouch: 0.2, shift: 0.4, e: 1 },
+    { t: 1.4, hx: -0.1, hy: 0.26, hz: 0.58, dx: 0, dy: -0.85, dz: 1, lean: 0.5, crouch: 0.2, shift: 0.4, e: 3 },
+    { t: 1.95, ...READY_GS, e: 0 }]),
+  ash: CG([R0,
+    { t: 0.7, hx: -0.05, hy: 1.02, hz: -0.04, dx: 0, dy: 1, dz: -0.25, lean: -0.5, glow: 1, e: 2 },
+    { t: 0.8, hx: -0.05, hy: 1.04, hz: -0.04, dx: 0, dy: 1, dz: -0.25, lean: -0.55, glow: 1, e: 3 },
+    { t: 0.95, hx: -0.1, hy: 0.2, hz: 0.6, dx: 0, dy: -0.8, dz: 1, lean: 0.55, crouch: 0.25, shift: 0.35, glow: 1, e: 1 },
+    { t: 1.3, hx: -0.1, hy: 0.2, hz: 0.58, dx: 0, dy: -0.85, dz: 1, lean: 0.5, crouch: 0.25, shift: 0.35, glow: 0.4, e: 3 },
+    { t: 1.85, ...READY_GS, glow: 0, e: 0 }]),
+  riposte: CG([R0,
+    { t: 0.35, hx: -0.22, hy: 0.5, hz: -0.05, dx: 0, dy: 0.1, dz: 1, twist: -0.7, lean: -0.1, crouch: 0.22, shift: -0.1, e: 2 },
+    { t: 0.52, hx: -0.06, hy: 0.5, hz: 0.62, dx: 0, dy: -0.05, dz: 1, twist: 0.45, lean: 0.4, shift: 0.4, crouch: 0.24, e: 1 },
+    { t: 1.25, hx: -0.06, hy: 0.5, hz: 0.62, dx: 0, dy: -0.05, dz: 1, twist: 0.45, lean: 0.4, shift: 0.4, crouch: 0.24, e: 3 },
+    { t: 1.9, ...READY_GS, e: 0 }]),
+};
+const ATKG = {
+  l1: { f: FRG.g1, dur: 1.1, hs: 0.42, he: 0.58, st: 20, dmg: 58, range: 3.5, arc: 175, cancel: 0.7, roll: 0.7, next: 'l2', lunge: [0.25, 0.5, 2.6], sfx: 'swingHeavy', trail: [0.28, 0.66] },
+  l2: { f: FRG.g2, dur: 1.1, hs: 0.42, he: 0.58, st: 20, dmg: 62, range: 3.5, arc: 175, cancel: 0.7, roll: 0.7, next: 'l3', lunge: [0.25, 0.5, 2.6], sfx: 'swingHeavy', trail: [0.28, 0.66] },
+  l3: { f: FRG.g3, dur: 1.5, hs: 0.64, he: 0.8, st: 28, dmg: 95, range: 3.6, arc: 120, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.7, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.5, 0.95] },
+  heavy: { f: FRG.heavy, dur: 1.95, hs: 1.1, he: 1.24, st: 40, dmg: 140, range: 3.9, arc: 150, cancel: 1.55, roll: 1.5, next: null, lunge: [0.9, 1.14, 5.5], sfx: 'swingHeavy', sfxAt: 0.9, poise: true, fx: 'slam', trail: [0.95, 1.4] },
+  ash: { f: FRG.ash, dur: 1.85, hs: 0.93, he: 1.0, st: 10, fp: 30, dmg: 150, range: 6.2, arc: 360, cancel: 1.5, roll: 1.4, next: null, sfx: 'roar', sfxAt: 0.55, poise: true, fx: 'flame', trail: [0.8, 1.3] },
+  riposte: { f: FRG.riposte, dur: 1.9, hs: 0.55, he: 0.57, st: 0, dmg: 230, range: 3.2, arc: 90, cancel: 1.5, roll: 1.4, next: null, sfx: 'swingHeavy', sfxAt: 0.4, trail: [0.4, 0.8] },
+};
+const TABLES = { katana: ATK, greatsword: ATKG };
+export const WEAPON_INFO = {
+  katana: { name: 'Katana', short: 'Katana', ash: 'Unsheathe', fp: 25 },
+  greatsword: { name: 'Hadrians Ascheklinge', short: 'Ascheklinge', ash: 'Aschenschlag', fp: 30 },
 };
 
 export function createPlayer(G) {
   const { scene, world, fx } = G;
-  const h = makeHumanoid({ head: 'hood', cloth: 0x2e2a28, armor: 0x4a4e58, trim: 0x8a7030, accent: 0x7a1a1a, capeColor: 0x3a2626, weapon: 'katana', cape: true, tabard: true, plates: true, skin: 0xcaa888, stanceFlip: false });
+  const h = makeHumanoid({ head: 'hood', cloth: 0x2e2a28, armor: 0x4a4e58, trim: 0x8a7030, accent: 0x7a1a1a, capeColor: 0x3a2626, weapon: 'katana', weapons: ['katana', 'greatsword'], cape: true, tabard: true, plates: true, skin: 0xcaa888, stanceFlip: false });
   scene.add(h.root);
   const trail = new Trail(scene, 0xcfe6ff, 16);
 
   const P = {
     h, pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, // schaut nach -Z? (yaw=PI => forward = (0,0,-1))
+    weapon: 'katana', owned: { katana: true, greatsword: false }, stats: { vit: 10, mnd: 10, end: 10, str: 10 }, dmgMul: 1,
     maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, souls: 0,
     state: 'free', t: 0, act: null, actName: '', hitSet: new Set(), buf: null, stRegenDelay: 0, exhausted: false,
     parryActive: false, iframes: false, sprinting: false, moving: false, speedN: 0,
@@ -122,6 +175,7 @@ export function createPlayer(G) {
     if (I.pressed.has('KeyQ')) P.queue('ash');
     if (I.pressed.has('KeyR')) P.queue('estus');
     if (I.pressed.has('KeyE')) P.queue('interact');
+    if (I.pressed.has('KeyC')) P.queue('swap');
     if (I.pressed.has('Tab') || I.pressedMouse[1]) toggleLock();
   }
 
@@ -183,7 +237,7 @@ export function createPlayer(G) {
     return best;
   }
   function startAttack(name) {
-    const a = ATK[name];
+    const a = TABLES[P.weapon][name];
     if (a.fp && P.fp < a.fp) { Sound.play('error'); G.ui.flashFP(); return false; }
     if (P.st <= 0 && a.st > 0) return false;
     P.useSt(a.st); if (a.fp) P.fp -= a.fp;
@@ -243,6 +297,7 @@ export function createPlayer(G) {
       if (b.lit) restBegin(b);
       return true;
     }
+    if (it.type === 'item') { G.pickupWeapon(); return true; }
     if (it.type === 'fog') {
       P.setState('fogwalk', { blend: 0.2 });
       P.yaw = Math.PI; P.lock = null;
@@ -267,6 +322,7 @@ export function createPlayer(G) {
       case 'estus': return startEstus();
       case 'interact': return startInteract();
       case 'jump': return startJump();
+      case 'swap': return P.cycleWeapon();
     }
     return false;
   }
@@ -284,7 +340,7 @@ export function createPlayer(G) {
     const d = e.pos.distanceTo(P.pos);
     const stand = 1.1 + e.radius;
     P.pos.x = e.pos.x - Math.sin(P.yaw) * stand; P.pos.z = e.pos.z - Math.cos(P.yaw) * stand;
-    P.act = ATK.riposte; P.actName = 'riposte'; P.hitSet = new Set(); P.target = e;
+    P.act = TABLES[P.weapon].riposte; P.actName = 'riposte'; P.hitSet = new Set(); P.target = e;
     P.setState('attack', { blend: 0.05 }); P.sfxDone = false;
     e.riposteBy(P);
     return true;
@@ -308,7 +364,7 @@ export function createPlayer(G) {
       } else ok = inCone(e, a.range, a.arc);
       if (!ok) continue;
       P.hitSet.add(e);
-      let dmg = a.dmg;
+      let dmg = a.dmg * P.dmgMul;
       const behind = Math.abs(angleDiff(e.yaw, Math.atan2(P.pos.x - e.pos.x, P.pos.z - e.pos.z))) > 2.3;
       if (behind && (P.actName === 'l1' || P.actName === 'l2' || P.actName === 'l3') && !e.isBoss) { dmg *= 1.5; G.ui.toast('Backstab'); }
       const info = e.hurt(dmg, { poise: !!a.poise, riposte: P.actName === 'riposte', from: P.pos, kind: P.actName });
@@ -355,6 +411,45 @@ export function createPlayer(G) {
     if (P.souls > 0) { G.dropStain(P.pos, P.souls); P.souls = 0; }
     G.onPlayerDeath();
   }
+
+
+  // ---------- Attribute / Aufleveln ----------
+  P.level = () => P.stats.vit + P.stats.mnd + P.stats.end + P.stats.str - 40 + 1;
+  P.levelCost = () => Math.round(120 * 1.17 ** (P.level() - 1));
+  P.ashCost = () => WEAPON_INFO[P.weapon].fp;
+  P.applyStats = (keepRatio = true) => {
+    const r = P.hp / P.maxHp;
+    P.maxHp = 300 + (P.stats.vit - 10) * 14; P.maxFp = 60 + (P.stats.mnd - 10) * 5; P.maxSt = 100 + (P.stats.end - 10) * 3;
+    P.dmgMul = 1 + (P.stats.str - 10) * 0.035;
+    P.hp = keepRatio ? Math.min(P.maxHp, Math.max(1, Math.round(P.maxHp * r))) : P.maxHp;
+    P.fp = Math.min(P.fp, P.maxFp); P.st = Math.min(P.st, P.maxSt);
+  };
+  P.levelUp = (key) => {
+    if (!(key in P.stats)) return false;
+    const cost = P.levelCost();
+    if (P.souls < cost) { Sound.play('error'); return false; }
+    P.souls -= cost; P.stats[key]++;
+    const hpBefore = P.hp; P.applyStats(true);
+    if (key === 'vit') P.hp = Math.min(P.maxHp, hpBefore + 14);
+    if (key === 'mnd') P.fp = Math.min(P.maxFp, P.fp + 5);
+    Sound.play('souls'); Sound.play('ui');
+    return true;
+  };
+  // ---------- Waffen ----------
+  P.setWeapon = (name) => {
+    if (!P.owned[name]) return false;
+    P.weapon = name; h.setWeapon(name); G.ui.setWeapon(name); trail.clear();
+    return true;
+  };
+  P.cycleWeapon = () => {
+    if (P.state !== 'free' && P.state !== 'hit') return false;
+    const names = Object.keys(P.owned).filter((n) => P.owned[n]);
+    if (names.length < 2) { G.ui.toast('Keine zweite Waffe'); return false; }
+    P.setWeapon(names[(names.indexOf(P.weapon) + 1) % names.length]);
+    Sound.play('ui'); G.ui.toast(WEAPON_INFO[P.weapon].name);
+    G.save && G.save();
+    return true;
+  };
 
   // ---------- Leuchtfeuer: Rasten ----------
   function restBegin(b) {
@@ -412,6 +507,7 @@ export function createPlayer(G) {
       for (const b of world.bonfires) {
         if (b.pos.distanceTo(P.pos) < 2.9) { P.interact = { type: 'bonfire', ref: b, text: b.lit ? 'E  Am Leuchtfeuer rasten' : 'E  Leuchtfeuer entfachen' }; break; }
       }
+      if (!P.interact && G.drop && P.pos.distanceTo(G.drop.pos) < 2.8) P.interact = { type: 'item', text: 'E  ' + WEAPON_INFO.greatsword.name + ' aufnehmen' };
       if (!P.interact && G.boss && !G.boss.dead && !G.bossEngaged) {
         if (Math.abs(P.pos.x) < FOG_GATE.w / 2 && P.pos.z > FOG_GATE.z && P.pos.z < FOG_GATE.z + 3.4) P.interact = { type: 'fog', text: 'E  Nebeltor durchschreiten' };
       }
@@ -450,7 +546,14 @@ export function createPlayer(G) {
         }
         if (!P.sfxDone && t >= (a.sfxAt ?? a.hs - 0.1)) { P.sfxDone = true; Sound.play(a.sfx); }
         if (t >= a.hs && t <= a.he + 0.01) {
-          if (P.actName === 'ash' && !P.flags.wave) { P.flags.wave = true; const p = P.pos.clone(); p.y += 1.1; fx.wave(p, P.yaw, { size: 7 }); fx.flash(p, 0xaad4ff, 90, 0.3); G.shake(0.3); }
+          if (a.fx === 'wave' && !P.flags.wave) { P.flags.wave = true; const p = P.pos.clone(); p.y += 1.1; fx.wave(p, P.yaw, { size: 7 }); fx.flash(p, 0xaad4ff, 90, 0.3); G.shake(0.3); }
+          if ((a.fx === 'slam' || a.fx === 'flame') && !P.flags.slam) {
+            P.flags.slam = true;
+            const big = a.fx === 'flame', c = P.pos.clone().addScaledVector(fwd(P.yaw), big ? 0 : 2.6); c.y = groundHeight(c.x, c.z);
+            fx.ring(c, { color: 0xff7a30, r: big ? 8 : 5, dur: 0.6 }); fx.dust(c, big ? 30 : 18);
+            fx.add.emit(c, big ? 80 : 40, { vel: big ? 9 : 7, up: 1.4, life: 0.8, size: 0.2, color: [1, 0.5, 0.15], gravity: 10 });
+            fx.flash(c.clone().setY(c.y + 1), 0xff7a30, big ? 150 : 100, 0.4); G.shake(big ? 0.7 : 0.5); Sound.play('bossSlam');
+          }
           applyHits(a);
         }
         if (P.actName === 'riposte' && P.target && !P.flags.rp && t >= a.hs) { P.flags.rp = true; }
@@ -553,9 +656,9 @@ export function createPlayer(G) {
       case 'kindle': target = sample(FR.kindle, P.t, {}); break;
       case 'rest': target = sample(FR.rest, P.t, {}); break;
       case 'dead': target = sample(FR.dead, P.deathT, {}); break;
-      case 'jump': target = { ...READY, tuck: 0.7, lean: 0.15, hx: -0.2, hy: 0.5, hz: 0.3, dx: 0, dy: 0.3, dz: 1 }; break;
+      case 'jump': target = { ...(P.weapon === 'greatsword' ? READY_GS : READY), tuck: 0.7, lean: 0.15, hx: -0.2, hy: 0.5, hz: 0.3, dx: 0, dy: 0.3, dz: 1 }; break;
       default: {
-        target = { ...READY };
+        target = { ...(P.weapon === 'greatsword' ? READY_GS : READY) };
         const b = Math.sin(performance.now() / 700);
         target.hy += b * 0.008; target.lean += b * 0.01;
         if (P.sprinting) { target.lean = 0.28; target.hx = -0.25; target.hy = 0.2; target.hz = 0.3; target.dx = 0; target.dy = 0.1; target.dz = -1; target.twist = 0; }
@@ -577,10 +680,10 @@ export function createPlayer(G) {
     if (P.state === 'attack' && a.trail && P.t >= a.trail[0] && P.t <= a.trail[1]) {
       h.root.updateMatrixWorld(true);
       const ud = h.weapon.userData; ud.trailBase.getWorldPosition(_tmpA); ud.trailTip.getWorldPosition(_tmpB);
-      trail.setColor(P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
+      trail.setColor(P.weapon === 'greatsword' ? 0xff9a45 : P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
       trail.push(_tmpA, _tmpB);
     }
-    trail.update(dt, P.actName === 'ash' ? 0.35 : 0.2);
+    trail.update(dt, P.weapon === 'greatsword' ? 0.3 : P.actName === 'ash' ? 0.35 : 0.2);
     G.updateCamera(dt);
   };
   return P;

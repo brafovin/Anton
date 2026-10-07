@@ -22,15 +22,20 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | Linke Maustaste | Leichter Angriff (3er-Kombo) |
 | Rechte Maustaste | Schwerer Angriff |
 | F | Parry – bei Erfolg Riposte mit Angriff |
-| Q | Ash of War „Unsheathe“ (25 FP, FP füllen sich durch Treffer) |
+| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer |
 | R | Estus-Flasche trinken (5, am Leuchtfeuer aufgefüllt) |
-| E | Interagieren: Leuchtfeuer entfachen / rasten, Nebeltor |
+| E | Interagieren: Leuchtfeuer entfachen / rasten, Nebeltor, Beute aufnehmen |
+| C | Waffe wechseln (sobald du die Boss-Klinge besitzt) |
+| U | Am Leuchtfeuer: Aufleveln (1–4 wählt das Attribut) |
 | Mausrad-Klick / Tab | Ziel erfassen (Lock-on) |
 | M / Esc | Ton / Pause |
 
 ## Spielelemente
 
 - **Leuchtfeuer** (3 + eines nach dem Boss): entfachen, rasten (heilt, füllt Estus, setzt Gegner zurück), Teleport zwischen entfachten Leuchtfeuern.
+- **Aufleveln:** Am Leuchtfeuer (`U`) tauscht du Seelen gegen Level: Vitalität (HP), Geist (FP), Ausdauer, Stärke (Schaden). Die Kosten steigen mit jedem Level.
+- **Boss-Rüstung & Beute:** *Sir Hadrian* trägt eine schwarz-goldene Stachelrüstung mit glühendem Emblem – ganz anders als dein stählernes Outfit. Besiegst du ihn, kannst du seine **Hadrians Ascheklinge** (Großschwert: langsamer, härter, größere Reichweite, eigene Kombo, Heavy und Ash of War) aufnehmen und mit `C` zwischen den Waffen wechseln.
+- **Speicherstand:** Fortschritt (Level, Waffen, Leuchtfeuer, Boss) wird automatisch im Browser gespeichert; auf dem Startbildschirm gibt es „Neues Spiel“.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
 - **Gegner:** Hohle Soldaten, Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung) und der Boss *Sir Hadrian* (zwei Phasen).
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
