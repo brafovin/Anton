@@ -111,7 +111,7 @@ const SCRIPTS = {
       out.pos.copy(c.PP).addScaledVector(fwd(c.py), d).addScaledVector(rgt(c.py), -0.5); out.pos.y = c.PP.y + 1.55;
       out.look.set(c.PP.x, c.PP.y + 1.55, c.PP.z);
     };
-    const s = [{ dur: 3.4, cam: first, fov: 44 }, { dur: 4.0, cam: orbit({ a0: 2.5, a1: 0.25, R: 7.5, h0: 1.1, h1: 1.7, lookH: 0.85 }) },
+    const s = [{ dur: 3.4, cam: first, fov: 44 }, { dur: 4.0, cam: orbit({ a0: 0.1, a1: 1.6, R: 6.5, h0: 1.3, h1: 1.8, lookH: 0.85 }) },
       { dur: 2.8, cam: close({ d0: 3.3, d1: 2.3, side: 0.3, h: 1.55, lookH: 1.52, fov: 38 }) }, { dur: 1.2 }];
     return {
       shots: s,
@@ -119,8 +119,8 @@ const SCRIPTS = {
       subs: [[0.6, 3.2, 'Vael', '„Hörst du das? Das Schaben einer Klinge …“'], [4.3, 7.3, 'Vael', '„Dein Kopf wird mein Zehnter in dieser Nacht.“']],
       title: { t: 7.5, text: 'VAEL', sub: 'der Henker' },
       events: [[0.2, (c, G) => Sound.bossMusic(true)],
-        [3.35, (c, G) => { // Vael erscheint hinter dem Spieler
-          const b = c.boss, P = c.P; b.pos.x = c.PP.x - Math.sin(c.py) * 5; b.pos.z = c.PP.z - Math.cos(c.py) * 5; b.pos.y = groundHeight(b.pos.x, b.pos.z);
+        [3.35, (c, G) => { // Vael tritt aus der Dunkelheit vor den Spieler
+          const b = c.boss, P = c.P; b.pos.x = c.PP.x + Math.sin(c.py) * 5.5; b.pos.z = c.PP.z + Math.cos(c.py) * 5.5; b.pos.y = groundHeight(b.pos.x, b.pos.z);
           b.yaw = Math.atan2(c.PP.x - b.pos.x, c.PP.z - b.pos.z); c.B.copy(b.pos); c.by = b.yaw;
           b.h.root.visible = true; smoke(G, b.pos.clone().setY(b.pos.y + 1), [0.8, 0.1, 0.1]); G.fx.ring(b.pos.clone(), { color: 0xc02020, r: 5, dur: 0.6 }); Sound.play('fog'); Sound.play('swingHeavy');
         }], [5.4, (c, G) => { Sound.play('swingHeavy'); G.fx.flash(c.B.clone().setY(c.B.y + 1.5), 0xff3030, 80, 0.4); }]],
