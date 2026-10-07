@@ -140,7 +140,7 @@ button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
 /* Zauberleiste */
 #spellbar{position:fixed;left:28px;bottom:128px;display:none;flex-direction:column;gap:4px;pointer-events:none}
 #spellbar.show{display:flex}
-#spellbar .sp{display:grid;grid-template-columns:20px 1fr 26px;gap:8px;align-items:center;min-width:210px;padding:4px 10px;background:rgba(8,8,12,.6);border-left:3px solid #3a3426;font-size:13px;color:#a99a74;letter-spacing:.06em}
+#spellbar .sp{display:grid;grid-template-columns:20px 1fr 26px 52px;gap:8px;align-items:center;min-width:210px;padding:4px 10px;background:rgba(8,8,12,.6);border-left:3px solid #3a3426;font-size:13px;color:#a99a74;letter-spacing:.06em}
 #spellbar .sp b{color:#8a7a52;font-weight:600}
 #spellbar .sp i{font-style:normal;text-align:right;color:#7aa0e0;font-size:12px}
 #spellbar .sp.on{border-left-color:var(--c);background:rgba(20,18,30,.82);color:#f2e6c4;box-shadow:inset 0 0 14px color-mix(in srgb,var(--c) 25%,transparent)}
@@ -154,3 +154,8 @@ button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
 .ico.staff{background:linear-gradient(135deg,transparent 46%,#5a3e2a 48% 54%,transparent 56%),radial-gradient(circle at 78% 22%,#e0c8ff 0 12%,#8a4aff 14% 24%,transparent 27%);transform:scale(1.5);filter:drop-shadow(0 0 5px #9a5aff)}
 .ico.ash.spell{background:radial-gradient(circle,#e0d0ff 0 18%,transparent 20%),conic-gradient(from 200deg,transparent,#a070ff 8%,transparent 20%);filter:drop-shadow(0 0 6px #a070ff)}
 body.inmenu #hud,body.inmenu #spellbar,body.inmenu #prompt{opacity:0!important}
+#spellbar .sp em{font-style:normal;display:flex;gap:3px;justify-content:flex-end}
+#spellbar .sp u{text-decoration:none;font-size:10px;padding:1px 4px;border:1px solid;letter-spacing:.05em}
+#spellbar .sp u.t1{color:#ffb060;border-color:#a8682a}
+#spellbar .sp u.t2{color:#7aa8ff;border-color:#3a60b8}
+#spellbar .sp.m1{border-left-color:#ffb060}#spellbar .sp.m2{border-left-color:#7aa8ff}#spellbar .sp.m1.m2{border-left-color:#d8c8ff}

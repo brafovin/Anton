@@ -80,7 +80,7 @@ const SAVE_KEY = 'aschenfeuer-save-v1';
 G.save = () => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      cls: P.cls, spellIdx: P.spellIdx, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+      cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
       dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
   } catch (e) { /* Speichern nicht moeglich */ }
@@ -113,7 +113,7 @@ G.loadGame = () => {
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
-  P.spellIdx = clamp(saved.spellIdx || 0, 0, Math.max(0, P.spells.length - 1)); G.ui.setSpells(P);
+  P.spellIdx = clamp(saved.spellIdx || 0, 0, Math.max(0, P.spells.length - 1)); P.spellIdx2 = clamp(saved.spellIdx2 ?? 1, 0, Math.max(0, P.spells.length - 1)); G.ui.setSpells(P);
   P.applyStats(false); populate(); placePlayer();
   return true;
 };

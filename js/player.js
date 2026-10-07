@@ -81,7 +81,7 @@ const ATK = {
   l2: { f: FR.l2, dur: 0.76, hs: 0.22, he: 0.36, st: 13, dmg: 34, range: 2.6, arc: 170, cancel: 0.46, roll: 0.46, next: 'l3', lunge: [0.08, 0.3, 2.6], sfx: 'swing', trail: [0.1, 0.48] },
   l3: { f: FR.l3, dur: 1.0, hs: 0.3, he: 0.44, st: 17, dmg: 50, range: 3.2, arc: 70, cancel: 0.72, roll: 0.62, next: null, lunge: [0.16, 0.36, 6.0], sfx: 'swing', trail: [0.2, 0.5] },
   heavy: { f: FR.heavy, dur: 1.3, hs: 0.66, he: 0.8, st: 28, dmg: 78, range: 3.0, arc: 130, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.72, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.54, 0.9] },
-  ash: { f: FR.ash, dur: 1.55, hs: 0.64, he: 0.72, st: 10, fp: 25, dmg: 110, range: 9.5, arc: 28, cancel: 1.25, roll: 1.2, next: null, lunge: [0.56, 0.74, 15], sfx: 'ash', sfxAt: 0.58, poise: true, line: true, fx: 'wave', trail: [0.58, 0.95] },
+  ash: { f: FR.ash, dur: 1.55, hs: 0.64, he: 0.72, st: 10, fp: 25, dmg: 170, range: 9.5, arc: 28, cancel: 1.25, roll: 1.2, next: null, lunge: [0.56, 0.74, 15], sfx: 'ash', sfxAt: 0.58, poise: true, line: true, fx: 'wave', trail: [0.58, 0.95] },
   riposte: { f: FR.riposte, dur: 1.75, hs: 0.5, he: 0.52, st: 0, dmg: 105, range: 3, arc: 90, cancel: 1.4, roll: 1.35, next: null, sfx: 'swing', sfxAt: 0.35, trail: [0.38, 0.7] },
 };
 
@@ -128,7 +128,7 @@ const ATKG = {
   l2: { f: FRG.g2, dur: 1.1, hs: 0.42, he: 0.58, st: 20, dmg: 62, range: 3.5, arc: 175, cancel: 0.7, roll: 0.7, next: 'l3', lunge: [0.25, 0.5, 2.6], sfx: 'swingHeavy', trail: [0.28, 0.66] },
   l3: { f: FRG.g3, dur: 1.5, hs: 0.64, he: 0.8, st: 28, dmg: 95, range: 3.6, arc: 120, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.7, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.5, 0.95] },
   heavy: { f: FRG.heavy, dur: 1.95, hs: 1.1, he: 1.24, st: 40, dmg: 140, range: 3.9, arc: 150, cancel: 1.55, roll: 1.5, next: null, lunge: [0.9, 1.14, 5.5], sfx: 'swingHeavy', sfxAt: 0.9, poise: true, fx: 'slam', trail: [0.95, 1.4] },
-  ash: { f: FRG.ash, dur: 1.85, hs: 0.93, he: 1.0, st: 10, fp: 30, dmg: 150, range: 6.2, arc: 360, cancel: 1.5, roll: 1.4, next: null, sfx: 'roar', sfxAt: 0.55, poise: true, fx: 'flame', trail: [0.8, 1.3] },
+  ash: { f: FRG.ash, dur: 1.85, hs: 0.93, he: 1.0, st: 10, fp: 30, dmg: 300, range: 6.2, arc: 360, cancel: 1.5, roll: 1.4, next: null, sfx: 'roar', sfxAt: 0.55, poise: true, fx: 'flame', trail: [0.8, 1.3] },
   riposte: { f: FRG.riposte, dur: 1.9, hs: 0.55, he: 0.57, st: 0, dmg: 150, range: 3.2, arc: 90, cancel: 1.5, roll: 1.4, next: null, sfx: 'swingHeavy', sfxAt: 0.4, trail: [0.4, 0.8] },
 };
 // Starterwaffe des Ritters: gleiche Bewegungen wie das Boss-Großschwert, aber schwächer
@@ -172,7 +172,7 @@ export const CLASSES = {
   },
   magier: {
     id: 'magier', name: 'Magier', tagline: 'Zauber · Reichweite · Glaskanone',
-    desc: 'Wirkt mit dem Stab fünf Zauber aus der Ferne. Wähle sie mit Mausrad oder 1–5, wirke mit Q. Dünne Haut, viel FP.',
+    desc: 'Wirkt mit dem Stab fünf Zauber aus der Ferne. Zauber liegen auf M1 und M2: Mausrad/1–5 wählt M1, Q wechselt M2. Dünne Haut, viel FP.',
     kit: ['Magierstab + 5 Zauber', 'Robe & Spitzhut', '4 HP- und 4 FP-Flaschen'],
     stats: { vit: 8, mnd: 19, end: 9, str: 7 }, weapons: ['staff'], weapon: 'staff', flasks: [4, 4], spells: ['pfeil', 'kugel', 'blitz', 'heilung', 'schild'], moveMul: 1.0, rollCost: 20,
     look: { head: 'witch', skin: 0xd2b49a, cloth: 0x1c2a5a, armor: 0x2a3a78, trim: 0xc8a850, accent: 0x6a4acc, plates: false, pauldrons: false, tabard: false, cape: true, capeColor: 0x2a2064, robe: true, robeColor: 0x1c2a5a, bulk: 0.95 },
@@ -196,7 +196,7 @@ export function createPlayer(G, clsId = 'ninja') {
 
   const P = {
     h, pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, // schaut nach -Z? (yaw=PI => forward = (0,0,-1))
-    cls: clsId, weapon: CLASSES[clsId].weapon, owned: { katana: false, greatsword: false, ironblade: false, staff: false, [CLASSES[clsId].weapon]: true }, stats: { ...CLASSES[clsId].stats }, dmgMul: 1, spells: CLASSES[clsId].spells || [], spellIdx: 0, ward: 0, moveMul: CLASSES[clsId].moveMul, rollCost: CLASSES[clsId].rollCost,
+    cls: clsId, weapon: CLASSES[clsId].weapon, owned: { katana: false, greatsword: false, ironblade: false, staff: false, [CLASSES[clsId].weapon]: true }, stats: { ...CLASSES[clsId].stats }, dmgMul: 1, spells: CLASSES[clsId].spells || [], spellIdx: 0, spellIdx2: Math.min(1, Math.max(0, (CLASSES[clsId].spells || []).length - 1)), ward: 0, moveMul: CLASSES[clsId].moveMul, rollCost: CLASSES[clsId].rollCost,
     maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, mana: 3, maxMana: 3, drinkKind: 'estus', souls: 0,
     state: 'free', t: 0, act: null, actName: '', hitSet: new Set(), buf: null, stRegenDelay: 0, exhausted: false,
     parryActive: false, iframes: false, sprinting: false, moving: false, speedN: 0,
@@ -227,7 +227,7 @@ export function createPlayer(G, clsId = 'ninja') {
     if (I.pressed.has('ShiftRollTap')) P.queue('roll');
     if (I.pressed.has('Space')) P.queue('jump');
     if (I.pressed.has('KeyF')) P.queue('parry');
-    if (I.pressed.has('KeyQ')) P.queue('ash');
+    if (I.pressed.has('KeyQ')) { if (P.weapon === 'staff') P.cycleSpell2(1); else P.queue('ash'); }
     if (I.pressed.has('KeyR')) P.queue('estus');
     if (I.pressed.has('KeyT')) P.queue('mana');
     if (I.pressed.has('KeyE')) P.queue('interact');
@@ -311,8 +311,8 @@ export function createPlayer(G, clsId = 'ninja') {
     if (name === 'ash') Sound.play('ashCharge');
     return true;
   }
-  function startCast() {
-    const sp = SPELLS[P.spells[P.spellIdx]];
+  function startCast(slot = 0) {
+    const sp = SPELLS[P.spells[slot === 1 ? P.spellIdx2 : P.spellIdx]];
     if (!sp) { G.ui.toast('Kein Zauber'); return false; }
     if (P.fp < sp.fp) { Sound.play('error'); G.ui.flashFP(); return false; }
     P.fp -= sp.fp; P.useSt(6);
@@ -396,11 +396,12 @@ export function createPlayer(G, clsId = 'ninja') {
       case 'light': {
         const r = P.state === 'free' || canAct() ? findRiposteTarget() : null;
         if (r) return startRiposte(r);
+        if (P.weapon === 'staff') return startCast(0);
         if (P.state === 'attack' && P.act.next) return startAttack(P.act.next);
         return startAttack('l1');
       }
-      case 'heavy': { const r = findRiposteTarget(); if (r) return startRiposte(r); return startAttack('heavy'); }
-      case 'ash': return P.weapon === 'staff' ? startCast() : startAttack('ash');
+      case 'heavy': { const r = findRiposteTarget(); if (r) return startRiposte(r); if (P.weapon === 'staff') return startCast(1); return startAttack('heavy'); }
+      case 'ash': return startAttack('ash');
       case 'roll': return startRoll();
       case 'parry': return startParry();
       case 'estus': return startEstus();
@@ -513,7 +514,7 @@ export function createPlayer(G, clsId = 'ninja') {
   // ---------- Attribute / Aufleveln ----------
   P.level = () => P.stats.vit + P.stats.mnd + P.stats.end + P.stats.str - 40 + 1;
   P.levelCost = () => Math.round(120 * 1.17 ** (P.level() - 1));
-  P.ashCost = () => (P.weapon === 'staff' ? (SPELLS[P.spells[P.spellIdx]] || { fp: 0 }).fp : WEAPON_INFO[P.weapon].fp);
+  P.ashCost = () => (P.weapon === 'staff' ? (SPELLS[P.spells[P.spellIdx2]] || { fp: 0 }).fp : WEAPON_INFO[P.weapon].fp);
   P.applyStats = (keepRatio = true) => {
     const r = P.hp / P.maxHp;
     P.maxHp = 300 + (P.stats.vit - 10) * 14; P.maxFp = 60 + (P.stats.mnd - 10) * 5; P.maxSt = 100 + (P.stats.end - 10) * 3;
@@ -537,6 +538,10 @@ export function createPlayer(G, clsId = 'ninja') {
     if (P.weapon !== 'staff' || !P.spells.length) return;
     P.spellIdx = clamp(i, 0, P.spells.length - 1); G.ui.setSpells(P); Sound.play('ui');
   };
+  P.cycleSpell2 = (d) => {
+    const n = P.spells.length; if (P.weapon !== 'staff' || !n) return;
+    P.spellIdx2 = (P.spellIdx2 + d + n) % n; G.ui.setSpells(P); Sound.play('ui');
+  };
   P.cycleSpell = (d) => { const n = P.spells.length; if (P.weapon === 'staff' && n) P.selectSpell((P.spellIdx + d + n) % n); };
   // ---------- Flaschen verteilen (wie in Elden Ring: HP- und FP-Flaschen tauschen) ----------
   P.flaskTotal = () => P.maxEstus + P.maxMana;
@@ -552,7 +557,7 @@ export function createPlayer(G, clsId = 'ninja') {
     P.stats = { ...C.stats }; P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, [C.weapon]: true };
     P.weapon = C.weapon; h.setWeapon(P.weapon);
     P.maxEstus = C.flasks[0]; P.maxMana = C.flasks[1]; P.estus = P.maxEstus; P.mana = P.maxMana;
-    P.spells = C.spells || []; P.spellIdx = 0; P.moveMul = C.moveMul; P.rollCost = C.rollCost; P.ward = 0;
+    P.spells = C.spells || []; P.spellIdx = 0; P.spellIdx2 = Math.min(1, Math.max(0, P.spells.length - 1)); P.moveMul = C.moveMul; P.rollCost = C.rollCost; P.ward = 0;
     P.applyStats(false); P.fp = P.maxFp; P.st = P.maxSt; trail.clear();
     G.ui.setWeapon(P.weapon); G.ui.setSpells(P);
   };

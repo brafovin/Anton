@@ -86,8 +86,11 @@ export function createUI(G) {
     const bar = $('spellbar'), on = P.weapon === 'staff' && P.spells.length;
     bar.classList.toggle('show', !!on);
     if (!on) return;
-    bar.innerHTML = P.spells.map((id, i) => { const sp = SPELLS[id]; return `<div class="sp ${i === P.spellIdx ? 'on' : ''}" style="--c:#${sp.color.toString(16).padStart(6, '0')}"><b>${i + 1}</b><span>${sp.name}</span><i>${sp.fp}</i></div>`; }).join('');
-    const cur = SPELLS[P.spells[P.spellIdx]]; $('ash-lbl').textContent = cur ? cur.name : 'Zauber';
+    bar.innerHTML = P.spells.map((id, i) => {
+      const sp = SPELLS[id], m1 = i === P.spellIdx, m2 = i === P.spellIdx2;
+      return `<div class="sp ${m1 ? 'm1 on' : ''} ${m2 ? 'm2 on' : ''}" style="--c:#${sp.color.toString(16).padStart(6, '0')}"><b>${i + 1}</b><span>${sp.name}</span><i>${sp.fp}</i><em>${m1 ? '<u class="t1">M1</u>' : ''}${m2 ? '<u class="t2">M2</u>' : ''}</em></div>`;
+    }).join('');
+    const c2 = SPELLS[P.spells[P.spellIdx2]]; $('ash-lbl').textContent = c2 ? 'M2: ' + c2.name : 'M2';
   };
 
   // ---- Cutscene-UI ----
