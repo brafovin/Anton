@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff, turnToward, rand, pick } from './util.js';
 import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Sound } from './audio.js';
-import { groundHeight, ARENA } from './world.js';
+import { groundHeight } from './world.js';
 
 const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
 
@@ -12,6 +12,10 @@ const IDLE = {
   knight: { ...DEF, hx: -0.2, hy: 0.38, hz: 0.38, dx: 0.1, dy: 0.7, dz: 0.8, lfree: 1, lx: 0.22, ly: 0.42, lz: 0.42, lean: 0.03, twist: 0.2, crouch: 0.04 },
   boss: { ...DEF, hx: -0.1, hy: 0.3, hz: 0.42, dx: 0.1, dy: 0.15, dz: 1, lg: -0.32, lean: 0.05, twist: 0.1, crouch: 0.06 },
 };
+IDLE.witch = { ...DEF, hx: -0.28, hy: 0.4, hz: 0.25, dx: 0.05, dy: 1, dz: 0.12, lfree: 1, lx: 0.3, ly: 0.25, lz: 0.15, lean: 0.04, twist: 0, crouch: 0.02 };
+IDLE.giant = { ...DEF, hx: -0.35, hy: 0.55, hz: 0.05, dx: -0.15, dy: 0.9, dz: -0.35, lfree: 1, lx: 0.35, ly: 0.2, lz: 0.1, lean: 0.15, twist: 0.1, crouch: 0.05 };
+IDLE.reaper = { ...DEF, hx: -0.18, hy: 0.32, hz: 0.38, dx: 0.1, dy: 0.85, dz: 0.5, lg: -0.3, lean: 0.08, twist: 0.15, crouch: 0.1 };
+IDLE.shade = { ...IDLE.hollow, lean: 0.12 };
 const REACT = { // Torso-Reaktionen
   stagger: (b) => compile([{ t: 0 }, { t: 0.12, lean: -0.5, shift: -0.2, hx: b.hx - 0.1, hy: b.hy + 0.2, head: 0.4, e: 2 }, { t: 0.55, ...b, e: 0 }], b),
   parried: (b) => compile([{ t: 0 }, { t: 0.18, lean: -0.5, shift: -0.25, hx: -0.3, hy: 0.85, hz: 0.1, dx: -0.4, dy: 0.8, dz: -0.4, twist: -0.6, head: 0.5, lfree: 0, e: 2 }, { t: 3, lean: -0.55, twist: -0.65, e: 3 }], b),
@@ -36,7 +40,50 @@ const ATTACKS = {
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.8, hx: -0.2, hy: 0.5, hz: -0.05, dx: 0, dy: 0.05, dz: 1, twist: -0.6, shift: -0.1, e: 2 }, { t: 1.0, hx: -0.05, hy: 0.55, hz: 0.62, dx: 0, dy: 0, dz: 1, shift: 0.4, lean: 0.3, e: 1 }, { t: 1.3, e: 3 }, { t: 1.9, ...IDLE.boss, e: 0 }]) },
   bLeap: { name: 'Sprung', dur: 2.6, hs: 1.5, he: 1.56, range: 5.8, arc: 360, dmg: 165, parryable: false, danger: true, track: 0.85, leap: true,
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.8, crouch: 0.45, hx: 0, hy: 0.4, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: 0.3, glow: 1, e: 2 }, { t: 1.2, crouch: -0.1, hx: 0, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.3, e: 1 }, { t: 1.5, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.7, dz: 1, lean: 0.5, crouch: 0.2, e: 1 }, { t: 1.9, e: 3 }, { t: 2.6, ...IDLE.boss, e: 0 }]) },
+
+  // ===== Morwen, die Hexe: Fernkampf, Beschwoerung, Teleport =====
+  wFire: { name: 'Feuersalve', dur: 1.8, hs: 99, he: 99, track: 1.0, ev: [[0.95, 'fireball']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 0.7, hx: -0.1, hy: 0.95, hz: 0.15, dx: 0, dy: 1, dz: 0.3, lean: -0.25, lfree: 1, lx: 0.2, ly: 0.9, lz: 0.2, glow: 1, e: 2 }, { t: 0.95, hx: -0.1, hy: 0.6, hz: 0.55, dx: 0, dy: 0.25, dz: 1, lean: 0.25, shift: 0.2, e: 1 }, { t: 1.2, e: 3 }, { t: 1.8, ...IDLE.witch, e: 0 }]) },
+  wOrb: { name: 'Seelenorb', dur: 2.3, hs: 99, he: 99, track: 1.2, ev: [[1.15, 'orb']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 0.9, hx: -0.1, hy: 1.0, hz: 0.1, dx: 0, dy: 1, dz: 0.2, lean: -0.3, lfree: 1, lx: 0.1, ly: 1.0, lz: 0.2, glow: 1, e: 2 }, { t: 1.15, hx: -0.1, hy: 0.7, hz: 0.5, dx: 0, dy: 0.5, dz: 1, lean: 0.2, e: 1 }, { t: 1.5, e: 3 }, { t: 2.3, ...IDLE.witch, e: 0 }]) },
+  wPools: { name: 'Flammenfeld', dur: 2.4, hs: 99, he: 99, track: 0.8, ev: [[0.8, 'pools']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 0.65, hx: -0.1, hy: 0.95, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: -0.3, glow: 1, e: 2 }, { t: 0.85, hx: -0.1, hy: 0.3, hz: 0.55, dx: 0, dy: -0.4, dz: 1, lean: 0.4, crouch: 0.12, e: 1 }, { t: 1.4, e: 3 }, { t: 2.4, ...IDLE.witch, e: 0 }]) },
+  wSummon: { name: 'Beschwörung', dur: 3.0, hs: 99, he: 99, track: 1.0, ev: [[1.4, 'summon']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 1.2, hx: -0.05, hy: 1.05, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: -0.4, lfree: 1, lx: 0.3, ly: 1.0, lz: 0.1, glow: 1, e: 2 }, { t: 1.8, e: 3 }, { t: 3.0, ...IDLE.witch, e: 0 }]) },
+  wBurst: { name: 'Aschenwelle', dur: 2.1, hs: 99, he: 99, track: 0.4, ev: [[0.15, 'burst']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 0.7, hx: -0.1, hy: 1.0, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: -0.35, glow: 1, e: 2 }, { t: 0.98, hx: -0.1, hy: 0.25, hz: 0.5, dx: 0, dy: -0.5, dz: 1, lean: 0.5, crouch: 0.15, e: 1 }, { t: 1.4, e: 3 }, { t: 2.1, ...IDLE.witch, e: 0 }]) },
+  wBlink: { name: 'Schattenschritt', dur: 2.6, hs: 1.5, he: 1.65, range: 3.4, arc: 110, dmg: 95, parryable: true, track: 1.4, ev: [[0.25, 'vanish'], [1.0, 'appearBehind']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 0.9, hx: -0.1, hy: 0.9, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: -0.2, e: 2 }, { t: 1.28, hx: -0.15, hy: 0.85, hz: 0.1, dx: 0.1, dy: 1, dz: -0.2, twist: -0.6, lean: -0.2, e: 3 }, { t: 1.52, hx: -0.05, hy: 0.55, hz: 0.55, dx: 0.1, dy: 0.2, dz: 1, twist: 0.4, lean: 0.4, shift: 0.3, e: 1 }, { t: 1.9, e: 3 }, { t: 2.6, ...IDLE.witch, e: 0 }]) },
+  wBlinkAway: { name: 'Fortteleport', dur: 1.7, hs: 99, he: 99, track: 0, ev: [[0.2, 'vanish'], [0.95, 'blinkFar']],
+    f: A(IDLE.witch, [{ t: 0 }, { t: 1.7, ...IDLE.witch }]) },
+
+  // ===== Gorm, der Grabriese: Wucht, Ansturm, Schockwellen =====
+  gSwat: { name: 'Hieb', dur: 2.5, hs: 1.2, he: 1.42, range: 7.4, arc: 180, dmg: 145, parryable: true, track: 0.9, lunge: [1.1, 1.38, 3.5],
+    f: A(IDLE.giant, [{ t: 0 }, { t: 1.0, hx: 0.3, hy: 0.7, hz: 0.0, dx: 1, dy: 0.2, dz: -0.4, twist: 1.0, lean: -0.1, crouch: 0.1, e: 2 }, { t: 1.3, hx: -0.35, hy: 0.55, hz: 0.5, dx: -1, dy: 0.0, dz: 0.5, twist: -1.1, shift: 0.3, crouch: 0.1, e: 1 }, { t: 1.6, e: 2 }, { t: 2.5, ...IDLE.giant, e: 0 }]) },
+  gSmash: { name: 'Zermalmen', dur: 3.2, hs: 1.75, he: 1.88, range: 7, arc: 110, dmg: 200, parryable: false, danger: true, track: 1.2, slam: true, slamDist: 5.6, slamR: 6,
+    f: A(IDLE.giant, [{ t: 0 }, { t: 1.5, hx: -0.1, hy: 1.05, hz: 0.0, dx: 0, dy: 1, dz: -0.4, lean: -0.5, glow: 1, e: 2 }, { t: 1.72, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.5, dz: 1, lean: 0.6, shift: 0.3, crouch: 0.2, e: 1 }, { t: 2.2, e: 3 }, { t: 3.2, ...IDLE.giant, e: 0 }]) },
+  gStomp: { name: 'Erdstoß', dur: 3.0, hs: 99, he: 99, track: 1.0, danger: true, ev: [[1.45, 'stompRing']],
+    f: A(IDLE.giant, [{ t: 0 }, { t: 0.9, crouch: 0.5, lean: 0.35, hx: -0.2, hy: 0.3, hz: 0.3, e: 2 }, { t: 1.3, crouch: -0.1, lean: -0.45, hx: -0.1, hy: 1.0, hz: 0.1, dx: 0, dy: 1, dz: -0.2, glow: 1, e: 1 }, { t: 1.45, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.6, dz: 1, e: 1 }, { t: 2.0, e: 3 }, { t: 3.0, ...IDLE.giant, e: 0 }]) },
+  gCharge: { name: 'Ansturm', dur: 4.0, hs: 99, he: 99, track: 1.0, charge: true, dmg: 175, danger: true, lunge: [1.1, 3.0, 15],
+    f: A(IDLE.giant, [{ t: 0 }, { t: 0.55, lean: -0.3, hx: -0.3, hy: 0.7, hz: -0.1, dx: -0.2, dy: 0.9, dz: -0.6, crouch: 0.2, e: 2 }, { t: 1.05, lean: 0.85, hx: -0.35, hy: 0.25, hz: -0.1, dx: 0, dy: 0.1, dz: -1, crouch: 0.35, glow: 1, e: 1 }, { t: 3.0, lean: 0.85, hx: -0.35, hy: 0.25, hz: -0.1, dx: 0, dy: 0.1, dz: -1, crouch: 0.35, e: 3 }, { t: 4.0, ...IDLE.giant, e: 0 }]) },
+  gRock: { name: 'Felswurf', dur: 3.2, hs: 99, he: 99, track: 1.2, ev: [[1.55, 'rock']],
+    f: A(IDLE.giant, [{ t: 0 }, { t: 0.9, crouch: 0.5, lean: 0.6, hx: 0, hy: 0.1, hz: 0.4, dx: 0, dy: 0.3, dz: 1, e: 2 }, { t: 1.4, crouch: 0, lean: -0.4, hx: 0, hy: 1.05, hz: 0.2, dx: 0, dy: 1, dz: 0.1, e: 2 }, { t: 1.55, lean: 0.5, hx: -0.1, hy: 0.5, hz: 0.7, dx: 0, dy: 0.2, dz: 1, e: 1 }, { t: 2.2, e: 3 }, { t: 3.2, ...IDLE.giant, e: 0 }]) },
+
+  // ===== Vael, der Henker: Tempo, Verschwinden, Kombos =====
+  rDash: { name: 'Schattenstoß', dur: 2.0, hs: 0.62, he: 0.92, range: 3.4, arc: 100, dmg: 100, parryable: true, track: 0.5, lunge: [0.55, 0.84, 24],
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 0.5, hx: -0.2, hy: 0.55, hz: -0.05, dx: 0.1, dy: 0.3, dz: 1, twist: -0.7, lean: 0.1, crouch: 0.25, e: 2 }, { t: 0.62, hx: -0.05, hy: 0.55, hz: 0.6, dx: 0, dy: 0.2, dz: 1, twist: 0.4, lean: 0.5, shift: 0.4, crouch: 0.2, e: 1 }, { t: 1.0, e: 3 }, { t: 2.0, ...IDLE.reaper, e: 0 }]) },
+  rCombo: { name: 'Sensenwirbel', dur: 2.6, windows: [[0.5, 0.64], [1.02, 1.16], [1.6, 1.74]], parryW: [true, true, false], dmgW: [80, 80, 115], hs: 0.5, he: 1.74, range: 4.4, arc: 150, dmg: 80, track: 1.4, lunge: [0.4, 0.6, 5],
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 0.38, hx: -0.3, hy: 0.9, hz: 0.0, dx: -0.4, dy: 0.9, dz: -0.2, twist: -0.7, e: 2 }, { t: 0.55, hx: 0.15, hy: 0.3, hz: 0.55, dx: 0.7, dy: -0.1, dz: 0.7, twist: 0.8, lean: 0.25, shift: 0.2, e: 1 },
+      { t: 0.9, hx: 0.3, hy: 0.7, hz: 0.1, dx: 1, dy: 0.1, dz: -0.1, twist: 0.9, e: 2 }, { t: 1.08, hx: -0.3, hy: 0.5, hz: 0.55, dx: -1, dy: -0.1, dz: 0.6, twist: -0.9, shift: 0.2, e: 1 },
+      { t: 1.42, hx: -0.1, hy: 1.0, hz: 0.0, dx: 0, dy: 1, dz: -0.4, lean: -0.4, twist: 0, e: 2 }, { t: 1.62, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.4, dz: 1, lean: 0.55, shift: 0.35, crouch: 0.15, e: 1 }, { t: 2.0, e: 3 }, { t: 2.6, ...IDLE.reaper, e: 0 }]) },
+  rSpin: { name: 'Todeswirbel', dur: 3.1, windows: [[1.0, 1.12], [1.38, 1.5], [1.76, 1.88]], hs: 1.0, he: 1.88, range: 4.9, arc: 360, dmg: 70, parryable: false, danger: true, track: 0.8,
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 0.8, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, glow: 1, e: 2 }, { t: 1.0, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, e: 3 }, { t: 1.9, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: -12.5, e: 3 }, { t: 2.3, twist: -12.5, crouch: 0.2, e: 2 }, { t: 3.1, ...IDLE.reaper, e: 0 }]) },
+  rVanish: { name: 'Schattentanz', dur: 2.8, hs: 1.55, he: 1.7, range: 3.6, arc: 110, dmg: 115, parryable: true, track: 1.45, ev: [[0.15, 'vanish'], [1.2, 'appearBehind']],
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 1.2, hx: -0.2, hy: 0.55, hz: -0.05, dx: 0.1, dy: 0.3, dz: 1, twist: -0.7, crouch: 0.25, e: 2 }, { t: 1.55, hx: -0.05, hy: 0.55, hz: 0.6, dx: 0, dy: 0.2, dz: 1, twist: 0.4, lean: 0.5, shift: 0.4, crouch: 0.2, e: 1 }, { t: 1.9, e: 3 }, { t: 2.8, ...IDLE.reaper, e: 0 }]) },
+  rShades: { name: 'Schattenbrut', dur: 2.7, hs: 99, he: 99, track: 1.0, ev: [[1.1, 'shades']],
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 1.0, hx: -0.1, hy: 1.0, hz: 0.1, dx: 0, dy: 1, dz: 0.1, lean: -0.3, glow: 1, e: 2 }, { t: 1.6, e: 3 }, { t: 2.7, ...IDLE.reaper, e: 0 }]) },
 };
+
 
 const TYPES = {
   hollow: {
@@ -48,14 +95,52 @@ const TYPES = {
     look: { head: 'knight', skin: 0x888888, cloth: 0x202428, armor: 0x6a707c, trim: 0x8a7030, accent: 0x6a1a1a, plates: true, plume: true, weapon: 'sword', weaponColor: 0xb8bcc6, weaponRusty: false, shield: true, shieldColor: 0x4a505c, bulk: 1.12, eye: 0xff4422 },
   },
   boss: {
-    hp: 1700, radius: 1.3, speed: 3.4, aggro: 99, souls: 8000, scale: 1.75, attacks: ['bSweep', 'bSlam', 'bThrust'], idle: IDLE.boss, isBoss: true, strafe: true,
+    hp: 1700, radius: 1.3, speed: 3.4, aggro: 99, souls: 8000, scale: 1.75, attacks: ['bSweep', 'bSlam', 'bThrust'], idle: IDLE.boss, isBoss: true, strafe: true, glowSword: true, longCharge: true, phaseMsg: 'Der Wächter entflammt',
     look: { head: 'greathelm', ornate: true, skin: 0x888888, cloth: 0x120e0a, armor: 0x17171d, trim: 0xe0b040, accent: 0x8a1010, capeColor: 0x6a1010, cape: true, tabard: false, plates: true, weapon: 'greatsword', bulk: 1.2, eye: 0xff6a10 },
+  },
+  witch: {
+    hp: 1300, radius: 0.5, speed: 3.0, aggro: 99, souls: 6000, scale: 1.1, idle: IDLE.witch, isBoss: true, strafe: true, ranged: { min: 6, max: 13 }, cdRange: [1.0, 2.0], p2speed: 1.3, p2time: 1.25,
+    phaseMsg: 'Morwen entfesselt ihre Macht',
+    choose: (e, d) => {
+      const alive = e.G.enemies.filter((o) => o.minion && !o.dead).length, o = [];
+      if (d < 5.5) o.push('wBurst', 'wBurst', 'wBlinkAway', 'wBlink');
+      else { o.push('wFire', 'wFire', 'wOrb', 'wPools'); if (d > 9) o.push('wBlink'); if (alive < 2) o.push('wSummon', 'wSummon'); if (e.phase2) o.push('wOrb', 'wPools', 'wFire'); }
+      let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
+    },
+    look: { head: 'witch', skin: 0xc8b4a8, cloth: 0x2a1838, armor: 0x3a2a48, trim: 0xb89038, accent: 0x7a2a9a, plates: false, pauldrons: false, cape: true, capeColor: 0x3a1a4a, robe: true, robeColor: 0x26142f, weapon: 'staff', bulk: 0.95 },
+  },
+  giant: {
+    hp: 3200, radius: 2.0, speed: 2.3, aggro: 99, souls: 7500, scale: 2.5, idle: IDLE.giant, isBoss: true, strafe: true, reach: 7, p2speed: 1.35, p2time: 1.25,
+    phaseMsg: 'Gorm brüllt vor Wut',
+    choose: (e, d) => {
+      const o = [];
+      if (d < 8.5) { o.push('gSwat', 'gSwat', 'gSmash'); if (e.phase2 || Math.random() < 0.5) o.push('gStomp'); }
+      else { o.push('gCharge', 'gCharge', 'gRock'); if (e.phase2) o.push('gRock', 'gStomp'); }
+      let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
+    },
+    look: { head: 'hollow', hunch: 0.2, skin: 0x8a8478, cloth: 0x6a5a48, armor: 0x4a4038, trim: 0x6a5a40, accent: 0x5a2a1a, plates: false, pauldrons: false, weapon: 'club', bulk: 1.45 },
+  },
+  reaper: {
+    hp: 1500, radius: 0.6, speed: 4.2, aggro: 99, souls: 7000, scale: 1.2, idle: IDLE.reaper, isBoss: true, strafe: true, reach: 4.4, p2speed: 1.2, p2time: 1.2,
+    phaseMsg: 'Vael verschwimmt in Schatten',
+    onPhase2: (e) => { for (let i = 0; i < 2; i++) spawnMinion(e, 'shade'); },
+    choose: (e, d) => {
+      const o = []; const shades = e.G.enemies.filter((m) => m.minion && !m.dead).length;
+      if (d > 10) o.push('rDash', 'rDash', 'rVanish'); else if (d > 5.2) o.push('rDash', 'rCombo', 'rVanish'); else o.push('rCombo', 'rCombo', 'rSpin', 'rVanish');
+      if (e.phase2) { if (shades < 1) o.push('rShades', 'rShades'); o.push('rSpin'); }
+      let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
+    },
+    look: { head: 'reaper', skin: 0x222222, cloth: 0x0e0c12, armor: 0x1c1a22, trim: 0xa8a8b8, accent: 0x6a0a0a, capeColor: 0x180a10, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 },
+  },
+  shade: {
+    hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
+    look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
   },
 };
 
 export class Enemy {
-  constructor(G, type, x, z, yaw = 0) {
-    this.G = G; this.type = type; const T = TYPES[type]; this.T = T;
+  constructor(G, type, x, z, yaw = 0, opts = {}) {
+    this.G = G; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
     this.isBoss = !!T.isBoss; this.radius = T.radius * (this.isBoss ? 1 : 1); this.maxHp = T.hp; this.hp = T.hp;
     this.home = new THREE.Vector3(x, 0, z); this.homeYaw = yaw;
     this.pos = new THREE.Vector3(x, groundHeight(x, z), z); this.yaw = yaw; this.vel = new THREE.Vector3();
@@ -65,7 +150,8 @@ export class Enemy {
     this.pose = { ...T.idle }; this.prev = { ...T.idle }; this.blendT = 1; this.blendDur = 0.12;
     this.barT = 0; this.strafeDir = Math.random() < 0.5 ? 1 : -1; this.strafeT = 0; this.atk = null; this.timeScale = 1;
     this.phase2 = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
-    this.moving = false; this.speedN = 0; this.name = this.isBoss ? 'Sir Hadrian, Wächter der Asche' : type === 'knight' ? 'Wachritter' : 'Hohler Soldat';
+    this.moving = false; this.speedN = 0; this.name = opts.name || (this.isBoss ? 'Boss' : type === 'knight' ? 'Wachritter' : type === 'shade' ? 'Schatten' : 'Hohler Soldat');
+    const st0 = this.h.weapon.userData.steel; if (this.isBoss && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
   }
   setState(s, blend = 0.1) { this.prev = { ...this.pose }; this.state = s; this.t = 0; this.blendT = 0; this.blendDur = blend; }
@@ -76,6 +162,7 @@ export class Enemy {
   // ---------------- Schaden / Reaktionen ----------------
   hurt(dmg, { poise = false, riposte = false, from = null, kind = '' } = {}) {
     if (this.dead) return 'dead';
+    if (this.untouchable) return 'dodged';
     const G = this.G, P = G.player;
     const free = this.state === 'chase' || this.state === 'idle' || this.state === 'return' || this.state === 'recover';
     if (this.T.blocks && free && !poise && !riposte && from) {
@@ -113,7 +200,9 @@ export class Enemy {
   die() {
     this.dead = true; this.deathT = 0; this.setState('dead', 0.05); this.hp = 0;
     const G = this.G;
-    G.player.souls += this.souls; G.ui.souls(this.souls); G.fx.souls(this.pos.clone().setY(this.pos.y + 1), 24); Sound.play('souls');
+    if (this.souls > 0) { G.player.souls += this.souls; G.ui.souls(this.souls); Sound.play('souls'); }
+    G.fx.souls(this.pos.clone().setY(this.pos.y + 1), this.souls > 0 ? 24 : 8);
+    this.h.root.visible = true; this.untouchable = false;
     if (G.player.lock === this) G.player.lock = null;
     if (this.isBoss) G.onBossDefeated(this);
   }
@@ -129,40 +218,63 @@ export class Enemy {
     const t = this.t * ts;
     const toP = Math.atan2(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
     if (t < a.track) this.yaw = turnToward(this.yaw, toP, (this.isBoss ? 2.4 : 2.8) * dt * ts);
-    if (a.lunge && t >= a.lunge[0] && t <= a.lunge[1]) { const f = fwd(this.yaw); this.pos.x += f.x * a.lunge[2] * dt * ts; this.pos.z += f.z * a.lunge[2] * dt * ts; }
-    if (!this.sfx && t >= a.hs - 0.22) { this.sfx = true; Sound.play(this.isBoss ? 'swingHeavy' : 'swing'); }
+    // Ereignisse (Projektile, Teleport, Beschwoerung ...)
+    if (a.ev) a.ev.forEach(([et, name], i) => { if (!this.flags['e' + i] && t >= et) { this.flags['e' + i] = true; EV[name](this, a); } });
+    const lunging = a.lunge && t >= a.lunge[0] && t <= a.lunge[1];
+    if (lunging) { const f = fwd(this.yaw); this.pos.x += f.x * a.lunge[2] * dt * ts; this.pos.z += f.z * a.lunge[2] * dt * ts; }
+    if (!this.sfx && t >= a.hs - 0.22 && a.hs < 90) { this.sfx = true; Sound.play(this.isBoss ? 'swingHeavy' : 'swing'); }
+    // Ansturm: trifft alles auf dem Weg
+    if (a.charge && lunging && !this.flags.chargeHit) {
+      const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
+      if (d < this.radius + P.radius + 0.6 && P.jumpH < 0.5) { this.flags.chargeHit = true; P.hurt(a.dmg, this.pos, { knock: true }); }
+      if (Math.random() < 0.6) G.fx.dust(this.pos, 2);
+    }
     // Sprung
     if (a.leap) {
       if (t >= 0.8 && t < 1.5) {
-        if (!this.flags.jump) { this.flags.jump = true; this.leapTo.copy(P.pos); const d = this.leapTo.clone().sub(this.pos); const L = d.length(); if (L > 14) d.multiplyScalar(14 / L); this.leapTo.copy(this.pos).add(d); const ar = Math.hypot(this.leapTo.x - ARENA.x, this.leapTo.z - ARENA.z); if (ar > ARENA.r - 3) { const k = (ARENA.r - 3) / ar; this.leapTo.x = ARENA.x + (this.leapTo.x - ARENA.x) * k; this.leapTo.z = ARENA.z + (this.leapTo.z - ARENA.z) * k; } this.leapFrom.copy(this.pos); }
+        if (!this.flags.jump) {
+          this.flags.jump = true; this.leapTo.copy(P.pos); const d = this.leapTo.clone().sub(this.pos); const L = d.length(); if (L > 14) d.multiplyScalar(14 / L); this.leapTo.copy(this.pos).add(d);
+          const A = this.arena; if (A) { const ar = Math.hypot(this.leapTo.x - A.x, this.leapTo.z - A.z); if (ar > A.r - 3) { const k = (A.r - 3) / ar; this.leapTo.x = A.x + (this.leapTo.x - A.x) * k; this.leapTo.z = A.z + (this.leapTo.z - A.z) * k; } }
+          this.leapFrom.copy(this.pos);
+        }
         const u = (t - 0.8) / 0.7; this.pos.x = lerp(this.leapFrom.x, this.leapTo.x, Math.min(u, 1)); this.pos.z = lerp(this.leapFrom.z, this.leapTo.z, Math.min(u, 1));
         this.yOff = Math.sin(clamp(u, 0, 1) * Math.PI) * 5.5;
       } else this.yOff = 0;
     }
-    // Parade-Erkennung (leicht frueher als der Treffer, damit Parry fair wirkt)
-    if (a.parryable && !this.hitDone && t >= a.hs - 0.16 && t <= a.he) {
-      const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
-      if (d < a.range + 1.2 && P.tryParry(this, a)) { this.hitDone = true; P.parried(this); return; }
-    }
-    if (!this.hitDone && t >= a.hs && t <= a.he) {
-      const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, d = Math.hypot(dx, dz);
-      let hit = false;
-      if (a.arc >= 360) hit = d < a.range && P.pos.y < this.pos.y + 1.2;
-      else hit = d < a.range + P.radius && Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < (a.arc * Math.PI) / 360 + 0.1;
-      if (a.slam && !this.flags.slamFx) {
-        this.flags.slamFx = true;
-        const f = fwd(this.yaw), c = this.pos.clone().addScaledVector(f, 3.8); c.y = groundHeight(c.x, c.z);
-        G.fx.ring(c, { color: 0xff7a30, r: 8, dur: 0.6 }); G.fx.dust(c, 24); G.fx.add.emit(c, 40, { vel: 8, up: 1, life: 0.7, size: 0.2, color: [1, 0.5, 0.15], gravity: 10 }); G.fx.flash(c.clone().setY(c.y + 1), 0xff7a30, 120, 0.4);
-        G.shake(0.7); Sound.play('bossSlam');
-        // Aufschlagpunkt statt Kegel
-        const dd = Math.hypot(P.pos.x - c.x, P.pos.z - c.z); hit = dd < 4.4;
+    // Trefferfenster (ein Angriff kann mehrere haben)
+    const wins = a.windows || [[a.hs, a.he]];
+    for (let i = 0; i < wins.length; i++) {
+      const [hs, he] = wins[i], key = 'w' + i;
+      if (this.flags[key]) continue;
+      const parryable = a.parryW ? a.parryW[i] : a.parryable, dmg = a.dmgW ? a.dmgW[i] : a.dmg;
+      // Parade-Erkennung (leicht frueher als der Treffer, damit Parry fair wirkt)
+      if (parryable && t >= hs - 0.16 && t <= he) {
+        const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
+        if (d < a.range + 1.2 && P.tryParry(this, a)) { this.flags[key] = true; P.parried(this); return; }
       }
-      if (a.leap && !this.flags.land) { this.flags.land = true; this.yOff = 0; const c = this.pos.clone(); c.y = groundHeight(c.x, c.z); G.fx.ring(c, { color: 0xff7a30, r: 11, dur: 0.7 }); G.fx.dust(c, 40); G.fx.add.emit(c, 60, { vel: 9, up: 1.5, life: 0.8, size: 0.22, color: [1, 0.5, 0.15], gravity: 10 }); G.fx.flash(c.clone().setY(c.y + 1), 0xff7a30, 140, 0.5); G.shake(1.0); Sound.play('bossSlam'); }
-      if (hit) { this.hitDone = true; P.hurt(a.dmg, this.pos, { knock: this.isBoss }); }
-      else if (a.slam || a.leap) this.hitDone = true;
+      if (t >= hs && t <= he) {
+        const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, d = Math.hypot(dx, dz);
+        let hit = false;
+        if (a.arc >= 360) hit = d < a.range && P.pos.y < this.pos.y + 1.2;
+        else hit = d < a.range + P.radius && Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < (a.arc * Math.PI) / 360 + 0.1;
+        if (a.slam && !this.flags.slamFx) {
+          this.flags.slamFx = true;
+          const sd = a.slamDist || 3.8, sr = a.slamR || 4.4;
+          const f = fwd(this.yaw), c = this.pos.clone().addScaledVector(f, sd); c.y = groundHeight(c.x, c.z);
+          G.fx.ring(c, { color: 0xff7a30, r: sr * 1.8, dur: 0.6 }); G.fx.dust(c, 24); G.fx.add.emit(c, 40, { vel: 8, up: 1, life: 0.7, size: 0.2, color: [1, 0.5, 0.15], gravity: 10 }); G.fx.flash(c.clone().setY(c.y + 1), 0xff7a30, 120, 0.4);
+          G.shake(0.7); Sound.play('bossSlam');
+          hit = Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < sr; // Aufschlagpunkt statt Kegel
+        }
+        if (a.leap && !this.flags.land) { this.flags.land = true; this.yOff = 0; const c = this.pos.clone(); c.y = groundHeight(c.x, c.z); G.fx.ring(c, { color: 0xff7a30, r: 11, dur: 0.7 }); G.fx.dust(c, 40); G.fx.add.emit(c, 60, { vel: 9, up: 1.5, life: 0.8, size: 0.22, color: [1, 0.5, 0.15], gravity: 10 }); G.fx.flash(c.clone().setY(c.y + 1), 0xff7a30, 140, 0.5); G.shake(1.0); Sound.play('bossSlam'); }
+        if (hit) { this.flags[key] = true; P.hurt(dmg, this.pos, { knock: this.isBoss && !a.windows }); }
+        else if (a.slam || a.leap) this.flags[key] = true;
+      }
     }
-    if (a.leap && t < a.hs && t >= 1.5) { /* Landung abwarten */ }
-    if (this.t * ts >= a.dur) { this.yOff = 0; this.setState('recover', 0.15); this.recoverT = this.isBoss ? rand(0.25, 0.7) : rand(0.4, 1.0); this.cd = this.isBoss ? rand(0.3, 0.9) : rand(0.8, 1.8); }
+    if (this.t * ts >= a.dur) {
+      this.yOff = 0; this.setState('recover', 0.15);
+      this.recoverT = this.isBoss ? rand(0.25, 0.7) : rand(0.4, 1.0);
+      const cr = this.T.cdRange; this.cd = cr ? rand(cr[0], cr[1]) : this.isBoss ? rand(0.3, 0.9) : rand(0.8, 1.8);
+    }
   }
 
   chooseAttack(dist) {
@@ -192,13 +304,13 @@ export class Enemy {
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     this.cd -= dt;
     let moveDir = null, speed = 0, target = null;
-    const spdMul = this.phase2 ? 1.25 : 1;
-    this.timeScale = this.phase2 ? 1.2 : 1;
+    const spdMul = this.phase2 ? (T.p2speed || 1.25) : 1;
+    this.timeScale = this.phase2 ? (T.p2time || 1.2) : 1;
     switch (this.state) {
       case 'idle': {
         this.wanderT -= dt; if (this.wanderT <= 0) { this.wanderT = rand(3, 7); this.wanderYaw = this.homeYaw + rand(-1, 1); }
         this.yaw = dampAngle(this.yaw, this.wanderYaw, 1.5, dt);
-        if (!P.dead && dist < T.aggro && !(G.bossEngaged && !this.isBoss)) {
+        if (!P.dead && dist < T.aggro && !(G.activeFight && !this.isBoss && !this.minion)) {
           // nur aggro, wenn der Spieler vor ihnen oder nah genug ist
           const ang = Math.abs(angleDiff(this.yaw, toP));
           if (dist < T.aggro * 0.55 || ang < 1.7 || P.sprinting) { this.setState('chase', 0.2); Sound.play('step'); }
@@ -209,16 +321,26 @@ export class Enemy {
         this.yaw = turnToward(this.yaw, toP, (this.isBoss ? 3.2 : 4) * dt);
         const hd = Math.hypot(this.pos.x - this.home.x, this.pos.z - this.home.z);
         if ((P.dead || hd > 45) && !this.isBoss) { this.setState('return', 0.2); break; }
-        const reach = this.isBoss ? 5.2 : this.type === 'knight' ? 2.8 : 2.4;
+        const reach = T.reach ?? (this.isBoss ? 5.2 : this.type === 'knight' ? 2.8 : 2.4);
+        const pickAtk = () => (T.choose ? T.choose(this, dist) : this.chooseAttack(dist));
+        if (T.ranged) { // Fernkampf-Boss haelt Abstand
+          if (this.cd <= 0) { this.startAttack(pickAtk()); break; }
+          this.strafeT -= dt; if (this.strafeT <= 0) { this.strafeT = rand(1, 2.2); this.strafeDir = Math.random() < 0.5 ? 1 : -1; }
+          if (dist < T.ranged.min) { moveDir = fwd(this.yaw).multiplyScalar(-1); speed = T.speed * 1.15 * spdMul; }
+          else if (dist > T.ranged.max) { moveDir = fwd(this.yaw); speed = T.speed * spdMul; }
+          else { moveDir = new THREE.Vector3(-Math.cos(this.yaw), 0, Math.sin(this.yaw)).multiplyScalar(this.strafeDir); speed = T.speed * 0.55 * spdMul; }
+          break;
+        }
         if (dist > reach + 0.6) { moveDir = fwd(this.yaw); speed = T.speed * spdMul * (dist > 12 && !this.isBoss ? 1.25 : 1); }
-        else if (this.cd <= 0) { this.startAttack(this.chooseAttack(dist)); break; }
+        else if (this.cd <= 0) { this.startAttack(pickAtk()); break; }
         else if (T.strafe) {
           this.strafeT -= dt; if (this.strafeT <= 0) { this.strafeT = rand(0.8, 1.8); this.strafeDir = Math.random() < 0.5 ? 1 : -1; }
           const r = new THREE.Vector3(-Math.cos(this.yaw), 0, Math.sin(this.yaw)).multiplyScalar(this.strafeDir);
           moveDir = r.addScaledVector(fwd(this.yaw), dist < reach - 0.4 ? -0.5 : 0.15); speed = T.speed * 0.5 * spdMul; this.strafing = true;
         }
-        // Boss: weite Distanz -> Sturmstoss
-        if (this.isBoss && dist > 11 && this.cd <= 0) this.startAttack(Math.random() < 0.5 || !this.phase2 ? 'bThrust' : 'bLeap');
+        // Weite Distanz -> Gegner setzt zum Angriff an (Hadrian: Sturmstoss)
+        if (T.longCharge && dist > 11 && this.cd <= 0) this.startAttack(Math.random() < 0.5 || !this.phase2 ? 'bThrust' : 'bLeap');
+        else if (T.choose && !T.ranged && dist > reach + 0.6 && this.cd <= 0 && dist > 9) this.startAttack(pickAtk());
         break;
       }
       case 'attack': this.attackUpdate(dt); break;
@@ -269,8 +391,10 @@ export class Enemy {
     // Phasenwechsel
     if (this.isBoss && !this.phase2 && this.hp < this.maxHp * 0.5 && this.state !== 'dormant' && this.state !== 'riposted' && this.state !== 'parried') {
       this.phase2 = true; this.setState('phase', 0.2); this.atk = null; this.yOff = 0; Sound.play('roar'); G.shake(0.8);
-      G.fx.ring(this.pos.clone(), { color: 0xff6a20, r: 12, dur: 1.0 }); G.ui.toast('Der Wächter entflammt');
-      this.h.weapon.userData.glowMats.forEach((m) => { m.emissiveIntensity = 1.6; });
+      this.untouchable = false; this.h.root.visible = true;
+      G.fx.ring(this.pos.clone(), { color: 0xff6a20, r: 12, dur: 1.0 }); G.ui.toast(T.phaseMsg || 'Der Boss wird wütend');
+      if (T.glowSword) this.h.weapon.userData.glowMats.forEach((m) => { m.emissiveIntensity = 1.6; });
+      if (T.onPhase2) T.onPhase2(this);
     }
     // Bewegung
     this.moving = false;
@@ -286,18 +410,31 @@ export class Enemy {
       const ox = this.pos.x - o.pos.x, oz = this.pos.z - o.pos.z, od = Math.hypot(ox, oz), rr = this.radius + o.radius;
       if (od < rr && od > 0.001) { this.pos.x += (ox / od) * (rr - od) * 0.5; this.pos.z += (oz / od) * (rr - od) * 0.5; }
     }
+    const ix = this.pos.x, iz = this.pos.z;
     G.world.resolve(this.pos, this.radius * 0.9);
-    if (this.isBoss && this.state !== 'dormant') { // Boss bleibt in der Arena
-      const ar = Math.hypot(this.pos.x - ARENA.x, this.pos.z - ARENA.z);
-      if (ar > ARENA.r - 2.2) { const k = (ARENA.r - 2.2) / ar; this.pos.x = ARENA.x + (this.pos.x - ARENA.x) * k; this.pos.z = ARENA.z + (this.pos.z - ARENA.z) * k; }
+    const A = this.arena;
+    if (A && this.state !== 'dormant') { // Boss bleibt in der Arena
+      const ar = Math.hypot(this.pos.x - A.x, this.pos.z - A.z), lim = A.r - 2.2 - (this.radius > 1.5 ? 1.5 : 0);
+      if (ar > lim) { const k = lim / ar; this.pos.x = A.x + (this.pos.x - A.x) * k; this.pos.z = A.z + (this.pos.z - A.z) * k; }
+    }
+    // Ansturm gegen Wand/Saeule: Gegner ist benommen und verwundbar
+    if (this.state === 'attack' && this.atk.charge && this.t * this.timeScale >= this.atk.lunge[0] + 0.15 && this.t * this.timeScale <= this.atk.lunge[1]) {
+      if (Math.hypot(this.pos.x - ix, this.pos.z - iz) > 0.03) {
+        const c = this.pos.clone().addScaledVector(fwd(this.yaw), this.radius); c.y = this.pos.y;
+        G.fx.ring(c, { color: 0xffd8a0, r: 9, dur: 0.6 }); G.fx.dust(c, 30); G.shake(1.0); Sound.play('bossSlam');
+        this.atk = null; this.setState('parried', 0.1); this.parriedDur = 3.4; this.vel.set(0, 0, 0); G.ui.toast('Benommen! – Jetzt angreifen');
+      }
     }
     this.pos.y = groundHeight(this.pos.x, this.pos.z);
     this.speedN = clamp(Math.hypot(this.vel.x, this.vel.z) / 5, 0, 1);
     if (this.isBoss) { // Warnleuchten: rot = nicht parierbar
       const st = this.h.weapon.userData.steel;
-      const warn = this.state === 'attack' && this.atk.danger && this.t * this.timeScale < this.atk.hs + 0.05;
-      if (warn) { st.emissive.setRGB(1, 0.05, 0.02); st.emissiveIntensity = 2.5 + Math.sin(this.t * 30); }
-      else { st.emissive.setRGB(1, 0.35, 0.05); st.emissiveIntensity = this.phase2 ? 1.2 + Math.sin(performance.now() / 150) * 0.3 : 0.35; }
+      if (st && st.emissive) {
+        const warn = this.state === 'attack' && this.atk && this.atk.danger && this.t * this.timeScale < this.atk.hs + 0.05;
+        if (warn) { st.emissive.setRGB(1, 0.05, 0.02); st.emissiveIntensity = 2.5 + Math.sin(this.t * 30); }
+        else if (T.glowSword) { st.emissive.setRGB(1, 0.35, 0.05); st.emissiveIntensity = this.phase2 ? 1.2 + Math.sin(performance.now() / 150) * 0.3 : 0.35; }
+        else if (this.stBase) { st.emissive.copy(this.stBase.c); st.emissiveIntensity = this.stBase.i; }
+      }
     }
     if (!target) {
       if (this.state === 'attack') target = sample(this.atk.f, Math.min(this.t * this.timeScale, this.atk.dur), {});
@@ -335,4 +472,89 @@ export function spawnAll(G) {
   const list = SPAWNS.map(([t, x, z, y]) => new Enemy(G, t, x, z, y));
   return list;
 }
-export function spawnBoss(G) { return new Enemy(G, 'boss', ARENA.x, ARENA.z - 6, 0); }
+export function spawnBoss(G, fight) {
+  const A = fight.arena, sx = A.x - A.nx * 5, sz = A.z - A.nz * 5;
+  return new Enemy(G, A.boss, sx, sz, Math.atan2(A.nx, A.nz), { arena: A, fight, name: A.bossName });
+}
+
+// ---------------- Boss-Ereignisse (Projektile, Teleport, Beschwoerung ...) ----------------
+const V3 = THREE.Vector3;
+function muzzle(e) { e.h.root.updateMatrixWorld(true); const ud = e.h.weapon.userData, out = new V3(); (ud.orb || ud.trailTip).getWorldPosition(out); return out; }
+function clampArena(e, x, z, pad = 3) {
+  const A = e.arena; if (!A) return [x, z];
+  const d = Math.hypot(x - A.x, z - A.z), lim = A.r - pad; if (d > lim) { const k = lim / d; return [A.x + (x - A.x) * k, A.z + (z - A.z) * k]; } return [x, z];
+}
+function spawnMinion(e, type) {
+  const G = e.G, A = e.arena || { x: e.pos.x, z: e.pos.z, r: 20 };
+  for (let tries = 0; tries < 8; tries++) {
+    const ang = rand(6.28), rr = rand(4, A.r * 0.55);
+    const [x, z] = clampArena(e, A.x + Math.cos(ang) * rr, A.z + Math.sin(ang) * rr, 3.5);
+    if (Math.hypot(x - G.player.pos.x, z - G.player.pos.z) < 3.5) continue;
+    const m = new Enemy(G, type, x, z, rand(6.28), { minion: true, arena: A });
+    m.souls = 0; m.home.set(x, 0, z); m.setState('chase', 0.1); m.cd = rand(0.4, 1.0);
+    G.enemies.push(m); G.fx.dust(m.pos, 10); G.fx.add.emit(m.pos.clone().setY(m.pos.y + 1), 20, { vel: 3, up: 1.5, life: 0.9, size: 0.2, color: [0.6, 0.3, 1], gravity: -1 });
+    return m;
+  }
+  return null;
+}
+const minionsAlive = (e) => e.G.enemies.filter((o) => o.minion && !o.dead).length;
+const EV = {
+  fireball(e) {
+    const G = e.G, P = G.player, m = muzzle(e), n = e.phase2 ? 5 : 3, base = Math.atan2(P.pos.x - m.x, P.pos.z - m.z), dist = Math.hypot(P.pos.x - m.x, P.pos.z - m.z);
+    const dy = clamp((P.pos.y + 1.1 - m.y) / Math.max(dist, 4), -0.25, 0.25);
+    for (let i = 0; i < n; i++) { const ang = base + (i - (n - 1) / 2) * 0.21; G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), dy, Math.cos(ang)), speed: 15, dmg: 70, r: 0.6, color: 0xff7a30, kind: 'fire', life: 4, size: 1.5 }); }
+    G.fx.flash(m, 0xff8a30, 70, 0.3); Sound.play('ash');
+  },
+  orb(e) {
+    const G = e.G, P = G.player, m = muzzle(e), n = e.phase2 ? 2 : 1;
+    for (let i = 0; i < n; i++) { const ang = Math.atan2(P.pos.x - m.x, P.pos.z - m.z) + (i ? 0.7 : 0); G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), 0.05, Math.cos(ang)), speed: 6.5, homing: 1.7, dmg: 90, r: 0.85, color: 0xb070ff, kind: 'orb', life: 9, size: 2.1 }); }
+    G.fx.flash(m, 0xb070ff, 70, 0.3); Sound.play('ash');
+  },
+  pools(e) {
+    const G = e.G, P = G.player, n = e.phase2 ? 5 : 3;
+    for (let i = 0; i < n; i++) {
+      let x = P.pos.x, z = P.pos.z;
+      if (i) { const ang = rand(6.28), rr = rand(2.5, 7); x += Math.cos(ang) * rr; z += Math.sin(ang) * rr; }
+      [x, z] = clampArena(e, x, z, 2);
+      G.hazards.area({ x, z, r: 2.8, delay: 1.0, life: 6, dmg: 38, tick: 0.6, kind: 'pool', color: 0xff5a1a });
+    }
+    Sound.play('bossSlam');
+  },
+  summon(e) { const n = Math.min(2, 4 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'hollow'); Sound.play('roar'); e.G.shake(0.3); },
+  shades(e) { const n = Math.min(2, 3 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'shade'); Sound.play('roar'); },
+  burst(e) { e.G.hazards.area({ x: e.pos.x, z: e.pos.z, r: 5.4, delay: 0.85, dmg: 100, kind: 'blast', color: 0xb070ff, knock: true }); Sound.play('ashCharge'); },
+  vanish(e) {
+    const c = e.pos.clone(); c.y += 1; e.G.fx.add.emit(c, 40, { vel: 3, up: 1.5, life: 0.9, size: 0.4, color: [0.5, 0.25, 0.8], gravity: -1 });
+    e.G.fx.norm.emit(c, 16, { vel: 2, up: 1, life: 1.0, size: 0.6, color: [0.1, 0.05, 0.15, 0.6], gravity: -0.5 });
+    e.h.root.visible = false; e.untouchable = true; Sound.play('fog');
+  },
+  appearBehind(e) {
+    const P = e.G.player;
+    const [x, z] = clampArena(e, P.pos.x - Math.sin(P.yaw) * 3.4, P.pos.z - Math.cos(P.yaw) * 3.4, 2.5);
+    e.pos.x = x; e.pos.z = z; e.yaw = Math.atan2(P.pos.x - x, P.pos.z - z); e.vel.set(0, 0, 0);
+    e.h.root.visible = true; e.untouchable = false;
+    const c = e.pos.clone(); c.y += 1; e.G.fx.add.emit(c, 40, { vel: 4, up: 1, life: 0.7, size: 0.35, color: [0.7, 0.3, 0.9], gravity: 0 }); e.G.fx.ring(e.pos.clone(), { color: 0xb070ff, r: 4, dur: 0.4 });
+    Sound.play('swingHeavy');
+  },
+  blinkFar(e) {
+    const P = e.G.player, A = e.arena; let dx = A.x - P.pos.x, dz = A.z - P.pos.z; const l = Math.hypot(dx, dz);
+    if (l < 3) { const a = rand(6.28); dx = Math.cos(a); dz = Math.sin(a); } else { dx /= l; dz /= l; }
+    const [x, z] = clampArena(e, A.x + dx * A.r * 0.55, A.z + dz * A.r * 0.55, 3);
+    e.pos.x = x; e.pos.z = z; e.yaw = Math.atan2(P.pos.x - x, P.pos.z - z); e.h.root.visible = true; e.untouchable = false;
+    const c = e.pos.clone(); c.y += 1; e.G.fx.add.emit(c, 40, { vel: 4, up: 1, life: 0.7, size: 0.35, color: [0.7, 0.3, 0.9], gravity: 0 });
+  },
+  stompRing(e) {
+    const G = e.G, c = e.pos.clone();
+    G.hazards.area({ x: c.x, z: c.z, kind: 'ring', speed: 11, thick: 1.8, maxR: 21, dmg: 125, color: 0xffb060 });
+    G.fx.dust(c, 30); G.fx.ring(c, { color: 0xffb060, r: 6, dur: 0.5 }); G.shake(0.9); Sound.play('bossSlam');
+  },
+  rock(e) {
+    const G = e.G, P = G.player, n = e.phase2 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      let x = P.pos.x + P.vel.x * 0.6, z = P.pos.z + P.vel.z * 0.6; if (i) { x += rand(-5, 5); z += rand(-5, 5); }
+      [x, z] = clampArena(e, x, z, 2);
+      G.hazards.area({ x, z, r: 3.5, delay: 1.3, dmg: 150, kind: 'rock', color: 0xff9a50 });
+    }
+    Sound.play('roar');
+  },
+};

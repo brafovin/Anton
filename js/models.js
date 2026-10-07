@@ -145,6 +145,48 @@ export function makeSword({ len = 0.8, width = 0.06, color = 0x8a7a6a, rusty = t
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
+
+export function makeStaff() {
+  const g = new THREE.Group();
+  const wood = mat(0x2a1c22, { roughness: 0.8 });
+  const orbM = new THREE.MeshStandardMaterial({ color: 0xc8a0ff, emissive: 0x8a3aff, emissiveIntensity: 2.0, roughness: 0.2 });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.0, 7), wood); shaft.position.y = 0.5; g.add(shaft);
+  for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; const pr = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.4, 5), wood); pr.position.set(Math.cos(a) * 0.1, 1.62, Math.sin(a) * 0.1); pr.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); g.add(pr); }
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), orbM); orb.position.y = 1.58; g.add(orb);
+  const mBase = new THREE.Object3D(); mBase.position.set(0, 0.8, 0); g.add(mBase);
+  const mTip = new THREE.Object3D(); mTip.position.set(0, 1.6, 0); g.add(mTip);
+  g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel: orbM, length: 1.6, orb };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeClub() {
+  const g = new THREE.Group();
+  const wood = mat(0x4a3a2c, { roughness: 1 });
+  const iron = mat(0x3a3a40, { metalness: 0.6, roughness: 0.6 });
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.07, 1.9, 9), wood); head.position.y = 0.8; g.add(head);
+  for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2 * 2.3, y = 0.9 + (i % 7) * 0.2; const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.22, 5), iron); sp.position.set(Math.cos(a) * 0.27, y, Math.sin(a) * 0.27); sp.rotation.set(Math.sin(a) * 1.4, 0, -Math.cos(a) * 1.4); g.add(sp); }
+  for (const y of [0.4, 1.0, 1.6]) { const b = new THREE.Mesh(new THREE.TorusGeometry(0.2 - y * 0.03 + 0.05, 0.03, 5, 12), iron); b.rotation.x = Math.PI / 2; b.position.y = y; g.add(b); }
+  const mBase = new THREE.Object3D(); mBase.position.set(0, 0.8, 0); g.add(mBase);
+  const mTip = new THREE.Object3D(); mTip.position.set(0, 1.75, 0); g.add(mTip);
+  g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel: wood, length: 1.8 };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeScythe() {
+  const g = new THREE.Group();
+  const wood = mat(0x1a1416, { roughness: 0.8 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xb8bcc8, metalness: 0.85, roughness: 0.25, emissive: 0x401010, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 1.9, 7), wood); shaft.position.y = 0.55; g.add(shaft);
+  const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.55, 0.34, 1.05, -0.28); sh.quadraticCurveTo(0.6, 0.1, 0, -0.16); sh.closePath();
+  const blade = new THREE.Mesh(new THREE.ShapeGeometry(sh, 10), steel); blade.rotation.y = -Math.PI / 2; blade.position.y = 1.45; g.add(blade);
+  const mount = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.14), wood); mount.position.y = 1.45; g.add(mount);
+  const mBase = new THREE.Object3D(); mBase.position.set(0, 1.4, 0.2); g.add(mBase);
+  const mTip = new THREE.Object3D(); mTip.position.set(0, 1.2, 1.05); g.add(mTip);
+  g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel, length: 1.5 };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
 export function makeShield(color = 0x555a63, trim = 0x8a7030) {
   const g = new THREE.Group();
   const face = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.06, 5, 1), mat(color, { metalness: 0.5, roughness: 0.5 }));
@@ -219,6 +261,12 @@ export function makeHumanoid(o) {
     p.position.set(s * SH_X * 1.02, SH_Y + 0.02, 0); p.scale.set(1.1, 0.8, 1); p.rotation.z = -s * 0.25; torso.add(p);
     const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * bulk, 0.13 * bulk, 0.05, 10), trim); p2.position.set(s * (SH_X + 0.06), SH_Y - 0.06, 0); p2.rotation.z = -s * 0.5; torso.add(p2);
   }
+  // Robe (Hexe): langer Rock ueber den Beinen
+  if (O.robe) {
+    const rb = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * bulk, 0.52 * bulk, 0.95, 14, 1, true), M(O.robeColor ?? O.cloth, { roughness: 1, side: THREE.DoubleSide }));
+    rb.position.y = -0.46; pivot.add(rb); h.robe = rb;
+    const hem = new THREE.Mesh(new THREE.TorusGeometry(0.5 * bulk, 0.02, 5, 20), trim); hem.rotation.x = Math.PI / 2; hem.position.y = -0.93; pivot.add(hem);
+  }
   // Opulente Ruestung (Boss): Stachel-Schulterpanzer, Beinplatten, glühendes Emblem, Kragen
   if (O.ornate) {
     const ember = new THREE.MeshStandardMaterial({ color: 0xff8a20, emissive: 0xff5a10, emissiveIntensity: 2.2, roughness: 0.4 });
@@ -251,7 +299,7 @@ export function makeHumanoid(o) {
     const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
   }
   // Waffe
-  const mkWeapon = (n) => n === 'katana' ? makeKatana()
+  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
   h.weapons = {};
@@ -323,6 +371,18 @@ function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
       horn.position.set(s * 0.19, 0.18, 0); horn.rotation.z = -s * 0.9; horn.rotation.x = -0.1;
     }
     const crest = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.34), accent)); crest.position.set(0, 0.27, -0.02);
+  } else if (O.head === 'witch') {
+    const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), skin)); s.position.z = 0.01; s.scale.set(0.95, 1.08, 1);
+    const hat = add(new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 10), cloth)); hat.position.set(0, 0.34, -0.03); hat.rotation.x = -0.18;
+    const brim = add(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.025, 14), cloth)); brim.position.set(0, 0.1, -0.01);
+    const band = add(new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.19, 0.06, 10), accent)); band.position.set(0, 0.14, -0.01);
+    const hair = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.08), M(0x1a1220, { roughness: 1 }))); hair.position.set(0, -0.12, -0.1);
+    for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), new THREE.MeshBasicMaterial({ color: 0xb06aff }))); e.position.set(x, 0.02, 0.1); }
+  } else if (O.head === 'reaper') {
+    const cowl = add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.75), cloth)); cowl.position.set(0, 0.02, -0.02); cowl.scale.set(1, 1.15, 1.15);
+    const face = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dark)); face.position.set(0, 0.0, 0.05);
+    for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 }))); e.position.set(x, 0.015, 0.145); }
+    const tail = add(new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), cloth)); tail.position.set(0, -0.12, -0.14); tail.rotation.x = 0.4;
   } else if (O.head === 'hood') {
     const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), skin)); s.position.z = 0.015;
     const hood = add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), cloth)); hood.position.set(0, 0.015, -0.015); hood.scale.set(1, 1.05, 1.1);

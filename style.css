@@ -21,7 +21,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#05060a;color:#e8e2d0;
 .slot.big{width:74px;height:74px;border-color:var(--gold2)}
 .slot .key{position:absolute;left:3px;top:1px;font-size:11px;color:var(--gold)}
 .slot .lbl{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#a99a74;letter-spacing:.06em}
-#estus-count{position:absolute;right:5px;bottom:2px;font-size:19px;color:#ffd68a;text-shadow:0 0 6px #000,0 0 3px #000}
+#estus-count,#mana-count{position:absolute;right:5px;bottom:2px;font-size:19px;color:#ffd68a;text-shadow:0 0 6px #000,0 0 3px #000}
 .slot.empty{opacity:.45}
 .slot.flash{animation:flash .4s}
 .ico{display:block;width:34px;height:34px}
@@ -42,7 +42,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#05060a;color:#e8e2d0;
 #enemybars .ebar i{display:block;height:100%;background:#a31d1d}
 #lockon{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px #000,inset 0 0 6px #000;display:none;pointer-events:none;opacity:.85}
 #lockon::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:#fff;border-radius:50%}
-#boss{position:fixed;left:50%;bottom:13%;width:min(760px,calc(100vw - 560px));transform:translateX(-50%);opacity:0;transition:opacity .8s;pointer-events:none}
+#boss{position:fixed;left:50%;bottom:13%;width:min(760px,max(380px,calc(100vw - 720px)));transform:translateX(-50%);opacity:0;transition:opacity .8s;pointer-events:none}
 #boss.show{opacity:1}
 #boss-name{font-size:19px;letter-spacing:.12em;margin-bottom:5px;color:#e8dcc0;text-shadow:0 0 6px #000}
 #boss-bar{height:15px;border:2px solid #3b3a36;background:rgba(10,10,12,.8);position:relative}
@@ -89,3 +89,5 @@ button:hover{background:rgba(110,80,30,.6);box-shadow:0 0 22px #a8782a88}
 #rest-list .lvl b{color:#f2e6c4;font-size:19px;margin-left:5px}
 #newgame{margin-left:10px;font-size:15px;padding:12px 24px;opacity:.75}
 #ash-lbl{bottom:auto!important;top:-18px}
+.ico.flask.blue{background:radial-gradient(circle at 50% 62%,#8ab4ff 0 34%,#3a62e8 36% 52%,transparent 55%);filter:drop-shadow(0 0 7px #5a90ff)}
+#mana-count{color:#a8c4ff}

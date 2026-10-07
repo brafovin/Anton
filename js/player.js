@@ -3,7 +3,7 @@ import { clamp, lerp, damp, dampAngle, angleDiff, turnToward, rand } from './uti
 import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Trail } from './fx.js';
 import { Sound } from './audio.js';
-import { groundHeight, ARENA, FOG_GATE } from './world.js';
+import { groundHeight } from './world.js';
 
 export const READY = { ...DEF, hx: -0.1, hy: 0.34, hz: 0.42, dx: 0.12, dy: 0.45, dz: 0.88, lg: -0.2, twist: 0.12, lean: 0.05, crouch: 0.04 };
 const C = (frames) => compile(frames, READY);
@@ -144,7 +144,7 @@ export function createPlayer(G) {
   const P = {
     h, pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, // schaut nach -Z? (yaw=PI => forward = (0,0,-1))
     weapon: 'katana', owned: { katana: true, greatsword: false }, stats: { vit: 10, mnd: 10, end: 10, str: 10 }, dmgMul: 1,
-    maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, souls: 0,
+    maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, mana: 3, maxMana: 3, drinkKind: 'estus', souls: 0,
     state: 'free', t: 0, act: null, actName: '', hitSet: new Set(), buf: null, stRegenDelay: 0, exhausted: false,
     parryActive: false, iframes: false, sprinting: false, moving: false, speedN: 0,
     lock: null, camYaw: 0, camPitch: 0.28, camDist: 4.6, camShake: 0,
@@ -174,6 +174,7 @@ export function createPlayer(G) {
     if (I.pressed.has('KeyF')) P.queue('parry');
     if (I.pressed.has('KeyQ')) P.queue('ash');
     if (I.pressed.has('KeyR')) P.queue('estus');
+    if (I.pressed.has('KeyT')) P.queue('mana');
     if (I.pressed.has('KeyE')) P.queue('interact');
     if (I.pressed.has('KeyC')) P.queue('swap');
     if (I.pressed.has('Tab') || I.pressedMouse[1]) toggleLock();
@@ -195,7 +196,7 @@ export function createPlayer(G) {
     let best = null, bs = 1e9;
     const cf = fwd(P.camYaw);
     for (const e of G.enemies) {
-      if (e.dead) continue;
+      if (e.dead || e.state === 'dormant' || e.untouchable) continue;
       const d = e.pos.distanceTo(P.pos); if (d > 26) continue;
       const a = Math.abs(angleDiff(P.camYaw, Math.atan2(e.pos.x - P.pos.x, e.pos.z - P.pos.z)));
       if (a > 1.6) continue;
@@ -273,7 +274,17 @@ export function createPlayer(G) {
   function startEstus() {
     if (P.estus <= 0) { Sound.play('error'); G.ui.flashEstus(); return false; }
     if (P.hp >= P.maxHp) return false;
-    P.setState('drink', { blend: 0.12 }); P.drankHeal = false; P.flags.gulp = false;
+    P.setState('drink', { blend: 0.12 }); P.drankHeal = false; P.flags.gulp = false; P.drinkKind = 'estus'; setFlaskColor(false);
+    return true;
+  }
+  function setFlaskColor(blue) {
+    const liq = h.flask.userData.liquid.material, lt = h.flask.userData.light;
+    liq.color.set(blue ? 0x4a82ff : 0xff9a2a); liq.emissive.set(blue ? 0x2a5cff : 0xff7a10); lt.color.set(blue ? 0x5a90ff : 0xff9a3a);
+  }
+  function startMana() {
+    if (P.mana <= 0) { Sound.play('error'); G.ui.flashMana(); return false; }
+    if (P.fp >= P.maxFp) return false;
+    P.setState('drink', { blend: 0.12 }); P.drankHeal = false; P.flags.gulp = false; P.drinkKind = 'mana'; setFlaskColor(true);
     return true;
   }
   function findRiposteTarget() {
@@ -299,9 +310,10 @@ export function createPlayer(G) {
     }
     if (it.type === 'item') { G.pickupWeapon(); return true; }
     if (it.type === 'fog') {
-      P.setState('fogwalk', { blend: 0.2 });
-      P.yaw = Math.PI; P.lock = null;
-      G.world.setGateSealed(false);
+      const g = it.fight.arena.gate;
+      P.fogFight = it.fight; P.setState('fogwalk', { blend: 0.2 });
+      P.yaw = Math.atan2(-g.nx, -g.nz); P.lock = null;
+      G.world.setGateSealed(it.fight.id, false);
       Sound.play('fog');
       return true;
     }
@@ -320,6 +332,7 @@ export function createPlayer(G) {
       case 'roll': return startRoll();
       case 'parry': return startParry();
       case 'estus': return startEstus();
+      case 'mana': return startMana();
       case 'interact': return startInteract();
       case 'jump': return startJump();
       case 'swap': return P.cycleWeapon();
@@ -368,9 +381,19 @@ export function createPlayer(G) {
       const behind = Math.abs(angleDiff(e.yaw, Math.atan2(P.pos.x - e.pos.x, P.pos.z - e.pos.z))) > 2.3;
       if (behind && (P.actName === 'l1' || P.actName === 'l2' || P.actName === 'l3') && !e.isBoss) { dmg *= 1.5; G.ui.toast('Backstab'); }
       const info = e.hurt(dmg, { poise: !!a.poise, riposte: P.actName === 'riposte', from: P.pos, kind: P.actName });
+      if (info === 'dodged') continue;
       if (info !== 'blocked') { P.fp = Math.min(P.maxFp, P.fp + (a.fp ? 0 : 5)); }
       G.hitstop(info === 'blocked' ? 0.04 : (P.actName === 'riposte' || P.actName === 'heavy' || P.actName === 'ash') ? 0.12 : 0.07);
       G.shake(P.actName === 'heavy' || P.actName === 'riposte' ? 0.28 : 0.12);
+    }
+  }
+
+  function destroyProjectiles(a) {
+    for (const pr of G.hazards.projectiles) {
+      if (pr.dead || pr.kind !== 'orb' || P.hitSet.has(pr)) continue;
+      const dx = pr.pos.x - P.pos.x, dz = pr.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d > a.range + 0.8 || (!a.line && a.arc < 360 && Math.abs(angleDiff(P.yaw, Math.atan2(dx, dz))) > (a.arc * Math.PI) / 360 + 0.5)) continue;
+      P.hitSet.add(pr); G.hazards.killProjectile(pr, true); fx.parry(pr.pos); Sound.play('parry'); P.fp = Math.min(P.maxFp, P.fp + 8); G.ui.toast('Orb zerschlagen');
     }
   }
 
@@ -453,7 +476,7 @@ export function createPlayer(G) {
 
   // ---------- Leuchtfeuer: Rasten ----------
   function restBegin(b) {
-    P.hp = P.maxHp; P.fp = P.maxFp; P.estus = P.maxEstus; P.st = P.maxSt;
+    P.hp = P.maxHp; P.fp = P.maxFp; P.estus = P.maxEstus; P.mana = P.maxMana; P.st = P.maxSt;
     P.spawn.copy(b.pos).add(new THREE.Vector3(Math.sin(P.yaw) * -1.8, 0, Math.cos(P.yaw) * -1.8)); P.spawnYaw = P.yaw; P.lastBonfire = b;
     Sound.play('rest');
     G.restAt(b);
@@ -463,7 +486,7 @@ export function createPlayer(G) {
   P.respawn = () => {
     const sp = P.lastBonfire ? P.spawn : new THREE.Vector3(0, 0, 4);
     P.pos.set(sp.x, 0, sp.z); P.yaw = P.lastBonfire ? P.spawnYaw : Math.PI; P.camYaw = P.yaw;
-    P.hp = P.maxHp; P.fp = P.maxFp; P.estus = P.maxEstus; P.st = P.maxSt; P.dead = false; P.lock = null;
+    P.hp = P.maxHp; P.fp = P.maxFp; P.estus = P.maxEstus; P.mana = P.maxMana; P.st = P.maxSt; P.dead = false; P.lock = null;
     P.vel.set(0, 0, 0); P.setState('free', { blend: 0.3 }); P.h.root.visible = true; trail.clear();
   };
   P.warpTo = (b) => {
@@ -508,8 +531,12 @@ export function createPlayer(G) {
         if (b.pos.distanceTo(P.pos) < 2.9) { P.interact = { type: 'bonfire', ref: b, text: b.lit ? 'E  Am Leuchtfeuer rasten' : 'E  Leuchtfeuer entfachen' }; break; }
       }
       if (!P.interact && G.drop && P.pos.distanceTo(G.drop.pos) < 2.8) P.interact = { type: 'item', text: 'E  ' + WEAPON_INFO.greatsword.name + ' aufnehmen' };
-      if (!P.interact && G.boss && !G.boss.dead && !G.bossEngaged) {
-        if (Math.abs(P.pos.x) < FOG_GATE.w / 2 && P.pos.z > FOG_GATE.z && P.pos.z < FOG_GATE.z + 3.4) P.interact = { type: 'fog', text: 'E  Nebeltor durchschreiten' };
+      if (!P.interact && !G.activeFight) {
+        for (const f of G.fights) {
+          if (f.dead || !f.enemy) continue;
+          const g = f.arena.gate, rx = P.pos.x - g.x, rz = P.pos.z - g.z, along = rx * g.nx + rz * g.nz, lat = Math.abs(rx * g.nz - rz * g.nx);
+          if (along > 0 && along < 3.4 && lat < g.w / 2) { P.interact = { type: 'fog', fight: f, text: 'E  Nebeltor durchschreiten' }; break; }
+        }
       }
     }
     G.ui.setPrompt(P.interact && !G.menuOpen ? P.interact.text : null);
@@ -554,7 +581,7 @@ export function createPlayer(G) {
             fx.add.emit(c, big ? 80 : 40, { vel: big ? 9 : 7, up: 1.4, life: 0.8, size: 0.2, color: [1, 0.5, 0.15], gravity: 10 });
             fx.flash(c.clone().setY(c.y + 1), 0xff7a30, big ? 150 : 100, 0.4); G.shake(big ? 0.7 : 0.5); Sound.play('bossSlam');
           }
-          applyHits(a);
+          applyHits(a); destroyProjectiles(a);
         }
         if (P.actName === 'riposte' && P.target && !P.flags.rp && t >= a.hs) { P.flags.rp = true; }
         if (t >= a.dur) P.setState('free', { blend: 0.08 });
@@ -575,10 +602,17 @@ export function createPlayer(G) {
         if (m.len > 0.1) { moveDirV = m.dir; moveSpeed = 1.3; P.yaw = dampAngle(P.yaw, Math.atan2(m.dir.x, m.dir.z), 5, dt); }
         if (!P.flags.gulp && P.t > 0.6) { P.flags.gulp = true; Sound.play('gulp'); }
         if (!P.drankHeal && P.t > 1.0) {
-          P.drankHeal = true; P.estus--; P.hp = Math.min(P.maxHp, P.hp + 150); Sound.play('estusHeal');
-          const p = P.pos.clone(); p.y += 1; for (let i = 0; i < 6; i++) fx.heal(p); fx.flash(p, 0xffaa44, 25, 0.6);
+          P.drankHeal = true; Sound.play('estusHeal');
+          const p = P.pos.clone(); p.y += 1;
+          if (P.drinkKind === 'mana') {
+            P.mana--; P.fp = Math.min(P.maxFp, P.fp + 40 + (P.stats.mnd - 10) * 2);
+            fx.add.emit(p, 30, { vel: 2.5, up: 1.5, life: 1.2, size: 0.14, color: [0.4, 0.6, 1], gravity: -1.5, drag: 1, spread: 0.4 }); fx.flash(p, 0x5a90ff, 30, 0.6);
+          } else {
+            P.estus--; P.hp = Math.min(P.maxHp, P.hp + 150);
+            for (let i = 0; i < 6; i++) fx.heal(p); fx.flash(p, 0xffaa44, 25, 0.6);
+          }
         }
-        if (P.drankHeal && Math.random() < 0.5) { const p = P.pos.clone(); p.y += 0.2; fx.heal(p); }
+        if (P.drankHeal && Math.random() < 0.5) { const p = P.pos.clone(); p.y += 0.2; if (P.drinkKind === 'mana') fx.add.emit(p, 1, { vel: 0.8, up: 1, life: 1.1, size: 0.12, color: [0.4, 0.6, 1], gravity: -2, drag: 0.5, spread: 0.45 }); else fx.heal(p); }
         if (P.t >= 1.7) P.setState('free', { blend: 0.1 });
         break;
       }
@@ -601,8 +635,10 @@ export function createPlayer(G) {
         break;
       }
       case 'fogwalk': {
-        moveDirV = fwd(Math.PI); moveSpeed = 2.4; turn = false; P.iframes = true;
-        if (P.pos.z < FOG_GATE.z - 3.2) { P.setState('free', { blend: 0.2 }); G.startBoss(); }
+        const g = P.fogFight.arena.gate;
+        moveDirV = new THREE.Vector3(-g.nx, 0, -g.nz); moveSpeed = 2.4; turn = false; P.iframes = true;
+        const along = (P.pos.x - g.x) * g.nx + (P.pos.z - g.z) * g.nz;
+        if (along < -3.2) { P.setState('free', { blend: 0.2 }); G.startBoss(P.fogFight); }
         break;
       }
       case 'jump': {

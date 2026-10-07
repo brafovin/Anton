@@ -8,7 +8,7 @@ export function createUI(G) {
   const ui = {};
   const el = {
     hp: $('hp-fill'), hpGhost: $('hp-ghost'), hpBar: $('hp-bar'), fp: $('fp-fill'), fpBar: $('fp-bar'), st: $('st-fill'), stBar: $('st-bar'),
-    estus: $('estus-count'), estusSlot: $('slot-estus'), ashSlot: $('slot-ash'), souls: $('souls'), prompt: $('prompt'), banner: $('banner'), bannerText: $('banner-text'),
+    estus: $('estus-count'), mana: $('mana-count'), manaSlot: $('slot-mana'), estusSlot: $('slot-estus'), ashSlot: $('slot-ash'), souls: $('souls'), prompt: $('prompt'), banner: $('banner'), bannerText: $('banner-text'),
     boss: $('boss'), bossName: $('boss-name'), bossFill: $('boss-fill'), bossGhost: $('boss-ghost'), lock: $('lockon'), bars: $('enemybars'), rest: $('rest'), restList: $('rest-list'),
     restTitle: $('rest-title'), fade: $('fade'), hurt: $('hurt'), toast: $('toast'), floats: $('floats'),
   };
@@ -32,6 +32,7 @@ export function createUI(G) {
     el.toast.textContent = t; el.toast.classList.add('show'); toastT = 2.2;
   };
   ui.hurt = () => { el.hurt.style.opacity = 1; };
+  ui.flashMana = () => { el.manaSlot.classList.add('flash'); setTimeout(() => el.manaSlot.classList.remove('flash'), 400); };
   ui.flashFP = () => { el.fpBar.classList.add('flash'); setTimeout(() => el.fpBar.classList.remove('flash'), 400); };
   ui.flashEstus = () => { el.estusSlot.classList.add('flash'); setTimeout(() => el.estusSlot.classList.remove('flash'), 400); };
   ui.souls = (n) => {
@@ -81,6 +82,7 @@ export function createUI(G) {
     el.stBar.classList.toggle('exhausted', P.exhausted);
     el.estus.textContent = P.estus;
     el.estusSlot.classList.toggle('empty', P.estus <= 0);
+    el.mana.textContent = P.mana; el.manaSlot.classList.toggle('empty', P.mana <= 0);
     el.ashSlot.classList.toggle('empty', P.fp < P.ashCost());
     soulsShown = lerp(soulsShown, P.souls, 1 - Math.exp(-6 * dt)); if (Math.abs(soulsShown - P.souls) < 1) soulsShown = P.souls;
     el.souls.textContent = Math.round(soulsShown).toLocaleString('de-DE');
@@ -89,7 +91,7 @@ export function createUI(G) {
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) el.toast.classList.remove('show'); }
     // Boss
     const b = G.boss;
-    if (G.bossEngaged && b && !b.dead) {
+    if (G.activeFight && b && !b.dead) {
       const f = clamp(b.hp / b.maxHp, 0, 1); el.bossFill.style.width = f * 100 + '%';
       ghostBoss = f < ghostBoss ? lerp(ghostBoss, f, 1 - Math.exp(-1.6 * dt)) : f; el.bossGhost.style.width = ghostBoss * 100 + '%';
     }
