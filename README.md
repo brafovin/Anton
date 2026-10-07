@@ -32,7 +32,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 
 **Flaschen verteilen (wie in Elden Ring):** Am Leuchtfeuer `F` drücken. Die Gesamtzahl der Flaschen bleibt gleich, du entscheidest, wie viele HP- (R) und FP-Flaschen (T) du hast (`1`/`→` mehr HP, `2`/`←` mehr FP). Boss-Belohnungen erhöhen die Gesamtzahl (max. 14).
 
-**Speichern/Laden:** Es wird automatisch gespeichert (Leuchtfeuer, Level-Up, Bosse …); im Pausenmenü (`Esc`) gibt es außerdem *Speichern* und *Hauptmenü*. „Neues Spiel“ überschreibt den Spielstand (mit Warnhinweis).
+**Speichern/Laden:** Es wird automatisch gespeichert (Leuchtfeuer, Level-Up, Bosse …); im Pausenmenü (`Esc`) gibt es außerdem *Speichern* und *Hauptmenü*. Es gibt **5 Spielstand-Slots**, die parallel existieren: „Neues Spiel“ fragt zuerst nach einem Slot (ein belegter Slot wird mit Warnhinweis überschrieben), „Spiel laden“ zeigt alle Slots mit Klasse, Level, Bossfortschritt und Zeitstempel und erlaubt das Löschen (mit Rückfrage). Gespeichert wird immer in den aktiven Slot; ein alter Einzel-Spielstand wird automatisch in einen Slot übernommen. Test-Parameter: `?autostart&slot=2`.
 
 ## Steuerung
 
