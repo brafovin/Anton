@@ -86,6 +86,8 @@ const ATTACKS = {
 };
 
 
+// Vaels Schatten-Beschwörung: Abklingzeit in Sekunden (nach Phasenwechsel und nach jeder Beschwörung)
+const SHADE_COOLDOWN = 35;
 const TYPES = {
   hollow: {
     hp: 75, radius: 0.45, speed: 2.7, aggro: 13, souls: 60, scale: 1.0, attacks: ['hSlash', 'hSwipe'], idle: IDLE.hollow, strafe: false,
@@ -124,11 +126,11 @@ const TYPES = {
   reaper: {
     hp: 1500, radius: 0.6, speed: 4.2, aggro: 99, souls: 7000, scale: 1.2, idle: IDLE.reaper, isBoss: true, strafe: true, reach: 4.4, p2speed: 1.2, p2time: 1.2,
     phaseMsg: 'Vael verschwimmt in Schatten',
-    onPhase2: (e) => { for (let i = 0; i < 2; i++) spawnMinion(e, 'shade'); },
+    onPhase2: (e) => { for (let i = 0; i < 2; i++) spawnMinion(e, 'shade'); e.summonCd = SHADE_COOLDOWN; },
     choose: (e, d) => {
       const o = []; const shades = e.G.enemies.filter((m) => m.minion && !m.dead).length;
       if (d > 10) o.push('rDash', 'rDash', 'rVanish'); else if (d > 5.2) o.push('rDash', 'rCombo', 'rVanish'); else o.push('rCombo', 'rCombo', 'rSpin', 'rVanish');
-      if (e.phase2) { if (shades < 1) o.push('rShades', 'rShades'); o.push('rSpin'); }
+      if (e.phase2) { if (shades < 1 && e.summonCd <= 0) o.push('rShades', 'rShades'); o.push('rSpin'); } // Beschwörung nur mit Abklingzeit
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
     look: { head: 'reaper', skin: 0x222222, cloth: 0x0e0c12, armor: 0x1c1a22, trim: 0xa8a8b8, accent: 0x6a0a0a, capeColor: 0x180a10, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 },
@@ -166,7 +168,7 @@ export const CINE = {
 
 export class Enemy {
   constructor(G, type, x, z, yaw = 0, opts = {}) {
-    this.G = G; this.dmgMul = 1; this.speedMul = 1; this.cdMul = 1; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
+    this.G = G; this.dmgMul = 1; this.speedMul = 1; this.cdMul = 1; this.summonCd = 0; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
     this.isBoss = !!T.isBoss; this.radius = T.radius * (this.isBoss ? 1 : 1); this.maxHp = T.hp; this.hp = T.hp;
     this.home = new THREE.Vector3(x, 0, z); this.homeYaw = yaw;
     this.pos = new THREE.Vector3(x, groundHeight(x, z), z); this.yaw = yaw; this.vel = new THREE.Vector3();
@@ -328,7 +330,7 @@ export class Enemy {
       return;
     }
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
-    this.cd -= dt;
+    this.cd -= dt; this.summonCd = Math.max(0, this.summonCd - dt);
     let moveDir = null, speed = 0, target = null;
     const spdMul = (this.phase2 ? (T.p2speed || 1.25) : 1) * this.speedMul;
     this.timeScale = (this.phase2 ? (T.p2time || 1.2) : 1) * this.speedMul;
@@ -552,7 +554,7 @@ const EV = {
     Sound.play('bossSlam');
   },
   summon(e) { const n = Math.min(2, 4 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'hollow'); Sound.play('roar'); e.G.shake(0.3); },
-  shades(e) { const n = Math.min(2, 3 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'shade'); Sound.play('roar'); },
+  shades(e) { const n = Math.min(2, 2 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'shade'); e.summonCd = SHADE_COOLDOWN; Sound.play('roar'); },
   burst(e) { e.G.hazards.area({ x: e.pos.x, z: e.pos.z, r: 5.4, delay: 0.85, dmg: 100 * e.dmgMul, kind: 'blast', color: 0xb070ff, knock: true }); Sound.play('ashCharge'); },
   vanish(e) {
     const c = e.pos.clone(); c.y += 1; e.G.fx.add.emit(c, 40, { vel: 3, up: 1.5, life: 0.9, size: 0.4, color: [0.5, 0.25, 0.8], gravity: -1 });

@@ -72,7 +72,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | 1 | **Sir Hadrian**, Wächter der Asche | Burg (Norden) | Rundumschlag, Zerschmettern (rot), Sturmstoß, Sprung (Phase 2) | Hadrians Ascheklinge |
 | 2 | **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, Teleport hinter dich, Aschenwelle | +1 Aschen-Flasche |
 | 3 | **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
-| 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2) | +1 Estus & +1 Aschen-Flasche |
+| 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2, höchstens alle 35 s, max. 2 gleichzeitig) | +1 Estus & +1 Aschen-Flasche |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
 
 ## Code
