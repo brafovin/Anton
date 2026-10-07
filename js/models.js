@@ -14,6 +14,7 @@ export const DEF = {
   twist: 0, lean: 0,                  // Torso-Drehung / -Neigung
   shift: 0, crouch: 0,                // Koerper nach vorne / abgesenkt
   bpitch: 0, tuck: 0,                 // Rolle: Koerper-Kippung / Beine anziehen
+  kneel: 0,                           // 0..1: Beine nach hinten gefaltet (kniend, zusammen mit crouch ~0.45)
   head: 0,                            // Kopfneigung
   flask: 0, sheath: 0,                // Flasche sichtbar / Katana in Saya
   glow: 0, draw: 0, e: 0,
@@ -467,11 +468,12 @@ export function applyPose(h, p, gait, dt) {
     _T.set(side * 0.15 * (1 + (1 - stance) * 0.2) + xf, groundY + lift, zf);
     // zusammengerollt (Rolle)
     if (p.tuck > 0.001) { _ankle.set(side * 0.13, -0.28, 0.36); _T.lerp(_ankle, p.tuck); }
+    if (p.kneel > 0.001) { _ankle.set(side * 0.14, groundY + 0.1, -0.44); _T.lerp(_ankle, p.kneel); }
     L.S.x = side * 0.13;
     ik(L.S, _T, THIGH, SHIN, V(0, 0.1, 1), L.K, L.A);
     limb(L.th, L.S, L.K); limb(L.sh, L.K, L.A); L.kn.position.copy(L.K);
     L.ft.position.set(L.A.x, L.A.y - 0.02, L.A.z + 0.06);
-    L.ft.rotation.set(p.tuck * 0.5 + (lift > 0.02 ? -0.3 : 0), 0, 0);
+    L.ft.rotation.set(p.tuck * 0.5 + p.kneel * 0.9 + (lift > 0.02 ? -0.3 : 0), 0, 0);
   }
 
   // Waffe + Arme

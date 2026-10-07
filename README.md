@@ -48,6 +48,8 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | Linke Maustaste | Leichter Angriff (3er-Kombo) · Magier: M1-Zauber |
 | Rechte Maustaste | Schwerer Angriff (Ash of War = etwa das Doppelte) · Magier: M2-Zauber |
 | F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
+
+**Benommen:** Wer geparried wird (oder als Boss gegen eine Wand rennt), taumelt zurück und sinkt wie in Elden Ring auf die Knie – gebeugt und wehrlos, bis er sich nach ein paar Sekunden wieder aufrichtet. Die Riposte trifft den knienden Gegner; danach steht er langsam auf.
 | Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: **M2-Zauber wechseln** |
 | Mausrad / 1–5 | M1-Zauber wählen (nur mit Magierstab) |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
