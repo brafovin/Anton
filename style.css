@@ -94,3 +94,20 @@ button:hover{background:rgba(110,80,30,.6);box-shadow:0 0 22px #a8782a88}
 .slot .cd{position:absolute;left:0;right:0;bottom:0;height:0;background:rgba(0,0,0,.72);pointer-events:none}
 #slot-parry.cooling{border-color:#7a3a30}
 .ico.shield{width:30px;height:34px;background:linear-gradient(135deg,#9aa4b8,#4a5468);clip-path:polygon(50% 0,100% 15%,92% 62%,50% 100%,8% 62%,0 15%);filter:drop-shadow(0 0 4px #9cf)}
+
+/* ---------- Cutscenes ---------- */
+#cine-top,#cine-bot{position:fixed;left:0;right:0;height:0;background:#000;z-index:14;pointer-events:none;transition:height .9s ease}
+#cine-top{top:0}#cine-bot{bottom:0}
+body.cine #cine-top,body.cine #cine-bot{height:12vh}
+body.cine #hud,body.cine #boss,body.cine #enemybars,body.cine #lockon,body.cine #prompt,body.cine #toast,body.cine #floats,body.cine #hurt{opacity:0!important;transition:opacity .4s}
+#cine-sub{position:fixed;left:50%;bottom:14.5vh;transform:translateX(-50%);width:min(900px,86vw);text-align:center;z-index:15;pointer-events:none;opacity:0;transition:opacity .35s;text-shadow:0 0 8px #000,0 0 3px #000}
+#cine-sub.show{opacity:1}
+#cine-who{display:block;font-size:13px;letter-spacing:.35em;text-transform:uppercase;color:#c9a85a;margin-bottom:6px}
+#cine-text{font-size:clamp(18px,2.3vw,28px);line-height:1.45;color:#efe6cf;font-style:italic}
+#cine-title{position:fixed;left:0;right:0;top:46%;transform:translateY(-50%);text-align:center;z-index:16;pointer-events:none;opacity:0}
+#cine-title.show{animation:titlecard 4s ease-out forwards}
+@keyframes titlecard{0%{opacity:0;transform:translateY(-50%) scale(1.25);filter:blur(8px)}12%{opacity:1;transform:translateY(-50%) scale(1);filter:blur(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-50%) scale(1.04)}}
+#cine-title-main{font-size:clamp(46px,9vw,128px);letter-spacing:.3em;text-indent:.3em;color:#e9cf8a;text-shadow:0 0 40px #7a3a10,0 0 6px #000;font-weight:700}
+#cine-title-sub{margin-top:6px;font-size:clamp(16px,2.2vw,30px);letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:#cfc2a0;text-shadow:0 0 10px #000}
+#cine-skip{position:fixed;right:28px;bottom:3.4vh;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#b8ae92;z-index:15;opacity:0;transition:opacity .5s;pointer-events:none}
+body.cine #cine-skip{opacity:.8}
