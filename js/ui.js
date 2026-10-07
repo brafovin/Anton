@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clamp, lerp } from './util.js';
+import { WEAPON_INFO } from './player.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,17 +40,33 @@ export function createUI(G) {
   };
   ui.fade = (a, ms = 800) => { el.fade.style.transition = `opacity ${ms}ms`; el.fade.style.opacity = a; };
   ui.setBoss = (name, show) => { el.boss.classList.toggle('show', !!show); if (name) el.bossName.textContent = name; if (show) { ghostBoss = 1; } };
-  ui.restMap = [];
+  ui.restMap = []; ui.menuMode = 'rest'; ui.restCtx = null;
   ui.showRest = (lit, current) => {
-    G.menuOpen = true;
+    G.menuOpen = true; ui.menuMode = 'rest'; ui.restCtx = { lit, current };
     ui.restMap = lit.filter((b) => b !== current);
     el.restTitle.textContent = current.name;
-    let html = '<div class="opt"><b>E</b> Aufstehen</div>';
+    let html = `<div class="opt"><b>E</b> Aufstehen</div><div class="opt"><b>U</b> Aufleveln <span class="dim">(Level ${G.player.level()})</span></div>`;
     if (ui.restMap.length) html += '<div class="sep">Teleportieren</div>' + ui.restMap.map((b, i) => `<div class="opt"><b>${i + 1}</b> ${b.name}</div>`).join('');
     el.restList.innerHTML = html;
     el.rest.classList.add('show');
   };
+  ui.showLevel = () => {
+    const P = G.player; ui.menuMode = 'level';
+    const cost = P.levelCost(), can = P.souls >= cost;
+    const rows = [['vit', 'Vitalität', `${P.maxHp} HP`, '+14 HP'], ['mnd', 'Geist', `${P.maxFp} FP`, '+5 FP'], ['end', 'Ausdauer', `${P.maxSt} Ausdauer`, '+3 Ausdauer'], ['str', 'Stärke', `${Math.round(P.dmgMul * 100)}% Schaden`, '+3,5% Schaden']];
+    el.restTitle.textContent = 'Aufleveln';
+    el.restList.innerHTML = `<div class="lvl"><span>Level <b>${P.level()}</b></span><span>Seelen <b>${P.souls.toLocaleString('de-DE')}</b></span><span class="${can ? '' : 'poor'}">Kosten <b>${cost.toLocaleString('de-DE')}</b></span></div>` +
+      rows.map(([k, n, now, gain], i) => `<div class="opt ${can ? '' : 'poor'}"><b>${i + 1}</b> ${n} <span class="val">${P.stats[k]}</span><span class="dim">${now} &nbsp;(${gain})</span></div>`).join('') +
+      '<div class="sep"></div><div class="opt"><b>E</b> Zurück</div>';
+    el.rest.classList.add('show');
+  };
   ui.hideRest = () => { G.menuOpen = false; el.rest.classList.remove('show'); };
+  ui.setWeapon = (name) => {
+    const info = WEAPON_INFO[name];
+    $('weapon-lbl').textContent = info.short; $('ash-lbl').textContent = info.ash;
+    $('weapon-ico').className = 'ico ' + (name === 'greatsword' ? 'gsword' : 'katana');
+    $('ash-ico').className = 'ico ash' + (name === 'greatsword' ? ' fire' : '');
+  };
 
   ui.update = (dt) => {
     const P = G.player;
@@ -64,7 +81,7 @@ export function createUI(G) {
     el.stBar.classList.toggle('exhausted', P.exhausted);
     el.estus.textContent = P.estus;
     el.estusSlot.classList.toggle('empty', P.estus <= 0);
-    el.ashSlot.classList.toggle('empty', P.fp < 25);
+    el.ashSlot.classList.toggle('empty', P.fp < P.ashCost());
     soulsShown = lerp(soulsShown, P.souls, 1 - Math.exp(-6 * dt)); if (Math.abs(soulsShown - P.souls) < 1) soulsShown = P.souls;
     el.souls.textContent = Math.round(soulsShown).toLocaleString('de-DE');
     // Schaden-Vignette

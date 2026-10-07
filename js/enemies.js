@@ -49,7 +49,7 @@ const TYPES = {
   },
   boss: {
     hp: 1700, radius: 1.3, speed: 3.4, aggro: 99, souls: 8000, scale: 1.75, attacks: ['bSweep', 'bSlam', 'bThrust'], idle: IDLE.boss, isBoss: true, strafe: true,
-    look: { head: 'greathelm', skin: 0x888888, cloth: 0x181410, armor: 0x2c2a30, trim: 0xb8962e, accent: 0x7a1a1a, capeColor: 0x4a1414, cape: true, tabard: false, plates: true, weapon: 'greatsword', bulk: 1.2, eye: 0xff6a10 },
+    look: { head: 'greathelm', ornate: true, skin: 0x888888, cloth: 0x120e0a, armor: 0x17171d, trim: 0xe0b040, accent: 0x8a1010, capeColor: 0x6a1010, cape: true, tabard: false, plates: true, weapon: 'greatsword', bulk: 1.2, eye: 0xff6a10 },
   },
 };
 
