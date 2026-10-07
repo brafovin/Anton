@@ -111,3 +111,46 @@ body.cine #hud,body.cine #boss,body.cine #enemybars,body.cine #lockon,body.cine 
 #cine-title-sub{margin-top:6px;font-size:clamp(16px,2.2vw,30px);letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:#cfc2a0;text-shadow:0 0 10px #000}
 #cine-skip{position:fixed;right:28px;bottom:3.4vh;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:#b8ae92;z-index:15;opacity:0;transition:opacity .5s;pointer-events:none}
 body.cine #cine-skip{opacity:.8}
+
+/* ---------- Menues ---------- */
+.menu{display:flex;flex-direction:column;gap:12px;align-items:center;margin:8px 0 6px}
+.menu button{min-width:290px}
+button.ghost{background:transparent;border-color:#4a4232;color:#b8ae92}
+button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.hidden{display:none!important}
+#overlay.screen,#classes.screen{background:radial-gradient(ellipse at 50% 42%,rgba(8,8,12,.55),rgba(0,0,0,.9))}
+#classes.screen{background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.92) 62%);display:none;grid-template-rows:auto 1fr auto;place-items:stretch}
+#classes.show{display:grid}
+.cl-top{text-align:center;padding-top:22px}
+.cl-top h1{margin:0;font-size:clamp(26px,4.5vw,52px);letter-spacing:.3em;text-indent:.3em;color:var(--gold);text-shadow:0 0 24px #7a4a10}
+.cl-cards{display:flex;gap:18px;justify-content:center;align-items:flex-end;padding:0 20px;flex-wrap:wrap}
+.card{width:min(300px,29vw);min-width:240px;padding:16px 18px;background:rgba(10,10,14,.82);border:1px solid #3e3626;cursor:pointer;transition:.2s;text-align:left}
+.card:hover{border-color:#8a6d2e;transform:translateY(-3px)}
+.card.sel{border-color:var(--gold);box-shadow:0 0 28px #a8782a66;background:rgba(26,20,10,.88)}
+.card h3{margin:0 0 2px;font-size:24px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+.card .tag{font-size:12px;letter-spacing:.14em;color:#a99a74;margin-bottom:8px;text-transform:uppercase}
+.card p{margin:0 0 10px;font-size:13.5px;line-height:1.5;color:#cfc6ad}
+.card .cstats{display:grid;grid-template-columns:78px 1fr 24px;gap:3px 8px;align-items:center;font-size:12px;color:#a99a74;margin-bottom:10px}
+.card .cstats i{height:6px;background:#1c1810;display:block;position:relative}
+.card .cstats i b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#8a6d2e,#d9b86a)}
+.card ul{margin:0;padding-left:16px;font-size:12.5px;color:#cfc6ad;line-height:1.55}
+.cl-bottom{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap;padding:16px 20px 26px}
+.cl-bottom .hint{flex-basis:100%;text-align:center;margin:4px 0 0}
+#save-info{min-height:18px}
+/* Zauberleiste */
+#spellbar{position:fixed;left:28px;bottom:128px;display:none;flex-direction:column;gap:4px;pointer-events:none}
+#spellbar.show{display:flex}
+#spellbar .sp{display:grid;grid-template-columns:20px 1fr 26px;gap:8px;align-items:center;min-width:210px;padding:4px 10px;background:rgba(8,8,12,.6);border-left:3px solid #3a3426;font-size:13px;color:#a99a74;letter-spacing:.06em}
+#spellbar .sp b{color:#8a7a52;font-weight:600}
+#spellbar .sp i{font-style:normal;text-align:right;color:#7aa0e0;font-size:12px}
+#spellbar .sp.on{border-left-color:var(--c);background:rgba(20,18,30,.82);color:#f2e6c4;box-shadow:inset 0 0 14px color-mix(in srgb,var(--c) 25%,transparent)}
+#spellbar .sp.on b{color:var(--c)}
+/* Flaschen-Menue */
+#rest-list .flrow{margin:-2px 0 8px 32px;letter-spacing:.2em;font-size:18px;min-height:22px}
+#rest-list .fl.hp{color:#ffa83a;text-shadow:0 0 8px #ff7a10}
+#rest-list .fl.fp{color:#5a90ff;text-shadow:0 0 8px #2a5cff}
+/* weitere Waffen-Icons */
+.ico.isword{background:linear-gradient(135deg,transparent 42%,#cfd4de 45% 55%,transparent 58%),linear-gradient(135deg,transparent 0 76%,#3a3a44 76% 92%,transparent 92%);transform:scale(1.6);filter:drop-shadow(0 0 3px #9cf)}
+.ico.staff{background:linear-gradient(135deg,transparent 46%,#5a3e2a 48% 54%,transparent 56%),radial-gradient(circle at 78% 22%,#e0c8ff 0 12%,#8a4aff 14% 24%,transparent 27%);transform:scale(1.5);filter:drop-shadow(0 0 5px #9a5aff)}
+.ico.ash.spell{background:radial-gradient(circle,#e0d0ff 0 18%,transparent 20%),conic-gradient(from 200deg,transparent,#a070ff 8%,transparent 20%);filter:drop-shadow(0 0 6px #a070ff)}
+body.inmenu #hud,body.inmenu #spellbar,body.inmenu #prompt{opacity:0!important}

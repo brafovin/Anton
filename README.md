@@ -10,6 +10,30 @@ Die Dateien müssen über einen lokalen Webserver geliefert werden (ES-Module):
 python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 ```
 
+## Hauptmenü & Klassen
+
+Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem neuen Spiel wählst du eine Startklasse (mit 3D-Vorschau):
+
+| Klasse | Ausrüstung | Eigenschaften |
+|---|---|---|
+| **Ninja** | Katana (Ash of War: Unsheathe), Ninja-Rüstung | schnell (+10 % Tempo), viel Ausdauer, Rolle kostet weniger, wenig HP |
+| **Magier** | Magierstab, Robe & Spitzhut, **5 Zauber** | sehr viel FP, Zauber skalieren mit Geist, wenig HP/Nahkampf |
+| **Ritter** | Eisen-Großschwert (Aschenschlag), schwere Plattenrüstung | viel HP & Stärke, langsamer, Rolle teurer |
+
+**Zauber (Magier mit Stab):** Mit **Mausrad oder 1–5** wählst du den Zauber aus (wie in Elden Ring), **Q** wirkt ihn.
+
+| # | Zauber | FP | Wirkung |
+|---|---|---|---|
+| 1 | Seelenpfeil | 9 | schneller Pfeil, folgt dem Ziel |
+| 2 | Flammenkugel | 16 | explodiert, bricht Deckung |
+| 3 | Blitzschlag | 22 | schlägt am Ziel ein (kurze Vorwarnung) |
+| 4 | Heilendes Licht | 28 | stellt HP wieder her |
+| 5 | Aschenschild | 20 | halbiert den Schaden für 10 s |
+
+**Flaschen verteilen (wie in Elden Ring):** Am Leuchtfeuer `F` drücken. Die Gesamtzahl der Flaschen bleibt gleich, du entscheidest, wie viele HP- (R) und FP-Flaschen (T) du hast (`1`/`→` mehr HP, `2`/`←` mehr FP). Boss-Belohnungen erhöhen die Gesamtzahl (max. 14).
+
+**Speichern/Laden:** Es wird automatisch gespeichert (Leuchtfeuer, Level-Up, Bosse …); im Pausenmenü (`Esc`) gibt es außerdem *Speichern* und *Hauptmenü*. „Neues Spiel“ überschreibt den Spielstand (mit Warnhinweis).
+
 ## Steuerung
 
 | Taste | Aktion |
@@ -22,9 +46,11 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | Linke Maustaste | Leichter Angriff (3er-Kombo) |
 | Rechte Maustaste | Schwerer Angriff |
 | F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
-| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer |
+| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: gewählten **Zauber wirken** |
+| Mausrad / 1–5 | Zauber wählen (nur mit Magierstab) |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
 | T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |
+| F (am Leuchtfeuer) | Flaschen zwischen HP und FP verteilen |
 | E | Interagieren: Leuchtfeuer entfachen / rasten, Nebeltor, Beute aufnehmen |
 | C | Waffe wechseln (sobald du die Boss-Klinge besitzt) |
 | U | Am Leuchtfeuer: Aufleveln (1–4 wählt das Attribut) |
@@ -37,7 +63,6 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 - **Aufleveln:** Am Leuchtfeuer (`U`) tauscht du Seelen gegen Level: Vitalität (HP), Geist (FP), Ausdauer, Stärke (Schaden). Die Kosten steigen mit jedem Level.
 - **Boss-Rüstung & Beute:** *Sir Hadrian* trägt eine schwarz-goldene Stachelrüstung mit glühendem Emblem – ganz anders als dein stählernes Outfit. Besiegst du ihn, kannst du seine **Hadrians Ascheklinge** (Großschwert: langsamer, härter, größere Reichweite, eigene Kombo, Heavy und Ash of War) aufnehmen und mit `C` zwischen den Waffen wechseln.
 - **Cutscenes:** Jeder Boss hat ein eigenes Intro (nach dem Nebeltor) mit Kamerafahrt, Untertiteln und Titelkarte – Hadrian steht kniend am Schwert auf, Morwen erscheint schwebend im Violett der Kristalle, Gorm bricht mit Erdbeben aus dem Geröll, Vael tritt aus der Dunkelheit. Beim Tod des Bosses folgt ein kurzes Zeitlupen-Outro mit letzten Worten. Das Intro läuft nur beim ersten Mal pro Boss (wird mitgespeichert); bei weiteren Versuchen erscheint nur der Bossname. Überspringen mit `Leertaste`, `Enter`, `E` oder `Esc`.
-- **Speicherstand:** Fortschritt (Level, Waffen, Leuchtfeuer, Boss) wird automatisch im Browser gespeichert; auf dem Startbildschirm gibt es „Neues Spiel“.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
 - **Gegner:** Hohle Soldaten und Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung).
 - **4 Bosse in fester Reihenfolge** – jeder ist stärker als der vorherige (mehr Leben, härtere Treffer, höheres Tempo, kürzere Pausen). Das Nebeltor des nächsten Bosses ist **versiegelt**, bis der Vorgänger besiegt ist. Jeder Boss hat eigene Arena, Bonfire nach dem Sieg und zwei Phasen:
