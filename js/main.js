@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff } from './util.js';
-import { buildWorld, groundHeight, GLOW } from './world.js';
+import { buildWorld, groundHeight, GLOW, PLAZA_BONFIRE } from './world.js';
 import { createHazards } from './hazards.js';
 import { createCutscenes } from './cutscene.js';
 import { makeSword } from './models.js';
@@ -80,7 +80,7 @@ const SAVE_KEY = 'aschenfeuer-save-v1';
 G.save = () => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+      finished: !!G.ended, cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
       dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
   } catch (e) { /* Speichern nicht moeglich */ }
@@ -90,6 +90,12 @@ function ensureArenaBonfire(f) {
   let nb = G.world.bonfires.find((b) => b.id === A.bonfire.id);
   if (!nb) nb = G.world.makeBonfire(A.bonfire.id, A.bonfire.name, A.x - A.nx * 2, A.z - A.nz * 2 + (A.id === 'hadrian' ? 10 : 0));
   return nb;
+}
+G.allFourDead = () => G.fights.slice(0, 4).every((f) => f.dead);
+function ensurePlazaBonfire() {
+  let b = G.world.bonfires.find((x) => x.id === PLAZA_BONFIRE.id);
+  if (!b) b = G.world.makeBonfire(PLAZA_BONFIRE.id, PLAZA_BONFIRE.name, PLAZA_BONFIRE.x, PLAZA_BONFIRE.z);
+  return b;
 }
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
@@ -110,6 +116,8 @@ G.loadGame = () => {
   P.estus = P.maxEstus; P.mana = P.maxMana;
   const dead = new Set(saved.dead || (saved.bossDead ? ['hadrian'] : []));
   for (const f of G.fights) { if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); } if ((saved.seen || []).includes(f.id) || dead.has(f.id)) f.introSeen = true; }
+  G.ended = !!saved.finished;
+  if (G.allFourDead()) { ensurePlazaBonfire(); if (!(saved.lit || []).includes(PLAZA_BONFIRE.id) && !G.fights.find((f) => f.id === 'king').dead) G.pendingTeleport = true; }
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
@@ -165,6 +173,30 @@ G.startBoss = (f) => {
   f.introSeen = true; G.save(); // Cutscene nur beim ersten Mal
   G.cutscenes.playIntro(f, () => { f.enemy.setState('chase', 0.3); f.enemy.cd = Math.max(f.enemy.cd, 0.8); G.ui.setBoss(f.arena.bossName, true); });
 };
+// Folgen eines besiegten Bosses: nach dem vierten Boss Teleport zum Thron, nach dem König das Ende
+G.afterBoss = (f) => {
+  if (f.id === 'king') G.showEnding();
+  else if (f.id === 'vael' && G.allFourDead()) G.teleportToKing();
+};
+G.teleportToKing = () => {
+  const king = G.fights.find((f) => f.id === 'king'); if (!king || king.dead) return;
+  P.setState('cutscene'); P.lock = null;
+  G.ui.banner('DER THRONSAAL RUFT DICH', 'gold', 5.5); Sound.play('victory'); G.ui.fade(1, 1400, '#fff');
+  setTimeout(() => {
+    const b = ensurePlazaBonfire(); b.lit = true; b.blend = 1;
+    P.hp = P.maxHp; P.fp = P.maxFp; P.st = P.maxSt; P.estus = P.maxEstus; P.mana = P.maxMana;
+    P.lastBonfire = b; P.warpTo(b); P.setState('free'); populate(); P.camYaw = Math.PI; if (G.snapCamera) G.snapCamera();
+    G.ui.fade(0, 2400, '#fff'); G.save();
+    setTimeout(() => G.ui.toast('Tritt durch das Nebeltor, wenn du bereit bist'), 2800);
+  }, 1500);
+};
+G.showEnding = () => {
+  G.ended = true; G.save();
+  const C = CLASSES[P.cls];
+  document.getElementById('ending-stats').textContent = `${C.name} · Level ${P.level()} · ${Math.round(P.souls).toLocaleString('de-DE')} Seelen`;
+  document.getElementById('ending').classList.add('show'); G.paused = true; if (document.pointerLockElement) document.exitPointerLock();
+  Sound.play('victory');
+};
 G.onBossDefeated = (b) => {
   const f = b.fight; if (!f) return;
   f.dead = true; G.activeFight = null; G.refreshGates();
@@ -173,7 +205,7 @@ G.onBossDefeated = (b) => {
   G.enemies.filter((o) => o.minion && !o.dead).forEach((o) => o.die());
   G.fx.ring(b.pos.clone(), { color: 0xffe0a0, r: 16, dur: 1.5 }); G.fx.souls(b.pos.clone().setY(2), 120);
   ensureArenaBonfire(f).lit = true;
-  if (!P.dead) G.cutscenes.playOutro(f, b);
+  if (!P.dead) G.cutscenes.playOutro(f, b, () => G.afterBoss(f)); else G.pendingAfter = f;
   const rw = f.arena.reward, msgs = [];
   if (rw === 'greatsword') G.spawnDrop(f.arena.x, f.arena.z - 2);
   const total = () => P.maxEstus + P.maxMana;
@@ -333,7 +365,7 @@ function showScreen(name) {
 (function initTitle() {
   const lv = saved ? Object.values(saved.stats || { a: 10, b: 10, c: 10, d: 10 }).reduce((a, b) => a + b, 0) - 40 + 1 : 0;
   $('btn-load').disabled = !saved;
-  $('save-info').textContent = saved ? `Spielstand: ${CLASSES[saved.cls || 'ninja'].name} · Level ${lv} · Bosse ${(saved.dead || (saved.bossDead ? ['x'] : [])).length}/4` : 'Kein Spielstand vorhanden.';
+  $('save-info').textContent = saved ? `Spielstand: ${CLASSES[saved.cls || 'ninja'].name} · Level ${lv} · Bosse ${(saved.dead || (saved.bossDead ? ['x'] : [])).length}/5${saved.finished ? ' · Durchgespielt ✓' : ''}` : 'Kein Spielstand vorhanden.';
   showScreen('title');
 })();
 $('btn-controls').addEventListener('click', () => $('controls').classList.toggle('hidden'));
@@ -352,12 +384,15 @@ function start() {
   try { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* ignore */ }
   G.ui.fade(0, 1200);
   setTimeout(() => G.ui.toast(P.lastBonfire ? 'Willkommen zurück' : 'Entfache das Leuchtfeuer'), 800);
+  if (G.pendingTeleport) { G.pendingTeleport = false; setTimeout(() => G.teleportToKing(), 2500); }
 }
 {
   const q = new URLSearchParams(location.search);
   if (q.has('autostart')) { if (G.hasSave) G.loadGame(); else G.newGame(q.get('class') || 'ninja'); start(); }
 }
 
+$('btn-continue').addEventListener('click', () => { $('ending').classList.remove('show'); G.paused = false; try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (_) { /* ignore */ } });
+$('btn-end-menu').addEventListener('click', () => { G.save(); location.href = location.pathname; });
 // Mausrad: Zauber wechseln (Magier)
 addEventListener('wheel', (e) => { if (G.running && !G.paused && !G.menuOpen && !G.cutscene) P.cycleSpell(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 
@@ -405,6 +440,7 @@ function frame(now) {
     if (G.deathTimer <= 0) {
       G.fadedOut = false; G.deathTimer = 0;
       P.respawn(); populate(); camInit = false; G.ui.fade(0, 1500);
+      if (G.pendingAfter) { const f = G.pendingAfter; G.pendingAfter = null; setTimeout(() => G.afterBoss(f), 1500); }
     }
   }
   // Mond folgt dem Spieler
