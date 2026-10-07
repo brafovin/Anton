@@ -102,6 +102,13 @@ const ATTACKS = {
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.7, hx: 0, hy: 0.95, hz: 0, dx: 0, dy: 1, dz: -0.2, lean: -0.35, glow: 1, e: 2 }, { t: 0.9, hx: -0.1, hy: 0.25, hz: 0.55, dx: 0, dy: -0.7, dz: 1, lean: 0.55, crouch: 0.15, glow: 1, e: 1 }, { t: 1.5, e: 3 }, { t: 2.6, ...IDLE.boss, glow: 0, e: 0 }]) },
   kMeteors: { name: 'Sternenfall', dur: 3.2, hs: 99, he: 99, track: 0.6, danger: true, ev: [[1.2, 'meteors']],
     f: A(IDLE.boss, [{ t: 0 }, { t: 1.0, hx: 0, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: 0, lean: -0.5, glow: 1, e: 2 }, { t: 1.2, e: 3 }, { t: 2.0, e: 3 }, { t: 3.2, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kBow: { name: 'Königlicher Pfeilhagel', dur: 2.9, hs: 99, he: 99, track: 1.9, bow: true, ev: [[1.0, 'kingArrow'], [1.5, 'kingArrow'], [2.0, 'kingArrow']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.45, hx: -0.1, hy: 0.58, hz: 0.6, dx: 0, dy: 1, dz: 0.12, lg: 0, twist: 0.35, lean: 0, draw: 0, e: 2 },
+      { t: 0.95, draw: 1, e: 0 }, { t: 1.0, draw: 0, e: 1 }, { t: 1.28, draw: 1, e: 0 }, { t: 1.48, draw: 1, e: 3 }, { t: 1.5, draw: 0, e: 1 }, { t: 1.78, draw: 1, e: 0 }, { t: 1.98, draw: 1, e: 3 }, { t: 2.0, draw: 0, e: 1 },
+      { t: 2.9, ...IDLE.boss, draw: 0, e: 2 }]) },
+  kBowRain: { name: 'Pfeilregen', dur: 2.8, hs: 99, he: 99, track: 0.9, bow: true, danger: true, ev: [[1.15, 'kingRain']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.5, hx: -0.1, hy: 0.7, hz: 0.5, dx: 0, dy: 0.6, dz: -0.8, lg: 0, twist: 0.2, lean: -0.15, draw: 0, e: 2 },
+      { t: 1.1, draw: 1, e: 0 }, { t: 1.17, draw: 0, e: 1 }, { t: 1.8, e: 3 }, { t: 2.8, ...IDLE.boss, draw: 0, e: 2 }]) },
   kBlink: { name: 'Thronsprung', dur: 3.0, hs: 1.5, he: 1.62, range: 6, arc: 130, dmg: 175, parryable: false, danger: true, track: 1.45, slam: true, slamDist: 4.2, slamR: 5, ev: [[0.2, 'vanish'], [1.1, 'appearBehind']],
     f: A(IDLE.boss, [{ t: 0 }, { t: 1.1, hx: 0, hy: 0.95, hz: 0, dx: 0, dy: 1, dz: -0.3, lean: -0.4, glow: 1, e: 2 }, { t: 1.48, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, shift: 0.3, crouch: 0.15, e: 1 }, { t: 2.0, e: 3 }, { t: 3.0, ...IDLE.boss, glow: 0, e: 0 }]) },
 };
@@ -162,11 +169,11 @@ const TYPES = {
     onPhase3: (e) => { EV.stompRing(e); },
     choose: (e, d) => {
       const o = [];
-      if (d > 11) { o.push('kLunge', 'kWave'); if (e.phase2) o.push('kLeap', 'kPillars'); if (e.phase3) o.push('kMeteors', 'kBlink'); }
-      else { o.push('kSweep', 'kSweep', 'kCombo', 'kSlam'); if (d > 5) o.push('kLunge'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors'); }
+      if (d > 11) { o.push('kLunge', 'kWave', 'kBow', 'kBow'); if (e.phase2) o.push('kLeap', 'kPillars', 'kBowRain'); if (e.phase3) o.push('kMeteors', 'kBlink', 'kBowRain'); }
+      else { o.push('kSweep', 'kSweep', 'kCombo', 'kSlam'); if (d > 5) o.push('kLunge', 'kBow'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap', 'kBowRain'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors', 'kBow'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
-    look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', bulk: 1.38, eye: 0xffd060 },
+    look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', weapons: ['kingsword', 'kingbow'], bulk: 1.38, eye: 0xffd060 },
   },
   shade: {
     hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
@@ -222,7 +229,8 @@ export class Enemy {
     const st0 = this.h.weapon.userData.steel; if (this.isBoss && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
   }
-  setState(s, blend = 0.1) { this.prev = { ...this.pose }; this.state = s; this.t = 0; this.blendT = 0; this.blendDur = blend; }
+  useBow(v) { if (!!v === !!this._bow || !this.h.weapons.kingbow) return; this._bow = !!v; this.h.setWeapon(v ? 'kingbow' : 'kingsword'); }
+  setState(s, blend = 0.1) { if (s !== 'attack') this.useBow(false); this.prev = { ...this.pose }; this.state = s; this.t = 0; this.blendT = 0; this.blendDur = blend; }
   dispose() { this.G.scene.remove(this.h.root); this.h.root.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
 
   aggroNow() { if (this.state === 'idle' || this.state === 'return') this.setState('chase', 0.2); }
@@ -277,7 +285,7 @@ export class Enemy {
 
   // ---------------- Angriff ----------------
   startAttack(name) {
-    const a = ATTACKS[name]; this.atk = a; this.atkName = name; this.setState('attack', 0.1);
+    const a = ATTACKS[name]; this.atk = a; this.atkName = name; this.setState('attack', 0.1); this.useBow(a.bow);
     this.hitDone = false; this.sfx = false; this.flags = {};
     if (a.leap) { this.leapFrom.copy(this.pos); }
   }
@@ -575,12 +583,17 @@ function spawnMinion(e, type) {
   }
   return null;
 }
+// Richtung vom Mündungspunkt direkt auf die Brust des Spielers (inkl. Höhenunterschied), optional seitlich gedreht
+function aimAt(e, m, off = 0, chest = 1.1) {
+  const P = e.G.player, v = new V3(P.pos.x - m.x, P.pos.y + chest - m.y, P.pos.z - m.z);
+  if (off) { const c = Math.cos(off), s2 = Math.sin(off), x = v.x * c + v.z * s2, z = -v.x * s2 + v.z * c; v.x = x; v.z = z; }
+  return v.normalize();
+}
 const minionsAlive = (e) => e.G.enemies.filter((o) => o.minion && !o.dead).length;
 const EV = {
   fireball(e) {
-    const G = e.G, P = G.player, m = muzzle(e), n = e.phase2 ? 5 : 3, base = Math.atan2(P.pos.x - m.x, P.pos.z - m.z), dist = Math.hypot(P.pos.x - m.x, P.pos.z - m.z);
-    const dy = clamp((P.pos.y + 1.1 - m.y) / Math.max(dist, 4), -0.25, 0.25);
-    for (let i = 0; i < n; i++) { const ang = base + (i - (n - 1) / 2) * 0.21; G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), dy, Math.cos(ang)), speed: 15, dmg: 70 * e.dmgMul, r: 0.6, color: 0xff7a30, kind: 'fire', life: 4, size: 1.5 }); }
+    const G = e.G, m = muzzle(e), n = e.phase2 ? 5 : 3;
+    for (let i = 0; i < n; i++) { G.hazards.shoot({ pos: m.clone(), dir: aimAt(e, m, (i - (n - 1) / 2) * 0.21), speed: 15, dmg: 70 * e.dmgMul, r: 0.6, color: 0xff7a30, kind: 'fire', life: 4, size: 1.5 }); }
     G.fx.flash(m, 0xff8a30, 70, 0.3); Sound.play('ash');
   },
   orb(e) {
@@ -627,8 +640,8 @@ const EV = {
     G.fx.dust(c, 30); G.fx.ring(c, { color: 0xffb060, r: 6, dur: 0.5 }); G.shake(0.9); Sound.play('bossSlam');
   },
   kingWave(e) { // Fächer aus Flammenwellen
-    const G = e.G, P = G.player, m = muzzle(e), base = Math.atan2(P.pos.x - m.x, P.pos.z - m.z), n = e.phase3 ? 7 : e.phase2 ? 5 : 3;
-    for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * 0.24; G.hazards.shoot({ pos: m.clone().setY(m.y - 0.4), dir: new V3(Math.sin(a), -0.02, Math.cos(a)), speed: 14, dmg: 85 * e.dmgMul, r: 0.95, color: 0xffb030, kind: 'fire', life: 4.5, size: 2.2 }); }
+    const G = e.G, m = muzzle(e), n = e.phase3 ? 7 : e.phase2 ? 5 : 3;
+    for (let i = 0; i < n; i++) { G.hazards.shoot({ pos: m.clone().setY(m.y - 0.4), dir: aimAt(e, m.clone().setY(m.y - 0.4), (i - (n - 1) / 2) * 0.22), speed: 14, dmg: 85 * e.dmgMul, r: 0.95, color: 0xffb030, kind: 'fire', life: 4.5, size: 2.2 }); }
     G.fx.flash(m, 0xffb030, 90, 0.3); G.shake(0.3); Sound.play('ash');
   },
   kingPools(e) { // Flammensäulen rund um den Spieler
@@ -639,6 +652,19 @@ const EV = {
       G.hazards.area({ x, z, r: 3.1, delay: 1.0 + (i % 3) * 0.15, life: 5, dmg: 45 * e.dmgMul, tick: 0.55, kind: 'pool', color: 0xffb030 });
     }
     Sound.play('bossSlam');
+  },
+  kingArrow(e) { // Pfeile direkt auf den Spieler
+    const G = e.G, m = muzzle(e), n = e.phase3 ? 3 : e.phase2 ? 2 : 1;
+    for (let i = 0; i < n; i++) G.hazards.shoot({ pos: m.clone(), dir: aimAt(e, m, (i - (n - 1) / 2) * 0.09), speed: 34, dmg: 45 * e.dmgMul, r: 0.5, color: 0xffd060, kind: 'arrow', life: 2.6, size: 0.95 });
+    G.fx.flash(m, 0xffd060, 50, 0.2); Sound.play('swing'); Sound.play('hitMetal');
+  },
+  kingRain(e) { // Pfeilregen: Pfeile fallen gestaffelt rund um den Spieler
+    const G = e.G, P = G.player, n = e.phase3 ? 16 : 10;
+    for (let i = 0; i < n; i++) {
+      let x = P.pos.x + (i ? rand(-7.5, 7.5) : P.vel.x * 0.6), z = P.pos.z + (i ? rand(-7.5, 7.5) : P.vel.z * 0.6); [x, z] = clampArena(e, x, z, 2);
+      G.hazards.area({ x, z, r: 2.1, delay: 0.9 + i * 0.12, dmg: 52 * e.dmgMul, kind: 'rock', shape: 'arrow', color: 0xffd060 });
+    }
+    Sound.play('swingHeavy'); G.shake(0.2);
   },
   meteors(e) { // Sternenfall: Felsen regnen gestaffelt herab
     const G = e.G, P = G.player, n = 7;

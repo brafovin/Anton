@@ -16,7 +16,7 @@ export const DEF = {
   bpitch: 0, tuck: 0,                 // Rolle: Koerper-Kippung / Beine anziehen
   head: 0,                            // Kopfneigung
   flask: 0, sheath: 0,                // Flasche sichtbar / Katana in Saya
-  glow: 0, e: 0,
+  glow: 0, draw: 0, e: 0,
 };
 const FIELDS = Object.keys(DEF);
 
@@ -187,6 +187,36 @@ export function makeScythe() {
   return g;
 }
 
+
+export function makeBow() {
+  const g = new THREE.Group();
+  const wood = mat(0x4a2a14, { roughness: 0.7 });
+  const gold = mat(0xe0b848, { metalness: 0.85, roughness: 0.3, emissive: 0x6a4a10, emissiveIntensity: 0.7 });
+  const strM = new THREE.MeshBasicMaterial({ color: 0xf0e6c0 });
+  const pts = []; for (let i = 0; i <= 20; i++) { const y = -0.9 + i * 0.09; pts.push(new THREE.Vector3(0, y, 0.28 * (1 - (y / 0.9) ** 2))); }
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 0.032, 6), wood));
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.26, 8), gold); grip.position.set(0, 0, 0.28); g.add(grip);
+  for (const sy of [-1, 1]) { const tip = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), gold); tip.position.set(0, sy * 0.9, 0); g.add(tip); }
+  for (const y of [-0.55, 0.55]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 5, 10), gold); ring.position.set(0, y, 0.28 * (1 - (y / 0.9) ** 2)); ring.rotation.x = Math.PI / 2; g.add(ring); }
+  const s1 = new THREE.Mesh(unitCyl(0.007, 0.007, 4), strM), s2 = new THREE.Mesh(unitCyl(0.007, 0.007, 4), strM); g.add(s1, s2);
+  const arrow = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 1.0, 6), mat(0xcfc6a8)); shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.5; arrow.add(shaft);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), gold); head.rotation.x = Math.PI / 2; head.position.z = 1.08; arrow.add(head);
+  for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.16), new THREE.MeshBasicMaterial({ color: 0xffd060, side: THREE.DoubleSide })); f.position.z = 0.1; f.rotation.z = (i / 3) * Math.PI; arrow.add(f); }
+  g.add(arrow);
+  const A = V(0, -0.9, 0), B = V(0, 0.9, 0), N = V();
+  const setDraw = (d) => {
+    N.set(0, 0, -0.62 * d);
+    limb(s1, A, N); limb(s2, N, B);
+    arrow.visible = d > 0.04; arrow.position.copy(N);
+  };
+  setDraw(0);
+  const mid = new THREE.Object3D(); mid.position.set(0, 0, 0.3); g.add(mid);
+  g.userData = { bow: { setDraw }, orb: mid, trailBase: mid, trailTip: mid, glowMats: [], steel: gold, length: 1.8 };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
 export function makeShield(color = 0x555a63, trim = 0x8a7030) {
   const g = new THREE.Group();
   const face = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.06, 5, 1), mat(color, { metalness: 0.5, roughness: 0.5 }));
@@ -299,7 +329,7 @@ export function makeHumanoid(o) {
     const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
   }
   // Waffe
-  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'kingsword' ? makeSword({ len: 1.8, width: 0.21, color: 0xe6d49a, rusty: false, glow: 1.5 }) : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
+  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'kingbow' ? makeBow() : n === 'kingsword' ? makeSword({ len: 1.8, width: 0.21, color: 0xe6d49a, rusty: false, glow: 1.5 }) : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
   h.weapons = {};
@@ -456,6 +486,7 @@ export function applyPose(h, p, gait, dt) {
   h.weapon.quaternion.copy(_wq);
   // linke Hand
   _lg.set(0, p.lg, 0).applyQuaternion(_wq).add(R.H);
+  if (h.weapon.userData.bow) { _lg.set(0, 0, -0.62 * (p.draw || 0) - 0.04).applyQuaternion(_wq).add(R.H); h.weapon.userData.bow.setDraw(p.draw || 0); }
   if (p.lfree > 0) { _T.set(p.lx, p.ly, p.lz); _lg.lerp(_T, p.lfree); }
   ik(Lf.S, _lg, UPPER, FORE, Lf.pole, Lf.E, Lf.H);
   for (const A of h.arm) {

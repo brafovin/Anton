@@ -29,7 +29,7 @@ export function createHazards(G) {
 
   // ---------------- Bodenflaechen ----------------
   // kind: 'pool' (Dauerschaden), 'blast' (einmalige Explosion), 'ring' (wandernde Schockwelle), 'rock' (fallender Felsen)
-  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false }) => {
+  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false, shape = 'rock' }) => {
     const y = groundHeight(x, z) + 0.12;
     const group = new THREE.Group(); group.position.set(x, y, z);
     const disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -37,8 +37,16 @@ export function createHazards(G) {
     if (kind !== 'ring') { disc.scale.setScalar(r); edge.scale.setScalar(r); group.add(disc, edge); } else { edge.scale.setScalar(0.5); group.add(edge); }
     let rock = null;
     if (kind === 'rock') {
-      rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.7, 0), new THREE.MeshStandardMaterial({ color: 0x6a5e52, roughness: 1 }));
-      rock.castShadow = true; rock.position.y = 22; group.add(rock);
+      if (shape === 'arrow') { // fallender Pfeil
+        rock = new THREE.Group();
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 6, 6), new THREE.MeshStandardMaterial({ color: 0xe8dca8, emissive: 0xffb030, emissiveIntensity: 1.2 })); shaft.position.y = 3;
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.9, 6), new THREE.MeshStandardMaterial({ color: 0xffd060, emissive: 0xffa010, emissiveIntensity: 2 })); head.rotation.x = Math.PI; head.position.y = -0.2;
+        rock.add(shaft, head);
+      } else {
+        rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.7, 0), new THREE.MeshStandardMaterial({ color: 0x6a5e52, roughness: 1 }));
+        rock.castShadow = true;
+      }
+      rock.position.y = 22; group.add(rock);
     }
     scene.add(group);
     const a = { x, z, r, delay, life, dmg, tick, kind, color, speed, thick, maxR, knock, t: 0, tickT: 0, group, disc, edge, rock, done: false, hit: false, active: false };
@@ -103,7 +111,7 @@ export function createHazards(G) {
         if (R >= a.maxR) a.done = true;
       }
     }
-    for (const a of H.areas) if (a.done) { scene.remove(a.group); a.disc.material.dispose(); a.edge.material.dispose(); if (a.rock) { a.rock.geometry.dispose(); a.rock.material.dispose(); } }
+    for (const a of H.areas) if (a.done) { scene.remove(a.group); a.disc.material.dispose(); a.edge.material.dispose(); if (a.rock) a.rock.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
     H.areas = H.areas.filter((a) => !a.done);
   };
 
