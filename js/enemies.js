@@ -83,6 +83,27 @@ const ATTACKS = {
     f: A(IDLE.reaper, [{ t: 0 }, { t: 1.2, hx: -0.2, hy: 0.55, hz: -0.05, dx: 0.1, dy: 0.3, dz: 1, twist: -0.7, crouch: 0.25, e: 2 }, { t: 1.55, hx: -0.05, hy: 0.55, hz: 0.6, dx: 0, dy: 0.2, dz: 1, twist: 0.4, lean: 0.5, shift: 0.4, crouch: 0.2, e: 1 }, { t: 1.9, e: 3 }, { t: 2.8, ...IDLE.reaper, e: 0 }]) },
   rShades: { name: 'Schattenbrut', dur: 2.7, hs: 99, he: 99, track: 1.0, ev: [[1.1, 'shades']],
     f: A(IDLE.reaper, [{ t: 0 }, { t: 1.0, hx: -0.1, hy: 1.0, hz: 0.1, dx: 0, dy: 1, dz: 0.1, lean: -0.3, glow: 1, e: 2 }, { t: 1.6, e: 3 }, { t: 2.7, ...IDLE.reaper, e: 0 }]) },
+  // ===== Aldrar, der Aschenkoenig: Endboss, drei Phasen =====
+  kSweep: { name: 'Königlicher Hieb', dur: 2.0, hs: 0.95, he: 1.15, range: 6.4, arc: 175, dmg: 135, parryable: true, track: 0.7, lunge: [0.85, 1.1, 3.4],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.8, hx: 0.3, hy: 0.7, hz: 0.0, dx: 1, dy: 0.1, dz: -0.3, lg: -0.32, twist: 0.95, crouch: 0.12, e: 2 }, { t: 1.05, hx: -0.3, hy: 0.55, hz: 0.5, dx: -1, dy: 0.05, dz: 0.5, twist: -1.0, shift: 0.3, crouch: 0.1, e: 1 }, { t: 1.3, e: 2 }, { t: 2.0, ...IDLE.boss, e: 0 }]) },
+  kSlam: { name: 'Zorn der Krone', dur: 2.7, hs: 1.4, he: 1.52, range: 6.4, arc: 110, dmg: 190, parryable: false, danger: true, track: 0.9, slam: true, slamDist: 5.4, slamR: 5.6,
+    f: A(IDLE.boss, [{ t: 0 }, { t: 1.15, hx: 0.0, hy: 0.95, hz: 0.0, dx: 0, dy: 1, dz: -0.3, lean: -0.4, glow: 1, e: 2 }, { t: 1.38, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, shift: 0.3, crouch: 0.15, e: 1 }, { t: 1.8, e: 3 }, { t: 2.7, ...IDLE.boss, e: 0 }]) },
+  kLunge: { name: 'Thronstoß', dur: 1.9, hs: 0.95, he: 1.1, range: 4.6, arc: 60, dmg: 150, parryable: true, track: 0.65, lunge: [0.82, 1.06, 15],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.78, hx: -0.2, hy: 0.5, hz: -0.05, dx: 0, dy: 0.05, dz: 1, twist: -0.6, shift: -0.1, e: 2 }, { t: 0.98, hx: -0.05, hy: 0.55, hz: 0.62, dx: 0, dy: 0, dz: 1, shift: 0.4, lean: 0.3, e: 1 }, { t: 1.3, e: 3 }, { t: 1.9, ...IDLE.boss, e: 0 }]) },
+  kCombo: { name: 'Dreifache Klinge', dur: 2.8, windows: [[0.62, 0.74], [1.12, 1.24], [1.85, 1.97]], parryW: [true, true, false], dmgW: [110, 115, 175], hs: 0.62, he: 1.97, range: 5.8, arc: 165, dmg: 110, track: 1.5, lunge: [0.5, 0.7, 4.5],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.5, hx: -0.3, hy: 0.9, hz: 0.0, dx: -0.4, dy: 0.9, dz: -0.2, twist: -0.7, e: 2 }, { t: 0.68, hx: 0.15, hy: 0.3, hz: 0.55, dx: 0.7, dy: -0.1, dz: 0.7, twist: 0.8, lean: 0.25, shift: 0.2, e: 1 },
+      { t: 1.02, hx: 0.3, hy: 0.7, hz: 0.1, dx: 1, dy: 0.1, dz: -0.1, twist: 0.9, e: 2 }, { t: 1.18, hx: -0.3, hy: 0.5, hz: 0.55, dx: -1, dy: -0.1, dz: 0.6, twist: -0.9, shift: 0.2, e: 1 },
+      { t: 1.6, hx: -0.1, hy: 1.0, hz: 0.0, dx: 0, dy: 1, dz: -0.4, lean: -0.4, twist: 0, glow: 1, e: 2 }, { t: 1.9, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.4, dz: 1, lean: 0.55, shift: 0.35, crouch: 0.15, e: 1 }, { t: 2.2, e: 3 }, { t: 2.8, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kLeap: { name: 'Sturz des Königs', dur: 2.6, hs: 1.5, he: 1.56, range: 7, arc: 360, dmg: 170, parryable: false, danger: true, track: 0.85, leap: true,
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.8, crouch: 0.45, hx: 0, hy: 0.4, hz: 0.1, dx: 0, dy: 1, dz: 0, lean: 0.3, glow: 1, e: 2 }, { t: 1.2, crouch: -0.1, hx: 0, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.3, e: 1 }, { t: 1.5, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.7, dz: 1, lean: 0.5, crouch: 0.2, e: 1 }, { t: 1.9, e: 3 }, { t: 2.6, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kWave: { name: 'Flammenschwingen', dur: 2.2, hs: 99, he: 99, track: 1.0, ev: [[1.0, 'kingWave']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.8, hx: 0.3, hy: 0.75, hz: 0.0, dx: 1, dy: 0.3, dz: -0.2, twist: 0.9, glow: 1, e: 2 }, { t: 1.02, hx: -0.3, hy: 0.55, hz: 0.5, dx: -1, dy: 0.0, dz: 0.5, twist: -1.0, shift: 0.3, glow: 1, e: 1 }, { t: 1.4, e: 3 }, { t: 2.2, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kPillars: { name: 'Flammensäulen', dur: 2.6, hs: 99, he: 99, track: 0.8, danger: true, ev: [[0.85, 'kingPools']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 0.7, hx: 0, hy: 0.95, hz: 0, dx: 0, dy: 1, dz: -0.2, lean: -0.35, glow: 1, e: 2 }, { t: 0.9, hx: -0.1, hy: 0.25, hz: 0.55, dx: 0, dy: -0.7, dz: 1, lean: 0.55, crouch: 0.15, glow: 1, e: 1 }, { t: 1.5, e: 3 }, { t: 2.6, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kMeteors: { name: 'Sternenfall', dur: 3.2, hs: 99, he: 99, track: 0.6, danger: true, ev: [[1.2, 'meteors']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 1.0, hx: 0, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: 0, lean: -0.5, glow: 1, e: 2 }, { t: 1.2, e: 3 }, { t: 2.0, e: 3 }, { t: 3.2, ...IDLE.boss, glow: 0, e: 0 }]) },
+  kBlink: { name: 'Thronsprung', dur: 3.0, hs: 1.5, he: 1.62, range: 6, arc: 130, dmg: 175, parryable: false, danger: true, track: 1.45, slam: true, slamDist: 4.2, slamR: 5, ev: [[0.2, 'vanish'], [1.1, 'appearBehind']],
+    f: A(IDLE.boss, [{ t: 0 }, { t: 1.1, hx: 0, hy: 0.95, hz: 0, dx: 0, dy: 1, dz: -0.3, lean: -0.4, glow: 1, e: 2 }, { t: 1.48, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, shift: 0.3, crouch: 0.15, e: 1 }, { t: 2.0, e: 3 }, { t: 3.0, ...IDLE.boss, glow: 0, e: 0 }]) },
 };
 
 
@@ -135,6 +156,18 @@ const TYPES = {
     },
     look: { head: 'reaper', skin: 0x222222, cloth: 0x0e0c12, armor: 0x1c1a22, trim: 0xa8a8b8, accent: 0x6a0a0a, capeColor: 0x180a10, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 },
   },
+  king: {
+    hp: 7500, radius: 1.6, speed: 3.7, aggro: 99, souls: 60000, scale: 2.1, idle: IDLE.boss, isBoss: true, strafe: true, reach: 6, p2At: 0.66, p3At: 0.33, p2speed: 1.12, p2time: 1.1,
+    phaseMsg: 'Aldrar erhebt sich zum wahren König', phase3Msg: 'Die Krone brennt – Aldrars Zorn kennt kein Maß',
+    onPhase3: (e) => { EV.stompRing(e); },
+    choose: (e, d) => {
+      const o = [];
+      if (d > 11) { o.push('kLunge', 'kWave'); if (e.phase2) o.push('kLeap', 'kPillars'); if (e.phase3) o.push('kMeteors', 'kBlink'); }
+      else { o.push('kSweep', 'kSweep', 'kCombo', 'kSlam'); if (d > 5) o.push('kLunge'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors'); }
+      let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
+    },
+    look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', bulk: 1.38, eye: 0xffd060 },
+  },
   shade: {
     hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
     look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
@@ -150,6 +183,13 @@ export const CINE = {
     { t: 6.8, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.35, glow: 1, e: 2 },
     { t: 7.15, hx: -0.1, hy: 0.28, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, crouch: 0.15, shift: 0.3, e: 1 },
     { t: 8.4, ...IDLE.boss, glow: 0, e: 2 }]),
+  king: A(IDLE.boss, [
+    { t: 0, crouch: 0.52, lean: -0.12, head: 0.05, hx: -0.05, hy: 0.22, hz: 0.34, dx: 0, dy: -1, dz: 0.15, lg: -0.2 },
+    { t: 4.0 }, { t: 5.2, crouch: 0.2, lean: 0.05, hy: 0.45, dx: 0, dy: -0.35, dz: 0.9, e: 0 },
+    { t: 6.2, crouch: 0.05, lean: 0, hx: -0.1, hy: 0.35, hz: 0.45, dx: 0.1, dy: 0.2, dz: 1, e: 2 },
+    { t: 7.1, hx: -0.1, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.4, glow: 1, e: 2 },
+    { t: 7.5, hx: -0.1, hy: 0.28, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, crouch: 0.15, shift: 0.3, e: 1 },
+    { t: 8.9, ...IDLE.boss, glow: 0, e: 2 }]),
   witch: A(IDLE.witch, [
     { t: 0, hx: -0.3, hy: 0.9, hz: 0.1, dx: 0, dy: 1, dz: 0.15, lfree: 1, lx: 0.6, ly: 0.55, lz: 0.15, lean: -0.15, head: -0.15, glow: 1 },
     { t: 7.2 }, { t: 8.4, ...IDLE.witch, glow: 0, e: 2 }]),
@@ -177,7 +217,7 @@ export class Enemy {
     this.state = this.isBoss ? 'dormant' : 'idle'; this.t = 0; this.cd = rand(0.5, 1.5); this.dead = false; this.deathT = 0;
     this.pose = { ...T.idle }; this.prev = { ...T.idle }; this.blendT = 1; this.blendDur = 0.12;
     this.barT = 0; this.strafeDir = Math.random() < 0.5 ? 1 : -1; this.strafeT = 0; this.atk = null; this.timeScale = 1;
-    this.phase2 = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
+    this.phase2 = false; this.phase3 = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
     this.moving = false; this.speedN = 0; this.name = opts.name || (this.isBoss ? 'Boss' : type === 'knight' ? 'Wachritter' : type === 'shade' ? 'Schatten' : 'Hohler Soldat');
     const st0 = this.h.weapon.userData.steel; if (this.isBoss && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
@@ -332,8 +372,8 @@ export class Enemy {
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     this.cd -= dt; this.summonCd = Math.max(0, this.summonCd - dt);
     let moveDir = null, speed = 0, target = null;
-    const spdMul = (this.phase2 ? (T.p2speed || 1.25) : 1) * this.speedMul;
-    this.timeScale = (this.phase2 ? (T.p2time || 1.2) : 1) * this.speedMul;
+    const spdMul = (this.phase2 ? (T.p2speed || 1.25) : 1) * (this.phase3 ? 1.1 : 1) * this.speedMul;
+    this.timeScale = (this.phase2 ? (T.p2time || 1.2) : 1) * (this.phase3 ? 1.1 : 1) * this.speedMul;
     switch (this.state) {
       case 'idle': {
         this.wanderT -= dt; if (this.wanderT <= 0) { this.wanderT = rand(3, 7); this.wanderYaw = this.homeYaw + rand(-1, 1); }
@@ -417,7 +457,12 @@ export class Enemy {
       }
     }
     // Phasenwechsel
-    if (this.isBoss && !this.phase2 && this.hp < this.maxHp * 0.5 && this.state !== 'dormant' && this.state !== 'riposted' && this.state !== 'parried') {
+    const canPhase = this.state !== 'dormant' && this.state !== 'riposted' && this.state !== 'parried' && this.state !== 'phase' && this.state !== 'intro';
+    if (this.isBoss && this.phase2 && !this.phase3 && T.p3At && this.hp < this.maxHp * T.p3At && canPhase) {
+      this.phase3 = true; this.setState('phase', 0.2); this.atk = null; this.yOff = 0; this.untouchable = false; this.h.root.visible = true; Sound.play('roar'); G.shake(1.0);
+      G.fx.ring(this.pos.clone(), { color: 0xffd060, r: 14, dur: 1.2 }); G.ui.toast(T.phase3Msg || 'Der Boss rast vor Wut'); if (T.onPhase3) T.onPhase3(this);
+    }
+    if (this.isBoss && !this.phase2 && this.hp < this.maxHp * (T.p2At ?? 0.5) && canPhase) {
       this.phase2 = true; this.setState('phase', 0.2); this.atk = null; this.yOff = 0; Sound.play('roar'); G.shake(0.8);
       this.untouchable = false; this.h.root.visible = true;
       G.fx.ring(this.pos.clone(), { color: 0xff6a20, r: 12, dur: 1.0 }); G.ui.toast(T.phaseMsg || 'Der Boss wird wütend');
@@ -503,7 +548,7 @@ export function spawnAll(G) {
   return list;
 }
 export function spawnBoss(G, fight) {
-  const A = fight.arena, sx = A.x - A.nx * 5, sz = A.z - A.nz * 5;
+  const A = fight.arena, back = A.spawnBack ?? 5, sx = A.x - A.nx * back, sz = A.z - A.nz * back;
   const e = new Enemy(G, A.boss, sx, sz, Math.atan2(A.nx, A.nz), { arena: A, fight, name: A.bossName });
   // Schwierigkeitsstufe: spaetere Bosse sind zaeher, schneller und schlagen haerter zu
   e.maxHp = e.hp = A.hp; e.souls = A.souls; e.dmgMul = A.dmgMul; e.speedMul = A.speedMul; e.cdMul = A.cdMul;
@@ -580,6 +625,28 @@ const EV = {
     const G = e.G, c = e.pos.clone();
     G.hazards.area({ x: c.x, z: c.z, kind: 'ring', speed: 11, thick: 1.8, maxR: 21, dmg: 125 * e.dmgMul, color: 0xffb060 });
     G.fx.dust(c, 30); G.fx.ring(c, { color: 0xffb060, r: 6, dur: 0.5 }); G.shake(0.9); Sound.play('bossSlam');
+  },
+  kingWave(e) { // Fächer aus Flammenwellen
+    const G = e.G, P = G.player, m = muzzle(e), base = Math.atan2(P.pos.x - m.x, P.pos.z - m.z), n = e.phase3 ? 7 : e.phase2 ? 5 : 3;
+    for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * 0.24; G.hazards.shoot({ pos: m.clone().setY(m.y - 0.4), dir: new V3(Math.sin(a), -0.02, Math.cos(a)), speed: 14, dmg: 85 * e.dmgMul, r: 0.95, color: 0xffb030, kind: 'fire', life: 4.5, size: 2.2 }); }
+    G.fx.flash(m, 0xffb030, 90, 0.3); G.shake(0.3); Sound.play('ash');
+  },
+  kingPools(e) { // Flammensäulen rund um den Spieler
+    const G = e.G, P = G.player, n = e.phase3 ? 7 : 5;
+    for (let i = 0; i < n; i++) {
+      let x = P.pos.x, z = P.pos.z; if (i) { const a = (i / n) * Math.PI * 2 + rand(0.5), rr = rand(3, 7.5); x += Math.cos(a) * rr; z += Math.sin(a) * rr; }
+      [x, z] = clampArena(e, x, z, 2);
+      G.hazards.area({ x, z, r: 3.1, delay: 1.0 + (i % 3) * 0.15, life: 5, dmg: 45 * e.dmgMul, tick: 0.55, kind: 'pool', color: 0xffb030 });
+    }
+    Sound.play('bossSlam');
+  },
+  meteors(e) { // Sternenfall: Felsen regnen gestaffelt herab
+    const G = e.G, P = G.player, n = 7;
+    for (let i = 0; i < n; i++) {
+      let x = P.pos.x + (i ? rand(-9, 9) : P.vel.x * 0.5), z = P.pos.z + (i ? rand(-9, 9) : P.vel.z * 0.5); [x, z] = clampArena(e, x, z, 2);
+      G.hazards.area({ x, z, r: 3.4, delay: 1.1 + i * 0.28, dmg: 140 * e.dmgMul, kind: 'rock', color: 0xffc060 });
+    }
+    Sound.play('roar'); G.shake(0.5);
   },
   rock(e) {
     const G = e.G, P = G.player, n = e.phase2 ? 2 : 1;

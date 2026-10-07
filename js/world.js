@@ -2,13 +2,15 @@ import * as THREE from 'three';
 import { clamp, lerp, rand, smoothstep, fbm, noise2, mulberry } from './util.js';
 import { mat } from './models.js';
 
-export const BOUNDS = { x0: -85, x1: 85, z0: -196, z1: 48 };
+export const BOUNDS = { x0: -85, x1: 85, z0: -400, z1: 48 };
 // Boss-Arenen: a = Richtung des Nebeltors (x=cos a, z=sin a), zeigt zur Spielwelt
 export const ARENAS = [
   { id: 'hadrian', tier: 0, hp: 1700, souls: 8000, dmgMul: 1.0, speedMul: 1.0, cdMul: 1.0, x: 0, z: -152, r: 24, a: Math.PI / 2, style: 'castle', wallH: 10, boss: 'boss', bossName: 'Sir Hadrian, Wächter der Asche', bonfire: { id: 3, name: 'Arena des Wächters' }, reward: 'greatsword', camDist: 6.6, floor: 0x5a5852, gateColor: 0xd8e4ff },
   { id: 'morwen', tier: 1, hp: 2400, souls: 11000, dmgMul: 1.15, speedMul: 1.06, cdMul: 0.88, x: -46, z: -30, r: 17, a: 0, style: 'grove', wallH: 5, boss: 'witch', bossName: 'Morwen, Hexe der Asche', bonfire: { id: 4, name: 'Hexenhain' }, reward: 'mana', camDist: 7.4, floor: 0x26331f, gateColor: 0xcfa8ff },
   { id: 'gorm', tier: 2, hp: 3800, souls: 15000, dmgMul: 1.3, speedMul: 1.12, cdMul: 0.75, x: 46, z: -30, r: 19, a: Math.PI, style: 'quarry', wallH: 9, boss: 'giant', bossName: 'Gorm, der Grabriese', bonfire: { id: 5, name: 'Steinbruch' }, reward: 'estus', camDist: 9.2, floor: 0x54463a, gateColor: 0xffd8a0 },
   { id: 'vael', tier: 3, hp: 4200, souls: 20000, dmgMul: 1.5, speedMul: 1.22, cdMul: 0.6, x: 0, z: 26, r: 16, a: -Math.PI / 2, style: 'graveyard', wallH: 4, boss: 'reaper', bossName: 'Vael, der Henker', bonfire: { id: 6, name: 'Henkersplatz' }, reward: 'both', camDist: 7.0, floor: 0x24242a, gateColor: 0xffa0a0 },
+  // Endboss: schwebender Thronsaal hoch ueber der Welt (Zugang nur per Teleport nach dem vierten Boss)
+  { id: 'king', tier: 4, hp: 7500, souls: 60000, dmgMul: 1.75, speedMul: 1.24, cdMul: 0.55, x: 0, z: -330, r: 26, a: Math.PI / 2, style: 'throne', wallH: 3.4, hFix: 62, spawnBack: 16.5, boss: 'king', bossName: 'Aschenkönig Aldrar, der Unbesiegte', bonfire: { id: 8, name: 'Thron des Königs' }, reward: 'both', camDist: 9.4, floor: 0x17141c, gateColor: 0xffd870 },
 ];
 export const ARENA = ARENAS[0]; // Rueckwaertskompatibel
 export const GATE_W = 8;
@@ -30,13 +32,18 @@ function rawHeight(x, z) {
   const hill = (1 - open) * (7 + fbm(x * 0.05 + 9, z * 0.05, 3) * 9) + smoothstep(34, 58, z) * 9 + smoothstep(-186, -205, z) * 12;
   return baseProfile(z) + rolling + hill;
 }
-for (const A of ARENAS) A.h0 = rawHeight(A.x, A.z);
+for (const A of ARENAS) A.h0 = A.hFix ?? rawHeight(A.x, A.z);
+// Vorhof des Thronsaals (Ankunft nach der Teleportation)
+const KING = ARENAS.find((a) => a.id === 'king');
+export const PLAZAS = [{ x: KING.x + Math.cos(KING.a) * (KING.r + 8), z: KING.z + Math.sin(KING.a) * (KING.r + 8), r: 15, h0: KING.h0 }];
+export const PLAZA_BONFIRE = { id: 7, name: 'Thronsaal-Vorhof', x: PLAZAS[0].x, z: PLAZAS[0].z };
 export function groundHeight(x, z) {
   let h = rawHeight(x, z);
   for (const A of ARENAS) {   // Arenen sind eben
     const d = Math.hypot(x - A.x, z - A.z);
     if (d < A.r + 9) h = lerp(h, A.h0, 1 - smoothstep(A.r - 1, A.r + 8, d));
   }
+  for (const Z of PLAZAS) { const d = Math.hypot(x - Z.x, z - Z.z); if (d < Z.r + 9) h = lerp(h, Z.h0, 1 - smoothstep(Z.r - 1, Z.r + 8, d)); }
   return h;
 }
 
@@ -267,6 +274,46 @@ export function buildWorld(scene) {
       }
       for (let i = 0; i < 40; i++) { const a = R(6.28), rr = A.r * Math.sqrt(R(0.05, 0.85)), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const bn = new THREE.Mesh(i % 5 ? new THREE.CylinderGeometry(0.05, 0.06, R(0.3, 0.7), 5) : new THREE.SphereGeometry(0.18, 6, 5), boneM); bn.position.set(x, groundHeight(x, z) + 0.08, z); bn.rotation.set(R(3), R(3), R(3)); scene.add(bn); }
       for (let i = 0; i < 5; i++) { const a = R(6.28), rr = A.r * R(0.35, 0.6), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const cr = new THREE.Mesh(new THREE.RingGeometry(R(1, 2), R(2.2, 3), 7, 1), new THREE.MeshBasicMaterial({ color: 0x1a1410, transparent: true, opacity: 0.45, side: THREE.DoubleSide })); cr.rotation.x = -Math.PI / 2; cr.position.set(x, A.h0 + 0.07, z); scene.add(cr); }
+    } else if (A.style === 'throne') {
+      const H = A.h0, under = mat(0x2a2630, { roughness: 1 }), gold = mat(0xe0b848, { metalness: 0.85, roughness: 0.3, emissive: 0x6a4a10, emissiveIntensity: 0.5 });
+      const purple = new THREE.MeshStandardMaterial({ color: 0x4a1a6a, roughness: 0.9, side: THREE.DoubleSide });
+      const marble = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x3a3544, roughness: 0.45, metalness: 0.2 });
+      const Z = PLAZAS[0];
+      // Schwebende Felsinseln
+      const isl = new THREE.Mesh(new THREE.CylinderGeometry(A.r + 2.5, A.r * 0.3, 30, 30), under); isl.position.set(A.x, H - 15.2, A.z); isl.castShadow = true; scene.add(isl);
+      const isl2 = new THREE.Mesh(new THREE.CylinderGeometry(Z.r + 0.5, 4, 24, 22), under); isl2.position.set(Z.x, H - 12.2, Z.z); isl2.castShadow = true; scene.add(isl2);
+      for (let i = 0; i < 40; i++) { // Truemmerwolke
+        const a = R(6.28), rr = R(A.r + 6, A.r + 70), sz = R(1.2, 6), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr;
+        const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), under); rk.position.set(x, H + R(-45, 30), z); rk.scale.set(1, R(0.5, 1), R(0.7, 1.2)); rk.rotation.set(R(3), R(3), R(3)); scene.add(rk);
+      }
+      // Boeden
+      const fl = new THREE.Mesh(new THREE.CircleGeometry(A.r - 0.4, 56), marble); fl.rotation.x = -Math.PI / 2; fl.position.set(A.x, H + 0.05, A.z); fl.receiveShadow = true; scene.add(fl);
+      const pf = new THREE.Mesh(new THREE.CircleGeometry(Z.r - 0.2, 40), marble); pf.rotation.x = -Math.PI / 2; pf.position.set(Z.x, H + 0.05, Z.z); pf.receiveShadow = true; scene.add(pf);
+      glowRing(A, 7.6, 8.1, 0xf0c850, 0.7); glowRing(A, 15.5, 15.8, 0xf0c850, 0.45); glowRing(A, 22.5, 22.8, 0xb070ff, 0.4);
+      for (let k = 0; k < 4; k++) { const bar = new THREE.Mesh(new THREE.PlaneGeometry(2 * (A.r - 3), 0.35), new THREE.MeshBasicMaterial({ color: 0xf0c850, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false })); bar.rotation.set(-Math.PI / 2, 0, (k * Math.PI) / 4); bar.position.set(A.x, H + 0.09, A.z); scene.add(bar); }
+      // Teppich vom Vorhof bis zum Thron
+      const along = (d) => ({ x: A.x + A.nx * d, z: A.z + A.nz * d }), rot = Math.atan2(A.nx, A.nz);
+      const c0 = along((A.r + 12 + (-22)) / 2), carpet = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.1, A.r + 12 + 22), new THREE.MeshStandardMaterial({ color: 0x5a1230, roughness: 1 }));
+      carpet.position.set(c0.x, H + 0.1, c0.z); carpet.rotation.y = rot; carpet.receiveShadow = true; scene.add(carpet);
+      // Thron (hinten)
+      const tp = along(-A.r + 5), th = new THREE.Group(); th.position.set(tp.x, H, tp.z); th.rotation.y = rot;
+      const tbox = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(boxGeo(w, h, d, 2), m); b.position.set(x, y, z); b.castShadow = true; th.add(b); return b; };
+      tbox(9, 0.7, 7, 0, 0.35, 0, stoneDark); tbox(7, 0.7, 5.5, 0, 1.05, 0, stoneM); tbox(5.2, 0.7, 4.2, 0, 1.75, 0, stoneDark);
+      tbox(3.6, 1.0, 3, 0, 2.6, 0.2, gold); tbox(3.6, 11, 0.9, 0, 7.4, -1.4, stoneDark); tbox(3.9, 1.0, 1.1, 0, 13.2, -1.4, gold);
+      tbox(0.9, 2.6, 3, -2.2, 3.1, 0.2, stoneDark); tbox(0.9, 2.6, 3, 2.2, 3.1, 0.2, stoneDark);
+      for (const sx of [-1, 1]) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 5, 6), gold); sp.position.set(sx * 1.7, 13.5, -1.4); sp.castShadow = true; th.add(sp); }
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.7), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffb020, emissiveIntensity: 3 })); gem.scale.y = 1.5; gem.position.set(0, 9.5, -0.9); th.add(gem);
+      th.add(Object.assign(new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xffc050, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })), { position: new THREE.Vector3(0, 9.5, -0.5), scale: new THREE.Vector3(9, 9, 1) }));
+      scene.add(th); circle(tp.x, tp.z, 3.2);
+      // Saeulen mit Flammen + Banner
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + 0.26, rr = A.r * 0.82, x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr;
+        if (Math.hypot(x - g.x, z - g.z) < 9 || Math.hypot(x - tp.x, z - tp.z) < 7) continue;
+        const ph = 11, col = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.25, ph, 12), marble); col.position.set(x, H + ph / 2, z); col.castShadow = true; scene.add(col);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.2, 0.9, 12), gold); cap.position.set(x, H + ph + 0.4, z); scene.add(cap);
+        const bn = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 6), purple); bn.position.set(x - Math.cos(a) * 1.15, H + ph - 3.6, z - Math.sin(a) * 1.15); bn.rotation.y = -a + Math.PI / 2; scene.add(bn);
+        glowSprite(x, H + ph + 1.6, z, 0xffb030, 5.5); circle(x, z, 1.35);
+      }
     } else if (A.style === 'graveyard') {
       flatDisc(A, 0x1c1c22, A.r - 1.2);
       glowRing(A, 8, 8.35, 0xc02020, 0.5); glowRing(A, 4.2, 4.5, 0xc02020, 0.4);
@@ -502,6 +549,12 @@ export function buildWorld(scene) {
           p.x = c.x + nx * c.c + nz * c.s; p.z = c.z - nx * c.s + nz * c.c;
         }
       }
+    }
+    if (p.z < -240) { // Schwebender Thronsaal: nicht ueber den Rand laufen
+      const zones = [{ x: KING.x, z: KING.z, r: KING.r + 1 }, { x: PLAZAS[0].x, z: PLAZAS[0].z, r: PLAZAS[0].r - 0.3 }];
+      let best = null, bd = 1e9;
+      for (const Zn of zones) { const d = Math.hypot(p.x - Zn.x, p.z - Zn.z) - Zn.r; if (d < bd) { bd = d; best = Zn; } }
+      if (bd > -0.3) { const dd = Math.hypot(p.x - best.x, p.z - best.z) || 1, k = (best.r - 0.3) / dd; p.x = best.x + (p.x - best.x) * k; p.z = best.z + (p.z - best.z) * k; }
     }
     p.x = clamp(p.x, BOUNDS.x0, BOUNDS.x1); p.z = clamp(p.z, BOUNDS.z0, BOUNDS.z1);
     // Arena: ausserhalb des Rings nicht hinein/heraus (Kollision uebernimmt Ringwand)

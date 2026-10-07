@@ -299,7 +299,7 @@ export function makeHumanoid(o) {
     const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
   }
   // Waffe
-  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
+  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'kingsword' ? makeSword({ len: 1.8, width: 0.21, color: 0xe6d49a, rusty: false, glow: 1.5 }) : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
   h.weapons = {};
@@ -378,6 +378,15 @@ function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
     for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.012), dark)); e.position.set(x, 0.03, 0.118); }
     const mask = add(new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.1, 0.09, 12, 1, false, -1.3, 2.6), cloth)); mask.position.set(0, -0.05, 0.012);
     const tail = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.025), accent)); tail.geometry.translate(0, -0.25, 0); tail.position.set(0.02, 0.07, -0.13); tail.rotation.set(0.5, 0, 0.12);
+  } else if (O.head === 'crown') {
+    const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.3, 10), armor)); b.position.y = 0.0;
+    const top = add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), armor)); top.position.y = 0.15;
+    const slit = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.05), dark)); slit.position.set(0, 0.04, 0.14);
+    for (const x of [-0.05, 0.05]) { const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.01), new THREE.MeshBasicMaterial({ color: O.eye || 0xffd060 }))); e.position.set(x, 0.04, 0.152); }
+    const band = add(new THREE.Mesh(new THREE.CylinderGeometry(0.168, 0.168, 0.07, 10), trim)); band.position.y = 0.2;
+    for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2, sp = add(new THREE.Mesh(new THREE.ConeGeometry(0.035, i % 2 ? 0.18 : 0.28, 5), trim)); sp.position.set(Math.cos(a) * 0.16, 0.34, Math.sin(a) * 0.16); }
+    const halo = add(new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.018, 8, 36), new THREE.MeshBasicMaterial({ color: 0xffd060 }))); halo.position.set(0, 0.06, -0.2);
+    const glow = add(new THREE.Mesh(new THREE.CircleGeometry(0.34, 30), new THREE.MeshBasicMaterial({ color: 0xffb830, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }))); glow.position.set(0, 0.06, -0.21);
   } else if (O.head === 'witch') {
     const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), skin)); s.position.z = 0.01; s.scale.set(0.95, 1.08, 1);
     const hat = add(new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 10), cloth)); hat.position.set(0, 0.34, -0.03); hat.rotation.x = -0.18;

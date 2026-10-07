@@ -105,6 +105,17 @@ const SCRIPTS = {
       outro: { lines: [[1.2, 5.0, 'Gorm', '„Gorm … nicht … hungrig … mehr …“']], R: 17, h: 3.4, lookH: 0.4 },
     };
   },
+  king: () => {
+    const s = [{ dur: 3.8, cam: dolly({ d0: 5, d1: 1.4, h: 1.7, lookH: 0.85 }) }, { dur: 4.6, cam: orbit({ a0: 0.9, a1: -0.5, R: 19, h0: 2.4, h1: 6.0, lookH: 0.8, lookH1: 1.15 }) },
+      { dur: 3.2, cam: close({ d0: 10.5, d1: 7.6, side: 0.25, h: 1.5, lookH: 1.62, fov: 44 }) }, { dur: 1.2 }];
+    return {
+      shots: s,
+      subs: [[0.4, 3.7, '', 'Am Ende aller Wege sitzt der, der die Flamme einst unterwarf …'], [4.6, 8.5, 'Aldrar', '„Vier Wächter ließ ich fallen, um zu sehen, wer es bis hierher schafft. Knie nieder, Ungetoppter – oder brenne.“']],
+      title: { t: 8.7, text: 'ALDRAR', sub: 'Der Aschenkönig' },
+      events: [[0.2, (c, G) => Sound.bossMusic(true)], [5.3, (c, G) => { embers(G, c.B.clone().setY(c.B.y + 0.6), 90, true); Sound.play('ash'); G.shake(0.4); }], [7.5, (c, G) => { shockwave(G, c); G.fx.ring(c.B.clone(), { color: 0xffd060, r: 20, dur: 1.2 }); }]],
+      outro: { lines: [[1.2, 5.4, 'Aldrar', '„Die Krone … ist nur … Asche …“']], R: 17, h: 3.6, lookH: 0.5 },
+    };
+  },
   vael: () => {
     const first = (c, u, out) => { // Nahaufnahme des Spielers, Kamera schiebt sich heran
       const e = ease(u), d = lerp(3.2, 1.9, e);

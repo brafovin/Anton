@@ -41,7 +41,7 @@ export function createUI(G) {
     const d = document.createElement('div'); d.className = 'float'; d.textContent = '+' + n; el.floats.appendChild(d);
     setTimeout(() => d.remove(), 1800);
   };
-  ui.fade = (a, ms = 800) => { el.fade.style.transition = `opacity ${ms}ms`; el.fade.style.opacity = a; };
+  ui.fade = (a, ms = 800, color = '#000') => { el.fade.style.background = color; el.fade.style.transition = `opacity ${ms}ms`; el.fade.style.opacity = a; };
   ui.setBoss = (name, show) => { el.boss.classList.toggle('show', !!show); if (name) el.bossName.textContent = name; if (show) { ghostBoss = 1; } };
   ui.restMap = []; ui.menuMode = 'rest'; ui.restCtx = null;
   ui.showRest = (lit, current) => {

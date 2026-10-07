@@ -159,3 +159,5 @@ body.inmenu #hud,body.inmenu #spellbar,body.inmenu #prompt{opacity:0!important}
 #spellbar .sp u.t1{color:#ffb060;border-color:#a8682a}
 #spellbar .sp u.t2{color:#7aa8ff;border-color:#3a60b8}
 #spellbar .sp.m1{border-left-color:#ffb060}#spellbar .sp.m2{border-left-color:#7aa8ff}#spellbar .sp.m1.m2{border-left-color:#d8c8ff}
+#ending.screen{z-index:30;background:radial-gradient(ellipse at 50% 40%,rgba(60,40,10,.7),rgba(0,0,0,.93))}
+#ending h1{font-size:clamp(30px,6vw,70px);letter-spacing:.2em;text-indent:.2em}
