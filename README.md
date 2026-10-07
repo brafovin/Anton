@@ -45,7 +45,7 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | # | Boss | Ort | Fähigkeiten | Belohnung |
 |---|---|---|---|---|
 | 1 | **Sir Hadrian**, Wächter der Asche | Burg (Norden) | Rundumschlag, Zerschmettern (rot), Sturmstoß, Sprung (Phase 2) | Hadrians Ascheklinge |
-| 2 | **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, beschwört Hohle, Teleport, Aschenwelle | +1 Aschen-Flasche |
+| 2 | **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, Teleport hinter dich, Aschenwelle | +1 Aschen-Flasche |
 | 3 | **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
 | 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2) | +1 Estus & +1 Aschen-Flasche |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!

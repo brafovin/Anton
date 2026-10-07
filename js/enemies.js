@@ -103,9 +103,9 @@ const TYPES = {
     hp: 1300, radius: 0.5, speed: 3.0, aggro: 99, souls: 6000, scale: 1.1, idle: IDLE.witch, isBoss: true, strafe: true, ranged: { min: 6, max: 13 }, cdRange: [1.0, 2.0], p2speed: 1.3, p2time: 1.25,
     phaseMsg: 'Morwen entfesselt ihre Macht',
     choose: (e, d) => {
-      const alive = e.G.enemies.filter((o) => o.minion && !o.dead).length, o = [];
+      const o = []; // Morwen beschwoert keine Gegner
       if (d < 5.5) o.push('wBurst', 'wBurst', 'wBlinkAway', 'wBlink');
-      else { o.push('wFire', 'wFire', 'wOrb', 'wPools'); if (d > 9) o.push('wBlink'); if (alive < 2) o.push('wSummon', 'wSummon'); if (e.phase2) o.push('wOrb', 'wPools', 'wFire'); }
+      else { o.push('wFire', 'wFire', 'wOrb', 'wPools', 'wPools'); if (d > 9) o.push('wBlink'); if (e.phase2) o.push('wOrb', 'wPools', 'wFire'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
     look: { head: 'witch', skin: 0xc8b4a8, cloth: 0x2a1838, armor: 0x3a2a48, trim: 0xb89038, accent: 0x7a2a9a, plates: false, pauldrons: false, cape: true, capeColor: 0x3a1a4a, robe: true, robeColor: 0x26142f, weapon: 'staff', bulk: 0.95 },
