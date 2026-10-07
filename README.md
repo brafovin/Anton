@@ -20,7 +20,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | **Magier** | Magierstab, Robe & Spitzhut, **5 Zauber** | sehr viel FP, Zauber skalieren mit Geist, wenig HP/Nahkampf |
 | **Ritter** | Eisen-Großschwert (Aschenschlag), schwere Plattenrüstung | viel HP & Stärke, langsamer, Rolle teurer |
 
-**Zauber (Magier mit Stab):** Mit **Mausrad oder 1–5** wählst du den Zauber aus (wie in Elden Ring), **Q** wirkt ihn.
+**Zauber (Magier mit Stab):** Die Zauber liegen auf den Maustasten: **M1** und **M2** wirken je einen gewählten Zauber (kein Nahkampf mit dem Stab). **Mausrad oder 1–5** wählt den M1-Zauber, **Q** wechselt den M2-Zauber (die Leiste links zeigt die Belegung). Standard: M1 Seelenpfeil, M2 Flammenkugel.
 
 | # | Zauber | FP | Wirkung |
 |---|---|---|---|
@@ -43,11 +43,11 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | Shift (antippen) | Rolle – kurze Unverwundbarkeit |
 | Shift (halten) | Sprinten |
 | Leertaste | Springen |
-| Linke Maustaste | Leichter Angriff (3er-Kombo) |
-| Rechte Maustaste | Schwerer Angriff |
+| Linke Maustaste | Leichter Angriff (3er-Kombo) · Magier: M1-Zauber |
+| Rechte Maustaste | Schwerer Angriff (Ash of War = etwa das Doppelte) · Magier: M2-Zauber |
 | F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
-| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: gewählten **Zauber wirken** |
-| Mausrad / 1–5 | Zauber wählen (nur mit Magierstab) |
+| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: **M2-Zauber wechseln** |
+| Mausrad / 1–5 | M1-Zauber wählen (nur mit Magierstab) |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
 | T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |
 | F (am Leuchtfeuer) | Flaschen zwischen HP und FP verteilen |
