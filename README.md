@@ -62,10 +62,11 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 - **Leuchtfeuer** (3 + eines nach dem Boss): entfachen, rasten (heilt, füllt Estus, setzt Gegner zurück), Teleport zwischen entfachten Leuchtfeuern.
 - **Aufleveln:** Am Leuchtfeuer (`U`) tauscht du Seelen gegen Level: Vitalität (HP), Geist (FP), Ausdauer, Stärke (Schaden). Die Kosten steigen mit jedem Level.
 - **Boss-Rüstung & Beute:** *Sir Hadrian* trägt eine schwarz-goldene Stachelrüstung mit glühendem Emblem – ganz anders als dein stählernes Outfit. Besiegst du ihn, kannst du seine **Hadrians Ascheklinge** (Großschwert: langsamer, härter, größere Reichweite, eigene Kombo, Heavy und Ash of War) aufnehmen und mit `C` zwischen den Waffen wechseln.
+- **Endboss & Teleport:** Hast du alle vier Wächter besiegt, wirst du automatisch zum **Thronsaal** teleportiert (Leuchtfeuer „Thronsaal-Vorhof“, später auch per Teleport-Menü erreichbar). Dort wartet der mächtige Aschenkönig Aldrar mit eigener Cutscene. Nach seinem Sturz folgt der Abspann – danach kannst du weiterspielen.
 - **Cutscenes:** Jeder Boss hat ein eigenes Intro (nach dem Nebeltor) mit Kamerafahrt, Untertiteln und Titelkarte – Hadrian steht kniend am Schwert auf, Morwen erscheint schwebend im Violett der Kristalle, Gorm bricht mit Erdbeben aus dem Geröll, Vael tritt aus der Dunkelheit. Beim Tod des Bosses folgt ein kurzes Zeitlupen-Outro mit letzten Worten. Das Intro läuft nur beim ersten Mal pro Boss (wird mitgespeichert); bei weiteren Versuchen erscheint nur der Bossname. Überspringen mit `Leertaste`, `Enter`, `E` oder `Esc`.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
 - **Gegner:** Hohle Soldaten und Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung).
-- **4 Bosse in fester Reihenfolge** – jeder ist stärker als der vorherige (mehr Leben, härtere Treffer, höheres Tempo, kürzere Pausen). Das Nebeltor des nächsten Bosses ist **versiegelt**, bis der Vorgänger besiegt ist. Jeder Boss hat eigene Arena, Bonfire nach dem Sieg und zwei Phasen:
+- **5 Bosse in fester Reihenfolge** (4 Wächter + der Endboss) – jeder ist stärker als der vorherige (mehr Leben, härtere Treffer, höheres Tempo, kürzere Pausen). Das Nebeltor des nächsten Bosses ist **versiegelt**, bis der Vorgänger besiegt ist. Jeder Boss hat eigene Arena, Bonfire nach dem Sieg und zwei Phasen:
 
 | # | Boss | Ort | Fähigkeiten | Belohnung |
 |---|---|---|---|---|
@@ -73,6 +74,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | 2 | **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, Teleport hinter dich, Aschenwelle | +1 Aschen-Flasche |
 | 3 | **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
 | 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2, höchstens alle 35 s, max. 2 gleichzeitig) | +1 Estus & +1 Aschen-Flasche |
+| 5 | **Aldrar**, der Aschenkönig (Endboss) | Thronsaal hoch über der Welt | **3 Phasen:** Königlicher Hieb, Zorn der Krone (rot), Thronstoß, dreifache Klinge · Phase 2: Flammenschwingen (Fächer), Flammensäulen, Sturz des Königs · Phase 3: Sternenfall (Meteore), Thronsprung (Teleport + Schlag), noch schneller | +1 Estus & +1 Aschen-Flasche, das Ende |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
 
 ## Code
