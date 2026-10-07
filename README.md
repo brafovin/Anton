@@ -23,7 +23,8 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | Rechte Maustaste | Schwerer Angriff |
 | F | Parry – bei Erfolg Riposte mit Angriff |
 | Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer |
-| R | Estus-Flasche trinken (5, am Leuchtfeuer aufgefüllt) |
+| R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
+| T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |
 | E | Interagieren: Leuchtfeuer entfachen / rasten, Nebeltor, Beute aufnehmen |
 | C | Waffe wechseln (sobald du die Boss-Klinge besitzt) |
 | U | Am Leuchtfeuer: Aufleveln (1–4 wählt das Attribut) |
@@ -37,7 +38,15 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 - **Boss-Rüstung & Beute:** *Sir Hadrian* trägt eine schwarz-goldene Stachelrüstung mit glühendem Emblem – ganz anders als dein stählernes Outfit. Besiegst du ihn, kannst du seine **Hadrians Ascheklinge** (Großschwert: langsamer, härter, größere Reichweite, eigene Kombo, Heavy und Ash of War) aufnehmen und mit `C` zwischen den Waffen wechseln.
 - **Speicherstand:** Fortschritt (Level, Waffen, Leuchtfeuer, Boss) wird automatisch im Browser gespeichert; auf dem Startbildschirm gibt es „Neues Spiel“.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
-- **Gegner:** Hohle Soldaten, Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung) und der Boss *Sir Hadrian* (zwei Phasen).
+- **Gegner:** Hohle Soldaten und Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung).
+- **4 Bosse** mit je eigener Arena, eigenem Nebeltor, Bonfire nach dem Sieg und zwei Phasen:
+
+| Boss | Ort | Fähigkeiten | Belohnung |
+|---|---|---|---|
+| **Sir Hadrian**, Wächter der Asche | Burg (Norden) | Rundumschlag, Zerschmettern (rot), Sturmstoß, Sprung (Phase 2) | Hadrians Ascheklinge |
+| **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, beschwört Hohle, Teleport, Aschenwelle | +1 Aschen-Flasche |
+| **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
+| **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2) | +1 Estus & +1 Aschen-Flasche |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
 
 ## Code

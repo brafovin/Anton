@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff } from './util.js';
-import { buildWorld, groundHeight, ARENA, FOG_GATE, GLOW } from './world.js';
+import { buildWorld, groundHeight, GLOW } from './world.js';
+import { createHazards } from './hazards.js';
 import { makeSword } from './models.js';
 import { WEAPON_INFO } from './player.js';
 import { makeFX } from './fx.js';
@@ -33,11 +34,12 @@ scene.add(moon, moon.target);
 const MOON_DIR = new THREE.Vector3(-0.5, 0.8, 0.35).normalize();
 
 // ------------------------------------------------------------------
-const G = { scene, camera, renderer, enemies: [], boss: null, bossEngaged: false, bossDead: false, stain: null, menuOpen: false, running: false, paused: true, time: 0, hitT: 0, shakeAmt: 0 };
+const G = { scene, camera, renderer, enemies: [], boss: null, fights: [], activeFight: null, stain: null, menuOpen: false, running: false, paused: true, time: 0, hitT: 0, shakeAmt: 0 };
 window.G = G;
 G.world = buildWorld(scene);
-G.world.setGateSealed(true);
+G.fights = G.world.arenas.map((A) => ({ id: A.id, arena: A, dead: false, enemy: null }));
 G.fx = makeFX(scene);
+G.hazards = createHazards(G);
 G.input = { keys: new Set(), pressed: new Set(), mouse: [false, false, false], pressedMouse: [false, false, false], shiftDown: 0, dx: 0, dy: 0 };
 G.ui = createUI(G);
 G.hitstop = (t) => { G.hitT = Math.max(G.hitT, t); };
@@ -47,11 +49,14 @@ G.shake = (a) => { G.shakeAmt = Math.max(G.shakeAmt, a); };
 function populate() {
   const P = G.player;
   G.enemies.forEach((e) => e.dispose()); G.enemies = spawnAll(G);
-  G.boss = null;
-  if (!G.bossDead) { G.boss = spawnBoss(G); G.enemies.push(G.boss); }
-  G.bossEngaged = false;
-  G.world.setGateSealed(!G.bossDead); G.world.setGateVisible(!G.bossDead);
-  if (G.bossDead && !P.owned.greatsword) G.spawnDrop(ARENA.x, ARENA.z - 2);
+  G.hazards.clear();
+  G.boss = null; G.activeFight = null;
+  for (const f of G.fights) {
+    f.enemy = null;
+    if (!f.dead) { f.enemy = spawnBoss(G, f); G.enemies.push(f.enemy); }
+    G.world.setGateSealed(f.id, !f.dead); G.world.setGateVisible(f.id, !f.dead);
+  }
+  if (G.fights[0].dead && !P.owned.greatsword) G.spawnDrop(G.fights[0].arena.x, G.fights[0].arena.z - 2);
 }
 G.player = null;
 createPlayer(G);
@@ -61,20 +66,25 @@ const P = G.player;
 const SAVE_KEY = 'aschenfeuer-save-v1';
 G.save = () => {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, bossDead: G.bossDead, lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+      dead: G.fights.filter((f) => f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
+    }));
   } catch (e) { /* Speichern nicht moeglich */ }
 };
-function ensureArenaBonfire() {
-  let nb = G.world.bonfires.find((b) => b.id === 3);
-  if (!nb) nb = G.world.makeBonfire(3, 'Arena des Wächters', ARENA.x, ARENA.z + 8);
+function ensureArenaBonfire(f) {
+  const A = f.arena;
+  let nb = G.world.bonfires.find((b) => b.id === A.bonfire.id);
+  if (!nb) nb = G.world.makeBonfire(A.bonfire.id, A.bonfire.name, A.x - A.nx * 2, A.z - A.nz * 2 + (A.id === 'hadrian' ? 10 : 0));
   return nb;
 }
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
 if (saved) {
   Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0; Object.assign(P.owned, saved.owned || {});
-  G.bossDead = !!saved.bossDead;
-  if (G.bossDead) ensureArenaBonfire();
+  P.maxEstus = saved.maxEstus || P.maxEstus; P.maxMana = saved.maxMana || P.maxMana; P.estus = P.maxEstus; P.mana = P.maxMana;
+  const dead = new Set(saved.dead || (saved.bossDead ? ['hadrian'] : []));
+  for (const f of G.fights) if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); }
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
@@ -119,18 +129,25 @@ G.lightBonfire = (b) => {
   G.save();
 };
 G.restAt = (b) => { populate(); G.save(); };
-G.startBoss = () => {
-  if (!G.boss) return;
-  G.bossEngaged = true; G.world.setGateSealed(true);
-  G.boss.setState('intro', 0.3); G.ui.setBoss(G.boss.name, true); Sound.bossMusic(true);
+G.startBoss = (f) => {
+  if (!f || !f.enemy) return;
+  G.activeFight = f; G.boss = f.enemy; G.world.setGateSealed(f.id, true);
+  f.enemy.setState('intro', 0.3); G.ui.setBoss(f.arena.bossName, true); Sound.bossMusic(true);
 };
 G.onBossDefeated = (b) => {
-  G.bossDead = true; G.bossEngaged = false;
+  const f = b.fight; if (!f) return;
+  f.dead = true; G.activeFight = null;
   G.ui.banner('FEIND GEFALLEN', 'gold', 5.5); Sound.play('victory'); Sound.bossMusic(false); G.ui.setBoss(null, false);
-  G.world.setGateSealed(false); G.world.setGateVisible(false);
+  G.world.setGateSealed(f.id, false); G.world.setGateVisible(f.id, false);
+  G.hazards.clear();
+  G.enemies.filter((o) => o.minion && !o.dead).forEach((o) => o.die());
   G.fx.ring(b.pos.clone(), { color: 0xffe0a0, r: 16, dur: 1.5 }); G.fx.souls(b.pos.clone().setY(2), 120);
-  ensureArenaBonfire().lit = true;
-  G.spawnDrop(ARENA.x, ARENA.z - 2);
+  ensureArenaBonfire(f).lit = true;
+  const rw = f.arena.reward, msgs = [];
+  if (rw === 'greatsword') G.spawnDrop(f.arena.x, f.arena.z - 2);
+  if (rw === 'estus' || rw === 'both') { P.maxEstus = Math.min(10, P.maxEstus + 1); P.estus = Math.min(P.maxEstus, P.estus + 1); msgs.push('Estus-Flasche +1 (max. ' + P.maxEstus + ')'); }
+  if (rw === 'mana' || rw === 'both') { P.maxMana = Math.min(8, P.maxMana + 1); P.mana = Math.min(P.maxMana, P.mana + 1); msgs.push('Aschen-Flasche +1 (max. ' + P.maxMana + ')'); }
+  if (msgs.length) setTimeout(() => G.ui.toast(msgs.join(' · ')), 2500);
   G.save();
 };
 G.dropStain = (pos, souls) => {
@@ -148,7 +165,8 @@ G.pickStain = () => {
 };
 G.onPlayerDeath = () => {
   G.deathTimer = 4.6;
-  if (G.bossEngaged) { G.bossEngaged = false; G.ui.setBoss(null, false); }
+  if (G.activeFight) { G.activeFight = null; G.ui.setBoss(null, false); }
+  G.hazards.clear();
 };
 
 // ------------------------------------------------------------------ Kamera
@@ -170,8 +188,8 @@ G.updateCamera = (dt) => {
     }
   }
   P.camPitch = clamp(P.camPitch, -0.25, 1.25);
-  const bossFight = G.bossEngaged && G.boss && !G.boss.dead;
-  const wantDist = bossFight ? 6.6 : P.lock ? 5.3 : 4.5;
+  const bossFight = G.activeFight && G.boss && !G.boss.dead;
+  const wantDist = bossFight ? G.activeFight.arena.camDist : P.lock ? 5.3 : 4.5;
   P.camDist = damp(P.camDist, wantDist, 2.5, dt);
   const sy = P.state === 'roll' ? 1.15 : P.state === 'dead' ? 0.5 : P.state === 'rest' || P.state === 'kindle' ? 1.0 : 1.55;
   _v.set(P.pos.x, P.pos.y + sy, P.pos.z);
@@ -272,6 +290,7 @@ function frame(now) {
   for (const e of G.enemies) e.update(dt);
   G.world.updateBonfires(G.time, dt, camera.position);
   G.world.updateGate(G.time);
+  G.hazards.update(dt);
   G.fx.update(dt);
   G.ui.update(dt);
   if (G.drop) { G.drop.sword.rotation.y += dt * 1.2; G.drop.sword.position.y = 1.4 + Math.sin(G.time * 2) * 0.12; }

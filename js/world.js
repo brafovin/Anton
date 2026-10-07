@@ -3,21 +3,40 @@ import { clamp, lerp, rand, smoothstep, fbm, noise2, mulberry } from './util.js'
 import { mat } from './models.js';
 
 export const BOUNDS = { x0: -85, x1: 85, z0: -196, z1: 48 };
-export const ARENA = { x: 0, z: -152, r: 24 };
-export const FOG_GATE = { x: 0, z: -127.5, w: 8 };
+// Boss-Arenen: a = Richtung des Nebeltors (x=cos a, z=sin a), zeigt zur Spielwelt
+export const ARENAS = [
+  { id: 'hadrian', x: 0, z: -152, r: 24, a: Math.PI / 2, style: 'castle', wallH: 10, boss: 'boss', bossName: 'Sir Hadrian, Wächter der Asche', bonfire: { id: 3, name: 'Arena des Wächters' }, reward: 'greatsword', camDist: 6.6, floor: 0x5a5852, gateColor: 0xd8e4ff },
+  { id: 'morwen', x: -46, z: -30, r: 17, a: 0, style: 'grove', wallH: 5, boss: 'witch', bossName: 'Morwen, Hexe der Asche', bonfire: { id: 4, name: 'Hexenhain' }, reward: 'mana', camDist: 7.4, floor: 0x26331f, gateColor: 0xcfa8ff },
+  { id: 'gorm', x: 46, z: -30, r: 19, a: Math.PI, style: 'quarry', wallH: 9, boss: 'giant', bossName: 'Gorm, der Grabriese', bonfire: { id: 5, name: 'Steinbruch' }, reward: 'estus', camDist: 9.2, floor: 0x54463a, gateColor: 0xffd8a0 },
+  { id: 'vael', x: 0, z: 26, r: 16, a: -Math.PI / 2, style: 'graveyard', wallH: 4, boss: 'reaper', bossName: 'Vael, der Henker', bonfire: { id: 6, name: 'Henkersplatz' }, reward: 'both', camDist: 7.0, floor: 0x24242a, gateColor: 0xffa0a0 },
+];
+export const ARENA = ARENAS[0]; // Rueckwaertskompatibel
+export const GATE_W = 8;
+for (const A of ARENAS) {
+  A.nx = Math.cos(A.a); A.nz = Math.sin(A.a); A.floorColor = new THREE.Color(A.floor);
+  A.gate = { x: A.x + A.nx * (A.r - 0.5), z: A.z + A.nz * (A.r - 0.5), nx: A.nx, nz: A.nz, w: GATE_W };
+}
+export const inArena = (x, z, pad = 0) => ARENAS.some((A) => Math.hypot(x - A.x, z - A.z) < A.r + pad);
 
 // ------------------------------------------------------------------
 //  Gelaendehoehe (analytisch -> Kollision + Platzierung ohne Raycasts)
 // ------------------------------------------------------------------
 function baseProfile(z) { return 2.6 * smoothstep(-46, -64, z); }
-export function groundHeight(x, z) {
+function rawHeight(x, z) {
   const open = 1 - smoothstep(30, 62, Math.abs(x));
   const castle = smoothstep(-58, -66, z) * (1 - smoothstep(34, 62, Math.abs(x)));
-  const rollK = 0.4 + 0.6 * (1 - castle) ;
+  const rollK = 0.4 + 0.6 * (1 - castle);
   const rolling = (fbm(x * 0.03, z * 0.03, 3) * 2.4 + fbm(x * 0.12, z * 0.12, 2) * 0.3) * rollK * (1 - castle * 0.85);
   const hill = (1 - open) * (7 + fbm(x * 0.05 + 9, z * 0.05, 3) * 9) + smoothstep(34, 58, z) * 9 + smoothstep(-186, -205, z) * 12;
-  // Vorplatz der Leuchtfeuer abflachen
-  let h = baseProfile(z) + rolling + hill;
+  return baseProfile(z) + rolling + hill;
+}
+for (const A of ARENAS) A.h0 = rawHeight(A.x, A.z);
+export function groundHeight(x, z) {
+  let h = rawHeight(x, z);
+  for (const A of ARENAS) {   // Arenen sind eben
+    const d = Math.hypot(x - A.x, z - A.z);
+    if (d < A.r + 9) h = lerp(h, A.h0, 1 - smoothstep(A.r - 1, A.r + 8, d));
+  }
   return h;
 }
 
@@ -126,6 +145,7 @@ export function buildWorld(scene) {
     const pd = Math.abs(x - Math.sin(z * 0.045) * 4); tmp.lerp(path, (1 - smoothstep(2.5, 5.5, pd)) * 0.9 * (z < 10 ? 1 : 0));
     // Innenhof gepflastert
     if (z < -62 && Math.abs(x) < 33) tmp.lerp(new THREE.Color(0x5a5852), 0.8);
+    for (const A of ARENAS) { const d = Math.hypot(x - A.x, z - A.z); if (d < A.r + 3) tmp.lerp(A.floorColor, 0.92 * (1 - smoothstep(A.r - 3, A.r + 3, d))); }
     col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -176,39 +196,96 @@ export function buildWorld(scene) {
   tower(-34, -62, 5, 16); tower(34, -62, 5, 16); tower(-34, -125, 5.5, 18); tower(34, -125, 5.5, 18);
   // Aeussere Hangmauern zur Begrenzung des Dorfes nach Westen/Osten bleiben Huegel (natuerlich).
 
-  // ---------------- Boss-Arena Ring ----------------
-  const NA = 28, gapA = 0.19;
-  for (let i = 0; i < NA; i++) {
-    const a0 = Math.PI / 2 + gapA + (i / NA) * (Math.PI * 2 - gapA * 2), a1 = Math.PI / 2 + gapA + ((i + 1) / NA) * (Math.PI * 2 - gapA * 2);
-    // a=pi/2 zeigt nach +Z im (cos->x, sin->z)-Mapping
-    const x0 = ARENA.x + Math.cos(a0) * ARENA.r, z0 = ARENA.z + Math.sin(a0) * ARENA.r, x1 = ARENA.x + Math.cos(a1) * ARENA.r, z1 = ARENA.z + Math.sin(a1) * ARENA.r;
-    wall(x0, z0, x1, z1, { h: 10, t: 2.6, sink: 4, crenel: i % 2 === 0 });
+  // ---------------- Boss-Arenen ----------------
+  const mossStone = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x5e6a58, roughness: 1 });
+  const rockWall = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x7a6a58, roughness: 1 });
+  const graveStone = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x6a6a72, roughness: 1 });
+  const flatDisc = (A, color, rr, y = 0.05) => {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(rr, 48), new THREE.MeshStandardMaterial({ color, roughness: 1 }));
+    m.rotation.x = -Math.PI / 2; m.position.set(A.x, A.h0 + y, A.z); m.receiveShadow = true; scene.add(m); return m;
+  };
+  const glowRing = (A, r0, r1, color, op = 0.5) => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 64), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(A.x, A.h0 + 0.09, A.z); scene.add(m); return m;
+  };
+  const glowSprite = (x, y, z, color, size) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); sp.position.set(x, y, z); sp.scale.set(size, size, 1); scene.add(sp); return sp;
+  };
+  GLOW.fire = glowTex();
+  W.arenaFlames = [];
+  function buildArena(A) {
+    const NA = 28, gap = Math.asin((GATE_W / 2 + 0.5) / A.r);
+    const castle = A.style === 'castle';
+    const wm = castle ? stoneM : A.style === 'grove' ? mossStone : A.style === 'quarry' ? rockWall : graveStone;
+    for (let i = 0; i < NA; i++) {
+      const a0 = A.a + gap + (i / NA) * (Math.PI * 2 - gap * 2), a1 = A.a + gap + ((i + 1) / NA) * (Math.PI * 2 - gap * 2);
+      const x0 = A.x + Math.cos(a0) * A.r, z0 = A.z + Math.sin(a0) * A.r, x1 = A.x + Math.cos(a1) * A.r, z1 = A.z + Math.sin(a1) * A.r;
+      const hh = castle ? A.wallH : A.wallH * R(0.55, 1.15);
+      wall(x0, z0, x1, z1, { h: hh, t: A.style === 'quarry' ? 3.4 : 2.6, sink: 4, crenel: castle ? i % 2 === 0 : A.style === 'graveyard' && i % 3 === 0, mat: wm });
+    }
+    // Torpfeiler am Nebeltor
+    const g = A.gate, tx = g.nz, tz = -g.nx, rot = Math.atan2(g.nx, g.nz), ph = castle ? 13 : A.style === 'quarry' ? 11 : 8.5;
+    for (const sd of [-1, 1]) {
+      const px = g.x + tx * sd * (GATE_W / 2 + 1.2), pz = g.z + tz * sd * (GATE_W / 2 + 1.2), gy = groundHeight(px, pz);
+      const p = new THREE.Mesh(boxGeo(2.4, ph, 2.8), wm); p.position.set(px, gy + ph / 2 - 1, pz); p.rotation.y = rot; p.castShadow = true; scene.add(p);
+      const c = new THREE.Mesh(boxGeo(3.2, 1.2, 3.6), stoneDark); c.position.set(px, gy + ph - 0.4, pz); c.rotation.y = rot; scene.add(c);
+      solid(px, pz, 1.2, 1.4, rot);
+    }
+    // ---- Stil-spezifisches ----
+    if (castle) {
+      const keep = new THREE.Mesh(boxGeo(38, 52, 22), stoneM); keep.position.set(0, groundHeight(0, -190) + 22, -198); keep.castShadow = true; scene.add(keep);
+      for (const x of [-22, 22]) tower(x, -196, 6.5, 44);
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(8, 22, 8), mat(0x2a2e3a, { roughness: 0.9 })); spire.position.set(0, groundHeight(0, -190) + 58, -198); scene.add(spire);
+      const fl = new THREE.Mesh(new THREE.CircleGeometry(A.r - 1.2, 48), new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x6a6660, roughness: 1 }));
+      fl.material.map.repeat.set(8, 8); fl.rotation.x = -Math.PI / 2; fl.position.set(A.x, A.h0 + 0.04, A.z); fl.receiveShadow = true; scene.add(fl);
+      glowRing(A, 10, 10.5, 0x884422, 0.4);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3, x = A.x + Math.cos(a) * 15, z = A.z + Math.sin(a) * 15, h = R(3, 7);
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, h, 8), stoneM); p.position.set(x, groundHeight(x, z) + h / 2, z); p.castShadow = true; p.rotation.z = R(-0.03, 0.03); scene.add(p);
+        circle(x, z, 1.4);
+      }
+    } else if (A.style === 'grove') {
+      flatDisc(A, 0x1c2a1a, A.r - 1.2);
+      glowRing(A, 7.5, 7.9, 0x9a5aff, 0.55); glowRing(A, 3.2, 3.5, 0x9a5aff, 0.4);
+      const crystalM = new THREE.MeshStandardMaterial({ color: 0xb08aff, emissive: 0x7a3aff, emissiveIntensity: 2.2, roughness: 0.3 });
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + 0.2, rr = A.r * 0.72, x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr, h = R(3.2, 5);
+        const st = new THREE.Mesh(boxGeo(1.1, h, 0.8), mossStone); st.position.set(x, groundHeight(x, z) + h / 2 - 0.2, z); st.rotation.set(R(-0.08, 0.08), a, R(-0.1, 0.1)); st.castShadow = true; scene.add(st);
+        const cr = new THREE.Mesh(new THREE.OctahedronGeometry(0.45), crystalM); cr.scale.y = 1.8; cr.position.set(x, groundHeight(x, z) + h + 0.5, z); scene.add(cr);
+        glowSprite(x, groundHeight(x, z) + h + 0.5, z, 0xa070ff, 3.2);
+        circle(x, z, 0.9);
+      }
+      for (let i = 0; i < 9; i++) { const a = R(6.28), rr = A.r * R(0.8, 0.92), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; if (Math.hypot(x - g.x, z - g.z) < 7) continue; deadTree(x, z, R(1.1, 1.6)); }
+    } else if (A.style === 'quarry') {
+      flatDisc(A, 0x4a3e32, A.r - 1.4);
+      glowRing(A, 12, 12.4, 0x6a4a2a, 0.35);
+      const boneM = mat(0xcfc6b0, { roughness: 0.9 });
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.4, rr = A.r * R(0.72, 0.85), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr, sz = R(1.4, 2.4);
+        if (Math.hypot(x - g.x, z - g.z) < 8) continue;
+        const b = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), rockM2); b.position.set(x, groundHeight(x, z) + sz * 0.4, z); b.scale.set(1, R(0.7, 1.1), R(0.8, 1.2)); b.rotation.set(R(3), R(3), R(3)); b.castShadow = true; scene.add(b); circle(x, z, sz * 0.9);
+      }
+      for (let i = 0; i < 40; i++) { const a = R(6.28), rr = A.r * Math.sqrt(R(0.05, 0.85)), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const bn = new THREE.Mesh(i % 5 ? new THREE.CylinderGeometry(0.05, 0.06, R(0.3, 0.7), 5) : new THREE.SphereGeometry(0.18, 6, 5), boneM); bn.position.set(x, groundHeight(x, z) + 0.08, z); bn.rotation.set(R(3), R(3), R(3)); scene.add(bn); }
+      for (let i = 0; i < 5; i++) { const a = R(6.28), rr = A.r * R(0.35, 0.6), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const cr = new THREE.Mesh(new THREE.RingGeometry(R(1, 2), R(2.2, 3), 7, 1), new THREE.MeshBasicMaterial({ color: 0x1a1410, transparent: true, opacity: 0.45, side: THREE.DoubleSide })); cr.rotation.x = -Math.PI / 2; cr.position.set(x, A.h0 + 0.07, z); scene.add(cr); }
+    } else if (A.style === 'graveyard') {
+      flatDisc(A, 0x1c1c22, A.r - 1.2);
+      glowRing(A, 8, 8.35, 0xc02020, 0.5); glowRing(A, 4.2, 4.5, 0xc02020, 0.4);
+      for (let k = 0; k < 4; k++) { const bar = new THREE.Mesh(new THREE.PlaneGeometry(16, 0.3), new THREE.MeshBasicMaterial({ color: 0xc02020, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false })); bar.rotation.set(-Math.PI / 2, 0, (k * Math.PI) / 4); bar.position.set(A.x, A.h0 + 0.08, A.z); scene.add(bar); }
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + 0.1, rr = A.r * R(0.62, 0.86), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr, hgt = R(1, 2);
+        if (Math.hypot(x - g.x, z - g.z) < 7) continue;
+        const gr = new THREE.Mesh(boxGeo(0.9, hgt, 0.22, 1.5), graveStone); gr.position.set(x, groundHeight(x, z) + hgt / 2 - 0.1, z); gr.rotation.set(R(-0.12, 0.12), a + R(-0.3, 0.3), R(-0.15, 0.15)); gr.castShadow = true; scene.add(gr); circle(x, z, 0.5);
+      }
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + 0.9, rr = A.r * 0.82, x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; if (Math.hypot(x - g.x, z - g.z) < 7) continue;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.4, 6), blackWood); post.position.set(x, groundHeight(x, z) + 1.2, z); scene.add(post);
+        glowSprite(x, groundHeight(x, z) + 2.6, z, 0xff3a2a, 2.4); circle(x, z, 0.3);
+      }
+      for (let i = 0; i < 6; i++) { const a = R(6.28), rr = A.r + R(1.5, 5), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; deadTree(x, z, R(1.1, 1.7)); }
+    }
   }
-  // Torpfeiler am Nebeltor
-  for (const s of [-1, 1]) {
-    const px = s * (FOG_GATE.w / 2 + 1.2);
-    const p = new THREE.Mesh(boxGeo(2.4, 13, 2.8), stoneM); p.position.set(px, groundHeight(px, -127) + 5.5, -127.2); p.castShadow = true; scene.add(p);
-    const c = new THREE.Mesh(boxGeo(3.2, 1.2, 3.6), stoneDark); c.position.set(px, groundHeight(px, -127) + 12.3, -127.2); scene.add(c);
-    solid(px, -127.2, 1.2, 1.4);
-  }
-  // Der Bergfried als Kulisse
-  const keepM = stoneM;
-  const keep = new THREE.Mesh(boxGeo(38, 52, 22), keepM); keep.position.set(0, groundHeight(0, -190) + 22, -198); keep.castShadow = true; scene.add(keep);
-  for (const x of [-22, 22]) tower(x, -196, 6.5, 44);
-  const spire = new THREE.Mesh(new THREE.ConeGeometry(8, 22, 8), mat(0x2a2e3a, { roughness: 0.9 })); spire.position.set(0, groundHeight(0, -190) + 58, -198); scene.add(spire);
-  // Arena-Boden: gepflasterter Kreis mit Runenring
-  const arenaFloor = new THREE.Mesh(new THREE.CircleGeometry(ARENA.r - 1.2, 48), new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x6a6660, roughness: 1 }));
-  arenaFloor.map = null; arenaFloor.rotation.x = -Math.PI / 2; arenaFloor.position.set(ARENA.x, groundHeight(ARENA.x, ARENA.z) + 0.04, ARENA.z); arenaFloor.receiveShadow = true;
-  arenaFloor.material.map.repeat.set(8, 8); scene.add(arenaFloor);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(10, 10.5, 64), new THREE.MeshBasicMaterial({ color: 0x884422, transparent: true, opacity: 0.4, side: THREE.DoubleSide }));
-  ring.rotation.x = -Math.PI / 2; ring.position.set(ARENA.x, groundHeight(ARENA.x, ARENA.z) + 0.08, ARENA.z); scene.add(ring);
-  // Arena-Saeulen
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.3, x = ARENA.x + Math.cos(a) * 15, z = ARENA.z + Math.sin(a) * 15;
-    const h = R(3, 7);
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, h, 8), stoneM); p.position.set(x, groundHeight(x, z) + h / 2, z); p.castShadow = true; p.rotation.z = R(-0.03, 0.03); scene.add(p);
-    circle(x, z, 1.4);
-  }
+  const rockM2 = mat(0x5a5a5e, { roughness: 1 });
+  W.buildArenas = () => ARENAS.forEach(buildArena);
 
   // ---------------- Dorf: Ruinenhaeuser ----------------
   function ruin(x, z, w, d, rot) {
@@ -231,11 +308,11 @@ export function buildWorld(scene) {
     if (rnd() < 0.6) { const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 0.55, 0.12, d * 0.6), thatch); roof.position.set(w * 0.2, 3.2, 0); roof.rotation.z = R(0.4, 0.8); roof.castShadow = true; g.add(roof); }
     scene.add(g);
   }
-  [[-22, 8, 10, 8, 0.3], [20, -6, 9, 8, -0.5], [-30, -22, 8, 7, 1.2], [28, -26, 10, 9, 0.2], [-15, -36, 9, 8, -0.2], [14, -42, 8, 7, 0.9], [-34, 20, 8, 8, 0.1]].forEach((r) => ruin(...r));
+  [[-22, 8, 10, 8, 0.3], [20, -6, 9, 8, -0.5], [-30, -22, 8, 7, 1.2], [28, -26, 10, 9, 0.2], [-15, -36, 9, 8, -0.2], [14, -42, 8, 7, 0.9], [-34, 20, 8, 8, 0.1]].filter((r) => !inArena(r[0], r[1], 8)).forEach((r) => ruin(...r));
 
   // Zaun / Karren / Fass
   const crates = [[-6, -12], [8, -18], [-10, 4], [12, 12], [-4, -48], [6, -50]];
-  crates.forEach(([x, z]) => {
+  crates.filter(([x, z]) => !inArena(x, z, 3)).forEach(([x, z]) => {
     const t = rnd();
     if (t < 0.5) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 1.1, 10), woodM); b.position.set(x, groundHeight(x, z) + 0.55, z); b.castShadow = true; scene.add(b); circle(x, z, 0.6); }
     else { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 1.1), woodM); b.position.set(x, groundHeight(x, z) + 0.5, z); b.rotation.y = R(3); b.castShadow = true; scene.add(b); circle(x, z, 0.8); }
@@ -244,6 +321,7 @@ export function buildWorld(scene) {
   // Friedhof (links vom Startpunkt)
   for (let i = 0; i < 28; i++) {
     const x = R(-48, -26), z = R(-8, 14), hgt = R(0.7, 1.4);
+    if (inArena(x, z, 2)) continue;
     const g = new THREE.Mesh(boxGeo(0.7, hgt, 0.18, 1.5), stoneDark); g.position.set(x, groundHeight(x, z) + hgt / 2 - 0.1, z); g.rotation.set(R(-0.15, 0.15), R(-0.5, 0.5), R(-0.2, 0.2)); g.castShadow = true; scene.add(g);
     if (rnd() < 0.5) circle(x, z, 0.4);
   }
@@ -265,7 +343,7 @@ export function buildWorld(scene) {
   for (let i = 0; i < 70; i++) {
     const x = R(-80, 80), z = R(-58, 44);
     if (Math.abs(x) < 7 && z > -56) continue;                 // Weg freihalten
-    if (Math.hypot(x, z) < 10) continue;
+    if (Math.hypot(x, z) < 10 || inArena(x, z, 4)) continue;
     deadTree(x, z, R(0.8, 1.5));
   }
   // Baeume ausserhalb der Mauern (Kulisse)
@@ -275,16 +353,18 @@ export function buildWorld(scene) {
   const rockM = mat(0x5a5a5e, { roughness: 1 });
   for (let i = 0; i < 40; i++) {
     const x = R(-80, 80), z = R(-58, 44), s = R(0.6, 2.2);
-    if (Math.abs(x) < 6 && z > -56) continue;
+    if ((Math.abs(x) < 6 && z > -56) || inArena(x, z, 3)) continue;
     const r = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockM); r.position.set(x, groundHeight(x, z) + s * 0.2, z); r.scale.set(1, R(0.5, 0.9), R(0.8, 1.2)); r.rotation.set(R(3), R(3), R(3)); r.castShadow = true; scene.add(r); circle(x, z, s * 0.9);
   }
+  W.buildArenas();
+
   // Gras-Buesche (instanziert)
   const tuft = new THREE.ConeGeometry(0.045, 0.45, 3); tuft.translate(0, 0.35, 0);
   const NT = 5000, grassI = new THREE.InstancedMesh(tuft, new THREE.MeshStandardMaterial({ color: 0x4f6034, roughness: 1 }), NT);
   const dm = new THREE.Object3D(), gc = new THREE.Color();
   for (let i = 0; i < NT; i++) {
     const x = R(-82, 82), z = R(-60, 46);
-    const onPath = Math.abs(x - Math.sin(z * 0.045) * 4) < 3 && z < 10;
+    const onPath = (Math.abs(x - Math.sin(z * 0.045) * 4) < 3 && z < 10) || inArena(x, z, 0);
     dm.position.set(x, onPath ? -50 : groundHeight(x, z), z); dm.rotation.set(R(-0.2, 0.2), R(6.28), R(-0.2, 0.2)); dm.scale.set(R(0.7, 1.4), R(0.6, 1.5), R(0.7, 1.4));
     dm.updateMatrix(); grassI.setMatrixAt(i, dm.matrix); gc.setHSL(R(0.2, 0.28), 0.35, R(0.16, 0.3)); grassI.setColorAt(i, gc);
   }
@@ -373,14 +453,19 @@ export function buildWorld(scene) {
   const fg = fogCanvas.getContext('2d');
   for (let i = 0; i < 160; i++) { const gr = fg.createRadialGradient(rand(256), rand(256), 0, 0, 0, 0); const x = rand(256), y = rand(256), r = rand(20, 70); const gg = fg.createRadialGradient(x, y, 0, x, y, r); gg.addColorStop(0, 'rgba(255,255,255,0.22)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); fg.fillStyle = gg; for (const ox of [-256, 0, 256]) { fg.save(); fg.translate(ox, 0); fg.fillRect(x - r, y - r, r * 2, r * 2); fg.restore(); } }
   const fogT = new THREE.CanvasTexture(fogCanvas); fogT.wrapS = fogT.wrapT = THREE.RepeatWrapping; fogT.repeat.set(2, 1.4);
-  const gateMat = new THREE.MeshBasicMaterial({ map: fogT, color: 0xd8e4ff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-  const gateMesh = new THREE.Mesh(new THREE.PlaneGeometry(FOG_GATE.w, 11), gateMat);
-  gateMesh.position.set(FOG_GATE.x, groundHeight(0, -127.5) + 5.5, FOG_GATE.z); scene.add(gateMesh);
-  const fogGate = { mesh: gateMesh, sealed: false, collider: { type: 'box', x: 0, z: -126.8, hx: 5, hz: 0.5, rot: 0, c: 1, s: 0, topY: 99 }, active: true };
-  W.fogGate = fogGate;
-  W.setGateSealed = (v) => { fogGate.sealed = v; const i = W.colliders.indexOf(fogGate.collider); if (v && i < 0) W.colliders.push(fogGate.collider); if (!v && i >= 0) W.colliders.splice(i, 1); };
-  W.setGateVisible = (v) => { gateMesh.visible = v; };
-  W.updateGate = (t) => { fogT.offset.set(t * 0.03, t * 0.015); gateMat.opacity = 0.7 + Math.sin(t * 1.5) * 0.12; };
+  W.arenas = ARENAS; W.gates = {};
+  for (const A of ARENAS) {
+    const g = A.gate, tx = g.nz, tz = -g.nx;
+    const gm = new THREE.MeshBasicMaterial({ map: fogT, color: A.gateColor, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GATE_W, 11), gm);
+    mesh.position.set(g.x, groundHeight(g.x, g.z) + 5.5, g.z); mesh.rotation.y = Math.atan2(g.nx, g.nz); scene.add(mesh);
+    const rot = Math.atan2(tx, tz);
+    const collider = { type: 'box', x: A.x + g.nx * (A.r + 1.2), z: A.z + g.nz * (A.r + 1.2), hx: 0.5, hz: 5, rot, c: Math.cos(rot), s: Math.sin(rot), topY: 99 };
+    W.gates[A.id] = { mesh, mat: gm, collider, sealed: false, arena: A };
+  }
+  W.setGateSealed = (id, v) => { const G0 = W.gates[id]; G0.sealed = v; const i = W.colliders.indexOf(G0.collider); if (v && i < 0) W.colliders.push(G0.collider); if (!v && i >= 0) W.colliders.splice(i, 1); };
+  W.setGateVisible = (id, v) => { W.gates[id].mesh.visible = v; };
+  W.updateGate = (t) => { fogT.offset.set(t * 0.03, t * 0.015); for (const k in W.gates) W.gates[k].mat.opacity = 0.7 + Math.sin(t * 1.5 + k.length) * 0.12; };
 
   // Halo-Nebel: tiefliegende Nebelkarten, die langsam driften
   const mistMat = new THREE.MeshBasicMaterial({ map: fogT, color: 0x8a96b0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
