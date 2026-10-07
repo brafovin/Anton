@@ -299,7 +299,7 @@ export function makeHumanoid(o) {
     const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
   }
   // Waffe
-  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
+  const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
   h.weapons = {};
@@ -371,6 +371,13 @@ function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
       horn.position.set(s * 0.19, 0.18, 0); horn.rotation.z = -s * 0.9; horn.rotation.x = -0.1;
     }
     const crest = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.34), accent)); crest.position.set(0, 0.27, -0.02);
+  } else if (O.head === 'ninja') {
+    const cowl = add(new THREE.Mesh(new THREE.SphereGeometry(0.118, 12, 10), cloth)); cowl.scale.set(0.98, 1.1, 1.05); cowl.position.y = 0.01;
+    const band = add(new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.122, 0.04, 12), accent)); band.position.y = 0.075;
+    const eyes = add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.035, 0.03), skin)); eyes.position.set(0, 0.025, 0.1);
+    for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.012), dark)); e.position.set(x, 0.03, 0.118); }
+    const mask = add(new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.1, 0.09, 12, 1, false, -1.3, 2.6), cloth)); mask.position.set(0, -0.05, 0.012);
+    const tail = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.025), accent)); tail.geometry.translate(0, -0.25, 0); tail.position.set(0.02, 0.07, -0.13); tail.rotation.set(0.5, 0, 0.12);
   } else if (O.head === 'witch') {
     const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), skin)); s.position.z = 0.01; s.scale.set(0.95, 1.08, 1);
     const hat = add(new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 10), cloth)); hat.position.set(0, 0.34, -0.03); hat.rotation.x = -0.18;
@@ -467,5 +474,6 @@ export function applyPose(h, p, gait, dt) {
   if (ud.glowMats && p.glow !== undefined) {
     for (const m of ud.glowMats) { if (m.emissive) { if (h.opts.weapon === 'katana') { m.emissive.setRGB(0.2 + p.glow * 0.8, 0.3 + p.glow * 0.5, 0.45 + p.glow * 0.6); m.emissiveIntensity = 0.4 + p.glow * 2.2; } } }
   }
+  if (ud.orb && ud.steel) ud.steel.emissiveIntensity = 1.6 + (p.glow || 0) * 5;
   h.tickFlash(dt);
 }

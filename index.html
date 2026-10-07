@@ -28,6 +28,7 @@
   <div id="soulbox"><span class="soulicon"></span><span id="souls">0</span></div>
 </div>
 
+<div id="spellbar"></div>
 <div id="enemybars"></div>
 <div id="lockon"></div>
 <div id="boss"><div id="boss-name">Boss</div><div id="boss-bar"><div id="boss-ghost"></div><div id="boss-fill"></div></div></div>
@@ -48,28 +49,49 @@
   <div class="panel">
     <h1>ASCHENFEUER</h1>
     <h2>Ein mittelalterliches Soulslike</h2>
-    <p class="lore">Das Feuer erlischt. Du bist ein Ungetoppter aus Asche, ein Katana in der Hand.<br>Entfache die Leuchtfeuer, durchquere die verfallene Burg und stelle dich dem Wächter der Asche.</p>
-    <div class="grid">
+    <p class="lore">Das Feuer erlischt. Entfache die Leuchtfeuer, durchquere die verfallene Burg<br>und stelle dich den vier Wächtern der Asche.</p>
+    <div class="menu">
+      <button id="btn-new">Neues Spiel</button>
+      <button id="btn-load">Spiel laden</button>
+      <button id="btn-controls" class="ghost">Steuerung</button>
+    </div>
+    <p id="save-info" class="hint"></p>
+    <div id="controls" class="grid hidden">
       <div><b>W A S D</b> Bewegen</div>
       <div><b>Maus</b> Kamera <i>(Pfeiltasten alternativ)</i></div>
       <div><b>Shift</b> antippen: Rolle (Unverwundbar) · halten: Sprinten</div>
       <div><b>Leertaste</b> Springen</div>
       <div><b>Linke Maustaste</b> Leichter Angriff (3er-Kombo)</div>
       <div><b>Rechte Maustaste</b> Schwerer Angriff</div>
-      <div><b>F</b> Parry (1,5 s Abklingzeit) – kurz vor dem Treffer, danach Riposte</div>
-      <div><b>Q</b> Ash of War: Unsheathe (25 FP)</div>
-      <div><b>R</b> Estus-Flasche (HP) &nbsp; <b>T</b> Aschen-Flasche (FP)</div>
-      <div><b>E</b> Interagieren (Leuchtfeuer, Nebeltor)</div>
-      <div><b>Mausrad-Klick (M3) / Tab</b> Ziel erfassen</div>
-      <div><b>C</b> Waffe wechseln &nbsp; <b>U</b> Aufleveln (am Leuchtfeuer)</div>
+      <div><b>F</b> Parry (1,5 s Abklingzeit) – danach Riposte</div>
+      <div><b>Q</b> Ash of War der Waffe · Magier: Zauber wirken</div>
+      <div><b>Mausrad / 1–5</b> Zauber wählen (Magier mit Stab)</div>
+      <div><b>R</b> HP-Flasche &nbsp; <b>T</b> FP-Flasche</div>
+      <div><b>E</b> Interagieren (Leuchtfeuer, Nebeltor, Beute)</div>
+      <div><b>Mausrad-Klick / Tab</b> Ziel erfassen</div>
+      <div><b>C</b> Waffe wechseln</div>
+      <div><b>U</b> Aufleveln &nbsp; <b>F</b> Flaschen verteilen <i>(am Leuchtfeuer)</i></div>
       <div><b>M</b> Ton an/aus &nbsp; <b>Esc</b> Pause</div>
     </div>
-    <button id="start">Spiel starten</button> <button id="newgame" style="display:none">Neues Spiel</button>
-    <p class="hint">Tipp: Seelen tauschst du am Leuchtfeuer gegen Level. Besiege den Wächter – und nimm seine Klinge. Rot glühende Angriffe sind nicht parierbar!</p>
   </div>
 </div>
 
-<div id="pause" class="screen"><div class="panel small"><h1>Pause</h1><p>Klicke, um fortzufahren</p><button id="resume">Weiter</button></div></div>
+<div id="classes" class="screen">
+  <div class="cl-top"><h1>Wähle deine Klasse</h1></div>
+  <div class="cl-cards">
+    <div class="card" data-cls="ninja"></div>
+    <div class="card" data-cls="magier"></div>
+    <div class="card" data-cls="ritter"></div>
+  </div>
+  <div class="cl-bottom">
+    <button id="btn-begin">Beginnen</button><button id="btn-back" class="ghost">Zurück</button>
+    <p id="cl-warn" class="hint"></p>
+  </div>
+</div>
+
+<div id="pause" class="screen"><div class="panel small"><h1>Pause</h1>
+  <div class="menu"><button id="resume">Weiter</button><button id="btn-save">Speichern</button><button id="btn-menu" class="ghost">Hauptmenü</button></div>
+  <p id="pause-msg" class="hint"></p></div></div>
 
 <script type="module" src="js/main.js"></script>
 </body>

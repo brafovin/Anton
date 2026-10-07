@@ -4,7 +4,8 @@ import { buildWorld, groundHeight, GLOW } from './world.js';
 import { createHazards } from './hazards.js';
 import { createCutscenes } from './cutscene.js';
 import { makeSword } from './models.js';
-import { WEAPON_INFO } from './player.js';
+import { WEAPON_INFO, CLASSES } from './player.js';
+import { createSpells } from './spells.js';
 import { makeFX } from './fx.js';
 import { createUI } from './ui.js';
 import { createPlayer } from './player.js';
@@ -41,6 +42,7 @@ G.world = buildWorld(scene);
 G.fights = G.world.arenas.map((A) => ({ id: A.id, arena: A, dead: false, enemy: null }));
 G.fx = makeFX(scene);
 G.hazards = createHazards(G);
+G.spells = createSpells(G);
 G.cutscene = null; G.timeScale = 1;
 G.input = { keys: new Set(), pressed: new Set(), mouse: [false, false, false], pressedMouse: [false, false, false], shiftDown: 0, dx: 0, dy: 0 };
 G.ui = createUI(G);
@@ -60,7 +62,7 @@ G.refreshGates = () => {
 function populate() {
   const P = G.player;
   G.enemies.forEach((e) => e.dispose()); G.enemies = spawnAll(G);
-  G.hazards.clear();
+  G.hazards.clear(); G.spells.clear();
   G.boss = null; G.activeFight = null;
   for (const f of G.fights) {
     f.enemy = null;
@@ -78,7 +80,7 @@ const SAVE_KEY = 'aschenfeuer-save-v1';
 G.save = () => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+      cls: P.cls, spellIdx: P.spellIdx, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
       dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
   } catch (e) { /* Speichern nicht moeglich */ }
@@ -91,20 +93,34 @@ function ensureArenaBonfire(f) {
 }
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { saved = null; }
-if (saved) {
-  Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0; Object.assign(P.owned, saved.owned || {});
-  P.maxEstus = saved.maxEstus || P.maxEstus; P.maxMana = saved.maxMana || P.maxMana; P.estus = P.maxEstus; P.mana = P.maxMana;
+G.hasSave = !!saved;
+const startPos = G.world.bonfires[0].pos;
+function placePlayer() {
+  if (P.lastBonfire) P.warpTo(P.lastBonfire);
+  else { P.pos.set(startPos.x, 0, startPos.z + 3.2); P.spawn.copy(P.pos); P.yaw = Math.PI; }
+  P.pos.y = groundHeight(P.pos.x, P.pos.z); P.camYaw = P.yaw; if (G.snapCamera) G.snapCamera();
+}
+// Spielstand laden (nur aus dem frischen Hauptmenue heraus)
+G.loadGame = () => {
+  if (!saved) return false;
+  P.applyClass(saved.cls || 'ninja');
+  Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0;
+  P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, ...(saved.owned || {}) };
+  if (saved.maxEstus !== undefined) { P.maxEstus = saved.maxEstus; P.maxMana = saved.maxMana ?? P.maxMana; }
+  P.estus = P.maxEstus; P.mana = P.maxMana;
   const dead = new Set(saved.dead || (saved.bossDead ? ['hadrian'] : []));
-  for (const f of G.fights) if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); }
-  for (const f of G.fights) if ((saved.seen || []).includes(f.id) || dead.has(f.id)) f.introSeen = true;
+  for (const f of G.fights) { if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); } if ((saved.seen || []).includes(f.id) || dead.has(f.id)) f.introSeen = true; }
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
-  P.applyStats(false);
-  document.getElementById('newgame').style.display = '';
-  document.getElementById('start').textContent = 'Fortsetzen';
-}
-document.getElementById('newgame').addEventListener('click', () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } location.reload(); });
+  P.spellIdx = clamp(saved.spellIdx || 0, 0, Math.max(0, P.spells.length - 1)); G.ui.setSpells(P);
+  P.applyStats(false); populate(); placePlayer();
+  return true;
+};
+G.newGame = (clsId) => {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+  P.applyClass(clsId); P.souls = 0; P.hp = P.maxHp; P.fp = P.maxFp; placePlayer(); G.save();
+};
 
 // ------------------------------------------------------------------ Boss-Waffe (Beute)
 G.drop = null;
@@ -126,10 +142,7 @@ G.pickupWeapon = () => {
   G.save();
 };
 populate();
-const startPos = G.world.bonfires[0].pos;
-if (P.lastBonfire) { P.warpTo(P.lastBonfire); }
-else { P.pos.set(startPos.x, 0, startPos.z + 3.2); P.spawn.copy(P.pos); }
-P.pos.y = groundHeight(P.pos.x, P.pos.z);
+placePlayer();
 
 // ------------------------------------------------------------------ Spielereignisse
 G.lightBonfire = (b) => {
@@ -163,8 +176,9 @@ G.onBossDefeated = (b) => {
   if (!P.dead) G.cutscenes.playOutro(f, b);
   const rw = f.arena.reward, msgs = [];
   if (rw === 'greatsword') G.spawnDrop(f.arena.x, f.arena.z - 2);
-  if (rw === 'estus' || rw === 'both') { P.maxEstus = Math.min(10, P.maxEstus + 1); P.estus = Math.min(P.maxEstus, P.estus + 1); msgs.push('Estus-Flasche +1 (max. ' + P.maxEstus + ')'); }
-  if (rw === 'mana' || rw === 'both') { P.maxMana = Math.min(8, P.maxMana + 1); P.mana = Math.min(P.maxMana, P.mana + 1); msgs.push('Aschen-Flasche +1 (max. ' + P.maxMana + ')'); }
+  const total = () => P.maxEstus + P.maxMana;
+  if ((rw === 'estus' || rw === 'both') && total() < 14) { P.maxEstus++; P.estus = Math.min(P.maxEstus, P.estus + 1); msgs.push('Estus-Flasche +1 (HP: ' + P.maxEstus + ')'); }
+  if ((rw === 'mana' || rw === 'both') && total() < 14) { P.maxMana++; P.mana = Math.min(P.maxMana, P.mana + 1); msgs.push('Aschen-Flasche +1 (FP: ' + P.maxMana + ')'); }
   const nxt = G.fights[G.fights.indexOf(f) + 1];
   if (nxt && !nxt.dead) setTimeout(() => G.ui.toast('Das Nebeltor von ' + nxt.arena.bossName.split(',')[0] + ' öffnet sich'), msgs.length ? 6200 : 2500);
   if (msgs.length) setTimeout(() => G.ui.toast(msgs.join(' · ')), 2500);
@@ -248,12 +262,18 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') Sound.toggleMute();
   if (e.code === 'Escape' && G.running && !G.paused) pause();
   if (G.menuOpen && G.running) {
-    if (G.ui.menuMode === 'level') {
+    const mode = G.ui.menuMode, back = () => G.ui.showRest(G.ui.restCtx.lit, G.ui.restCtx.current);
+    if (mode === 'level') {
       const m = /^Digit([1-4])$/.exec(e.code);
       if (m) { if (P.levelUp(['vit', 'mnd', 'end', 'str'][+m[1] - 1])) G.save(); G.ui.showLevel(); }
-      else if (['KeyE', 'KeyU', 'Enter', 'Escape', 'Space'].includes(e.code)) { G.ui.showRest(G.ui.restCtx.lit, G.ui.restCtx.current); }
+      else if (['KeyE', 'KeyU', 'Enter', 'Escape', 'Space'].includes(e.code)) back();
+    } else if (mode === 'flask') {
+      if (e.code === 'Digit1' || e.code === 'ArrowRight') { if (P.allocFlask(+1)) G.save(); G.ui.showFlask(); }
+      else if (e.code === 'Digit2' || e.code === 'ArrowLeft') { if (P.allocFlask(-1)) G.save(); G.ui.showFlask(); }
+      else if (['KeyE', 'KeyF', 'Enter', 'Escape', 'Space'].includes(e.code)) back();
     } else {
       if (e.code === 'KeyU') { G.ui.showLevel(); }
+      else if (e.code === 'KeyF') { G.ui.showFlask(); }
       else if (['KeyE', 'Enter', 'Space', 'Escape'].includes(e.code)) { P.getUp(); I.pressed.delete(e.code); P.buf = null; }
       const m = /^Digit(\d)$/.exec(e.code);
       if (m) { const b = G.ui.restMap[+m[1] - 1]; if (b) warp(b); }
@@ -282,23 +302,79 @@ document.addEventListener('pointerlockchange', () => {
   if (!locked && wasLocked && G.running && !G.paused) pause();
   wasLocked = locked;
 });
-function pause() { G.paused = true; document.getElementById('pause').classList.add('show'); if (document.pointerLockElement) document.exitPointerLock(); }
-function resume() { document.getElementById('pause').classList.remove('show'); G.paused = false; try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (_) { /* ignore */ } }
-document.getElementById('resume').addEventListener('click', resume);
+const $ = (id) => document.getElementById(id);
+function pause() { G.paused = true; $('pause-msg').textContent = ''; $('pause').classList.add('show'); if (document.pointerLockElement) document.exitPointerLock(); }
+function resume() { $('pause').classList.remove('show'); G.paused = false; try { canvas.requestPointerLock && canvas.requestPointerLock(); } catch (_) { /* ignore */ } }
+$('resume').addEventListener('click', resume);
+$('btn-save').addEventListener('click', () => { G.save(); $('pause-msg').textContent = 'Spiel gespeichert.'; Sound.play('ui'); });
+$('btn-menu').addEventListener('click', () => { G.save(); location.href = location.pathname; });
+
+// ---- Hauptmenue: Neues Spiel / Spiel laden / Klassenwahl ----
+const CLASS_ORDER = ['ninja', 'magier', 'ritter'];
+let chosenClass = 'ninja';
+const statBar = (v) => `<i><b style="width:${Math.min(100, (v / 20) * 100)}%"></b></i>`;
+document.querySelectorAll('.card').forEach((card) => {
+  const C = CLASSES[card.dataset.cls];
+  const st = C.stats, lvl = st.vit + st.mnd + st.end + st.str - 40 + 1;
+  card.innerHTML = `<h3>${C.name}</h3><div class="tag">${C.tagline} · Level ${lvl}</div><p>${C.desc}</p>
+    <div class="cstats"><span>Vitalität</span>${statBar(st.vit)}<span>${st.vit}</span><span>Geist</span>${statBar(st.mnd)}<span>${st.mnd}</span><span>Ausdauer</span>${statBar(st.end)}<span>${st.end}</span><span>Stärke</span>${statBar(st.str)}<span>${st.str}</span></div>
+    <ul>${C.kit.map((k) => `<li>${k}</li>`).join('')}</ul>`;
+  card.addEventListener('click', () => selectClass(card.dataset.cls));
+});
+function selectClass(id) {
+  chosenClass = id; Sound.play('ui');
+  document.querySelectorAll('.card').forEach((c) => c.classList.toggle('sel', c.dataset.cls === id));
+  P.applyClass(id); P.pos.set(startPos.x, groundHeight(startPos.x, startPos.z + 3.2), startPos.z + 3.2); P.yaw = Math.PI; // 3D-Vorschau
+}
+function showScreen(name) {
+  G.menu = name; document.body.classList.toggle('inmenu', !!name);
+  $('overlay').classList.toggle('show', name === 'title'); $('classes').classList.toggle('show', name === 'classes');
+}
+(function initTitle() {
+  const lv = saved ? Object.values(saved.stats || { a: 10, b: 10, c: 10, d: 10 }).reduce((a, b) => a + b, 0) - 40 + 1 : 0;
+  $('btn-load').disabled = !saved;
+  $('save-info').textContent = saved ? `Spielstand: ${CLASSES[saved.cls || 'ninja'].name} · Level ${lv} · Bosse ${(saved.dead || (saved.bossDead ? ['x'] : [])).length}/4` : 'Kein Spielstand vorhanden.';
+  showScreen('title');
+})();
+$('btn-controls').addEventListener('click', () => $('controls').classList.toggle('hidden'));
+$('btn-new').addEventListener('click', () => {
+  $('cl-warn').textContent = saved ? 'Achtung: Ein vorhandener Spielstand wird überschrieben.' : '';
+  showScreen('classes'); selectClass(chosenClass);
+});
+$('btn-back').addEventListener('click', () => { showScreen('title'); P.applyClass(saved ? (saved.cls || 'ninja') : 'ninja'); });
+$('btn-begin').addEventListener('click', () => { G.newGame(chosenClass); start(); });
+$('btn-load').addEventListener('click', () => { if (G.loadGame()) start(); });
+
 function start() {
   Sound.init();
-  document.getElementById('overlay').classList.remove('show');
+  showScreen(null); G.menu = null;
   G.running = true; G.paused = false;
   try { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* ignore */ }
   G.ui.fade(0, 1200);
-  setTimeout(() => G.ui.toast('Entfache das Leuchtfeuer'), 800);
+  setTimeout(() => G.ui.toast(P.lastBonfire ? 'Willkommen zurück' : 'Entfache das Leuchtfeuer'), 800);
 }
-document.getElementById('start').addEventListener('click', start);
-if (new URLSearchParams(location.search).has('autostart')) start();
+{
+  const q = new URLSearchParams(location.search);
+  if (q.has('autostart')) { if (G.hasSave) G.loadGame(); else G.newGame(q.get('class') || 'ninja'); start(); }
+}
+
+// Mausrad: Zauber wechseln (Magier)
+addEventListener('wheel', (e) => { if (G.running && !G.paused && !G.menuOpen && !G.cutscene) P.cycleSpell(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 
 function warp(b) {
   G.ui.hideRest(); G.ui.fade(1, 500);
   setTimeout(() => { P.warpTo(b); P.setState('free'); populate(); G.ui.fade(0, 900); Sound.play('rest'); camInit = false; }, 600);
+}
+
+// ------------------------------------------------------------------ Menue-Kamera (3D-Vorschau der Klasse)
+function menuUpdate(dt) {
+  if (!G.menu) return;
+  G.time += dt; P.preview(dt); G.world.updateBonfires(G.time, dt, camera.position); G.world.updateGate(G.time); G.fx.update(dt);
+  const classes = G.menu === 'classes', a = P.yaw + (classes ? 0.5 + Math.sin(G.time * 0.4) * 0.35 : Math.PI + Math.sin(G.time * 0.25) * 0.5), R = classes ? 6.2 : 6.5;
+  camera.position.set(P.pos.x + Math.sin(a) * R, P.pos.y + (classes ? 1.1 : 1.7), P.pos.z + Math.cos(a) * R);
+  camera.lookAt(P.pos.x, P.pos.y + (classes ? -0.9 : 1.5), P.pos.z - (classes ? 0 : 2));
+  moon.position.set(P.pos.x + MOON_DIR.x * 60, P.pos.y + MOON_DIR.y * 60, P.pos.z + MOON_DIR.z * 60); moon.target.position.copy(P.pos);
+  G.world.sky.position.copy(camera.position);
 }
 
 // ------------------------------------------------------------------ Hauptschleife
@@ -306,7 +382,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (G.paused || !G.running) { renderer.render(scene, camera); return; }
+  if (G.paused || !G.running) { menuUpdate(dt); renderer.render(scene, camera); return; }
   const realDt = dt;
   if (G.hitT > 0) { G.hitT -= dt; dt *= 0.06; }
   if (G.cutscene) dt *= G.cutscene.slow;
@@ -316,6 +392,7 @@ function frame(now) {
   G.world.updateBonfires(G.time, dt, camera.position);
   G.world.updateGate(G.time);
   G.hazards.update(dt);
+  G.spells.update(dt);
   G.fx.update(dt);
   G.cutscenes.update(realDt);
   G.ui.update(dt);

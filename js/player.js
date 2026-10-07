@@ -4,6 +4,7 @@ import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Trail } from './fx.js';
 import { Sound } from './audio.js';
 import { groundHeight } from './world.js';
+import { SPELLS } from './spells.js';
 
 export const wrapPi = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 export const READY = { ...DEF, hx: -0.1, hy: 0.34, hz: 0.42, dx: 0.12, dy: 0.45, dz: 0.88, lg: -0.2, twist: 0.12, lean: 0.05, crouch: 0.04 };
@@ -130,21 +131,72 @@ const ATKG = {
   ash: { f: FRG.ash, dur: 1.85, hs: 0.93, he: 1.0, st: 10, fp: 30, dmg: 150, range: 6.2, arc: 360, cancel: 1.5, roll: 1.4, next: null, sfx: 'roar', sfxAt: 0.55, poise: true, fx: 'flame', trail: [0.8, 1.3] },
   riposte: { f: FRG.riposte, dur: 1.9, hs: 0.55, he: 0.57, st: 0, dmg: 150, range: 3.2, arc: 90, cancel: 1.5, roll: 1.4, next: null, sfx: 'swingHeavy', sfxAt: 0.4, trail: [0.4, 0.8] },
 };
-const TABLES = { katana: ATK, greatsword: ATKG };
+// Starterwaffe des Ritters: gleiche Bewegungen wie das Boss-Großschwert, aber schwächer
+const ATKI = Object.fromEntries(Object.entries(ATKG).map(([k, v]) => [k, { ...v, dmg: Math.round(v.dmg * 0.82) }]));
+
+// ---------------- Magierstab ----------------
+export const READY_ST = { ...DEF, hx: -0.2, hy: 0.38, hz: 0.32, dx: 0.05, dy: 0.85, dz: 0.5, lg: 0.45, twist: 0.1, lean: 0.04, crouch: 0.03 };
+const CS = (frames) => compile(frames, READY_ST);
+const FRS = {
+  s1: CS([R0, { t: 0.2, hx: -0.3, hy: 0.8, hz: 0.1, dx: -0.3, dy: 0.9, dz: -0.2, twist: -0.6, lean: -0.1, e: 2 }, { t: 0.32, hx: 0.1, hy: 0.4, hz: 0.55, dx: 0.6, dy: 0.3, dz: 0.8, twist: 0.7, lean: 0.2, shift: 0.12, e: 1 }, { t: 0.42, e: 2 }, { t: 0.72, ...READY_ST, e: 0 }]),
+  s2: CS([R0, { t: 0.18, hx: 0.2, hy: 0.55, hz: 0.2, dx: 0.9, dy: 0.2, dz: 0.1, twist: 0.8, e: 2 }, { t: 0.3, hx: -0.3, hy: 0.5, hz: 0.55, dx: -0.9, dy: 0.1, dz: 0.5, twist: -0.8, shift: 0.12, e: 1 }, { t: 0.4, e: 2 }, { t: 0.7, ...READY_ST, e: 0 }]),
+  s3: CS([R0, { t: 0.22, hx: -0.2, hy: 0.5, hz: -0.08, dx: 0, dy: 0.3, dz: 1, twist: -0.5, shift: -0.1, crouch: 0.12, e: 2 }, { t: 0.34, hx: -0.05, hy: 0.5, hz: 0.6, dx: 0, dy: 0.12, dz: 1, twist: 0.3, lean: 0.3, shift: 0.35, e: 1 }, { t: 0.5, e: 3 }, { t: 0.95, ...READY_ST, e: 0 }]),
+  heavy: CS([R0, { t: 0.5, hx: -0.05, hy: 1.0, hz: 0.0, dx: 0, dy: 1, dz: -0.3, lean: -0.4, glow: 0.6, e: 2 }, { t: 0.62, e: 3 }, { t: 0.72, hx: -0.06, hy: 0.35, hz: 0.6, dx: 0, dy: -0.2, dz: 1, lean: 0.5, shift: 0.25, crouch: 0.12, glow: 1, e: 1 }, { t: 1.2, ...READY_ST, glow: 0, e: 0 }]),
+  cast: CS([R0, { t: 0.38, hx: -0.1, hy: 0.88, hz: 0.2, dx: 0, dy: 1, dz: 0.3, lean: -0.2, glow: 1, e: 2 }, { t: 0.5, hx: -0.1, hy: 0.62, hz: 0.55, dx: 0, dy: 0.3, dz: 1, lean: 0.25, shift: 0.2, glow: 1, e: 1 }, { t: 0.75, hx: -0.1, hy: 0.62, hz: 0.55, dx: 0, dy: 0.3, dz: 1, lean: 0.2, shift: 0.18, glow: 0.4, e: 3 }, { t: 1.0, ...READY_ST, glow: 0, e: 0 }]),
+  castUp: CS([R0, { t: 0.45, hx: -0.1, hy: 0.95, hz: 0.1, dx: 0, dy: 1, dz: 0.1, lean: -0.3, glow: 1, e: 2 }, { t: 0.8, glow: 1, e: 3 }, { t: 1.1, ...READY_ST, glow: 0, e: 0 }]),
+};
+const ATKS = {
+  l1: { f: FRS.s1, dur: 0.75, hs: 0.22, he: 0.34, st: 12, dmg: 26, range: 2.7, arc: 150, cancel: 0.46, roll: 0.46, next: 'l2', lunge: [0.1, 0.32, 2.4], sfx: 'swing', trail: [0.14, 0.44] },
+  l2: { f: FRS.s2, dur: 0.72, hs: 0.2, he: 0.32, st: 12, dmg: 28, range: 2.7, arc: 160, cancel: 0.44, roll: 0.44, next: 'l3', lunge: [0.08, 0.3, 2.4], sfx: 'swing', trail: [0.1, 0.42] },
+  l3: { f: FRS.s3, dur: 0.95, hs: 0.3, he: 0.42, st: 15, dmg: 42, range: 3.4, arc: 60, cancel: 0.68, roll: 0.6, next: null, lunge: [0.16, 0.34, 5.5], sfx: 'swing', trail: [0.2, 0.5] },
+  heavy: { f: FRS.heavy, dur: 1.25, hs: 0.64, he: 0.78, st: 26, dmg: 66, range: 3.1, arc: 130, cancel: 1.0, roll: 0.95, next: null, lunge: [0.5, 0.7, 3], sfx: 'swingHeavy', sfxAt: 0.48, poise: true, trail: [0.5, 0.86] },
+  riposte: { f: FRS.s3, dur: 1.2, hs: 0.3, he: 0.32, st: 0, dmg: 85, range: 3.2, arc: 90, cancel: 0.9, roll: 0.85, next: null, sfx: 'swing', trail: [0.2, 0.45] },
+};
+const TABLES = { katana: ATK, greatsword: ATKG, ironblade: ATKI, staff: ATKS };
 export const WEAPON_INFO = {
+  staff: { name: 'Magierstab', short: 'Magierstab', ash: 'Zauber', fp: 0 },
+  ironblade: { name: 'Eisen-Großschwert', short: 'Großschwert', ash: 'Aschenschlag', fp: 30 },
   katana: { name: 'Katana', short: 'Katana', ash: 'Unsheathe', fp: 25 },
   greatsword: { name: 'Hadrians Ascheklinge', short: 'Ascheklinge', ash: 'Aschenschlag', fp: 30 },
 };
 
-export function createPlayer(G) {
+
+// ---------------- Startklassen ----------------
+export const CLASSES = {
+  ninja: {
+    id: 'ninja', name: 'Ninja', tagline: 'Schnell · tödlich · zerbrechlich',
+    desc: 'Leicht gerüstet, flink und mit scharfem Katana. Hält wenig aus, weicht aber fast allem aus.',
+    kit: ['Katana (Ash of War: Unsheathe)', 'Ninja-Rüstung', '5 HP- und 3 FP-Flaschen'],
+    stats: { vit: 9, mnd: 10, end: 15, str: 11 }, weapons: ['katana'], weapon: 'katana', flasks: [5, 3], moveMul: 1.1, rollCost: 16,
+    look: { head: 'ninja', skin: 0xcaa888, cloth: 0x15151b, armor: 0x2a2a34, trim: 0x6a1a1a, accent: 0xa01818, plates: false, pauldrons: false, tabard: false, cape: false, bulk: 0.95 },
+  },
+  magier: {
+    id: 'magier', name: 'Magier', tagline: 'Zauber · Reichweite · Glaskanone',
+    desc: 'Wirkt mit dem Stab fünf Zauber aus der Ferne. Wähle sie mit Mausrad oder 1–5, wirke mit Q. Dünne Haut, viel FP.',
+    kit: ['Magierstab + 5 Zauber', 'Robe & Spitzhut', '4 HP- und 4 FP-Flaschen'],
+    stats: { vit: 8, mnd: 19, end: 9, str: 7 }, weapons: ['staff'], weapon: 'staff', flasks: [4, 4], spells: ['pfeil', 'kugel', 'blitz', 'heilung', 'schild'], moveMul: 1.0, rollCost: 20,
+    look: { head: 'witch', skin: 0xd2b49a, cloth: 0x1c2a5a, armor: 0x2a3a78, trim: 0xc8a850, accent: 0x6a4acc, plates: false, pauldrons: false, tabard: false, cape: true, capeColor: 0x2a2064, robe: true, robeColor: 0x1c2a5a, bulk: 0.95 },
+  },
+  ritter: {
+    id: 'ritter', name: 'Ritter', tagline: 'Wucht · Panzer · Ausdauer',
+    desc: 'Schwere Rüstung und ein mächtiges Großschwert. Langsam, aber nimmt viel Schaden und teilt hart aus.',
+    kit: ['Eisen-Großschwert (Aschenschlag)', 'Schwere Plattenrüstung', '6 HP- und 2 FP-Flaschen'],
+    stats: { vit: 15, mnd: 8, end: 11, str: 16 }, weapons: ['ironblade'], weapon: 'ironblade', flasks: [6, 2], moveMul: 0.93, rollCost: 24,
+    look: { head: 'knight', plume: true, skin: 0xb8a088, cloth: 0x2a2e36, armor: 0x70767f, trim: 0xb08a30, accent: 0x7a1a1a, plates: true, pauldrons: true, tabard: true, cape: true, capeColor: 0x5a1a1a, bulk: 1.2 },
+  },
+};
+const ALL_WEAPONS = ['katana', 'greatsword', 'ironblade', 'staff'];
+
+export function createPlayer(G, clsId = 'ninja') {
   const { scene, world, fx } = G;
-  const h = makeHumanoid({ head: 'hood', cloth: 0x2e2a28, armor: 0x4a4e58, trim: 0x8a7030, accent: 0x7a1a1a, capeColor: 0x3a2626, weapon: 'katana', weapons: ['katana', 'greatsword'], cape: true, tabard: true, plates: true, skin: 0xcaa888, stanceFlip: false });
+  const buildBody = (id) => makeHumanoid({ ...CLASSES[id].look, weapon: CLASSES[id].weapon, weapons: ALL_WEAPONS, stanceFlip: false });
+  let h = buildBody(clsId);
   scene.add(h.root);
   const trail = new Trail(scene, 0xcfe6ff, 16);
 
   const P = {
     h, pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, // schaut nach -Z? (yaw=PI => forward = (0,0,-1))
-    weapon: 'katana', owned: { katana: true, greatsword: false }, stats: { vit: 10, mnd: 10, end: 10, str: 10 }, dmgMul: 1,
+    cls: clsId, weapon: CLASSES[clsId].weapon, owned: { katana: false, greatsword: false, ironblade: false, staff: false, [CLASSES[clsId].weapon]: true }, stats: { ...CLASSES[clsId].stats }, dmgMul: 1, spells: CLASSES[clsId].spells || [], spellIdx: 0, ward: 0, moveMul: CLASSES[clsId].moveMul, rollCost: CLASSES[clsId].rollCost,
     maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, mana: 3, maxMana: 3, drinkKind: 'estus', souls: 0,
     state: 'free', t: 0, act: null, actName: '', hitSet: new Set(), buf: null, stRegenDelay: 0, exhausted: false,
     parryActive: false, iframes: false, sprinting: false, moving: false, speedN: 0,
@@ -157,6 +209,8 @@ export function createPlayer(G) {
   P.camYaw = P.yaw;
 
   const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
+  const isGS = () => P.weapon === 'greatsword' || P.weapon === 'ironblade';
+  const readyPose = () => (isGS() ? READY_GS : P.weapon === 'staff' ? READY_ST : READY);
   P.setState = (s, opts = {}) => {
     P.prev = { ...P.pose };
     P.state = s; P.t = 0; P.blendT = 0; P.blendDur = opts.blend ?? 0.1; P.flags = {};
@@ -178,6 +232,7 @@ export function createPlayer(G) {
     if (I.pressed.has('KeyT')) P.queue('mana');
     if (I.pressed.has('KeyE')) P.queue('interact');
     if (I.pressed.has('KeyC')) P.queue('swap');
+    if (P.weapon === 'staff' && !G.menuOpen && !G.cutscene) for (let i = 0; i < 5; i++) if (I.pressed.has('Digit' + (i + 1))) P.selectSpell(i);
     if (I.pressed.has('Tab') || I.pressedMouse[1]) toggleLock();
   }
 
@@ -215,11 +270,12 @@ export function createPlayer(G) {
       case 'parry': return P.t >= 0.5;
       case 'parryOk': return P.t >= 0.28;
       case 'hit': return P.t >= 0.34;
+      case 'cast': return P.t >= P.cast.spell.cast + 0.3;
       default: return false;
     }
   }
   function canRollCancel() {
-    return (P.state === 'attack' && P.t >= P.act.roll) || (P.state === 'parry' && P.t >= 0.38) || (P.state === 'parryOk' && P.t >= 0.2) || (P.state === 'hit' && P.t >= 0.26);
+    return (P.state === 'attack' && P.t >= P.act.roll) || (P.state === 'parry' && P.t >= 0.38) || (P.state === 'parryOk' && P.t >= 0.2) || (P.state === 'hit' && P.t >= 0.26) || (P.state === 'cast' && P.t >= P.cast.spell.cast + 0.12);
   }
   function faceInput() {
     const m = moveInput();
@@ -255,9 +311,20 @@ export function createPlayer(G) {
     if (name === 'ash') Sound.play('ashCharge');
     return true;
   }
+  function startCast() {
+    const sp = SPELLS[P.spells[P.spellIdx]];
+    if (!sp) { G.ui.toast('Kein Zauber'); return false; }
+    if (P.fp < sp.fp) { Sound.play('error'); G.ui.flashFP(); return false; }
+    P.fp -= sp.fp; P.useSt(6);
+    const m = moveInput(); let want = faceInput();
+    if (!sp.self && !P.lock && m.len < 0.1) { const t = assistTarget(16, 1.1); if (t) want = Math.atan2(t.pos.x - P.pos.x, t.pos.z - P.pos.z); }
+    P.yaw = want; P.cast = { spell: sp };
+    P.setState('cast', { blend: 0.06 }); Sound.play('ashCharge');
+    return true;
+  }
   function startRoll() {
     if (P.st <= 0) { return false; }
-    P.useSt(20);
+    P.useSt(P.rollCost);
     const m = moveInput();
     P.yaw = m.len > 0.1 ? Math.atan2(m.dir.x, m.dir.z) : P.yaw; // ohne Eingabe: nach vorne rollen
     P.rollDir.copy(fwd(P.yaw));
@@ -333,7 +400,7 @@ export function createPlayer(G) {
         return startAttack('l1');
       }
       case 'heavy': { const r = findRiposteTarget(); if (r) return startRiposte(r); return startAttack('heavy'); }
-      case 'ash': return startAttack('ash');
+      case 'ash': return P.weapon === 'staff' ? startCast() : startAttack('ash');
       case 'roll': return startRoll();
       case 'parry': return startParry();
       case 'estus': return startEstus();
@@ -420,6 +487,7 @@ export function createPlayer(G) {
   P.hurt = (dmg, from, opts = {}) => {
     if (P.dead) return 'dead';
     if (P.iframes) return 'dodged';
+    if (P.ward > 0) dmg *= 0.5;
     P.hp -= dmg; P.hurtTime = 0.3;
     G.ui.hurt(); G.shake(0.5); G.hitstop(0.08);
     const p = P.pos.clone(); p.y += 1.2;
@@ -445,7 +513,7 @@ export function createPlayer(G) {
   // ---------- Attribute / Aufleveln ----------
   P.level = () => P.stats.vit + P.stats.mnd + P.stats.end + P.stats.str - 40 + 1;
   P.levelCost = () => Math.round(120 * 1.17 ** (P.level() - 1));
-  P.ashCost = () => WEAPON_INFO[P.weapon].fp;
+  P.ashCost = () => (P.weapon === 'staff' ? (SPELLS[P.spells[P.spellIdx]] || { fp: 0 }).fp : WEAPON_INFO[P.weapon].fp);
   P.applyStats = (keepRatio = true) => {
     const r = P.hp / P.maxHp;
     P.maxHp = 300 + (P.stats.vit - 10) * 14; P.maxFp = 60 + (P.stats.mnd - 10) * 5; P.maxSt = 100 + (P.stats.end - 10) * 3;
@@ -464,10 +532,39 @@ export function createPlayer(G) {
     Sound.play('souls'); Sound.play('ui');
     return true;
   };
+  // ---------- Zauber ----------
+  P.selectSpell = (i) => {
+    if (P.weapon !== 'staff' || !P.spells.length) return;
+    P.spellIdx = clamp(i, 0, P.spells.length - 1); G.ui.setSpells(P); Sound.play('ui');
+  };
+  P.cycleSpell = (d) => { const n = P.spells.length; if (P.weapon === 'staff' && n) P.selectSpell((P.spellIdx + d + n) % n); };
+  // ---------- Flaschen verteilen (wie in Elden Ring: HP- und FP-Flaschen tauschen) ----------
+  P.flaskTotal = () => P.maxEstus + P.maxMana;
+  P.allocFlask = (d) => {
+    const tot = P.flaskTotal(), e = clamp(P.maxEstus + d, 0, tot);
+    if (e === P.maxEstus) { Sound.play('error'); return false; }
+    P.maxEstus = e; P.maxMana = tot - e; P.estus = P.maxEstus; P.mana = P.maxMana; Sound.play('ui'); return true;
+  };
+  // ---------- Klasse anwenden ----------
+  P.applyClass = (id) => {
+    const C = CLASSES[id]; P.cls = id;
+    scene.remove(h.root); h = buildBody(id); scene.add(h.root); P.h = h;
+    P.stats = { ...C.stats }; P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, [C.weapon]: true };
+    P.weapon = C.weapon; h.setWeapon(P.weapon);
+    P.maxEstus = C.flasks[0]; P.maxMana = C.flasks[1]; P.estus = P.maxEstus; P.mana = P.maxMana;
+    P.spells = C.spells || []; P.spellIdx = 0; P.moveMul = C.moveMul; P.rollCost = C.rollCost; P.ward = 0;
+    P.applyStats(false); P.fp = P.maxFp; P.st = P.maxSt; trail.clear();
+    G.ui.setWeapon(P.weapon); G.ui.setSpells(P);
+  };
+  // Vorschau im Hauptmenue
+  P.preview = (dt) => {
+    const t = { ...readyPose() }; t.hy += Math.sin(performance.now() / 700) * 0.008; Object.assign(P.pose, t); P.pose.bpitch = 0;
+    h.root.position.copy(P.pos); h.root.rotation.y = P.yaw; h.update(P.pose, { moving: false, speed: 0, lx: 0, lz: 1 }, dt);
+  };
   // ---------- Waffen ----------
   P.setWeapon = (name) => {
     if (!P.owned[name]) return false;
-    P.weapon = name; h.setWeapon(name); G.ui.setWeapon(name); trail.clear();
+    P.weapon = name; h.setWeapon(name); G.ui.setWeapon(name); G.ui.setSpells(P); trail.clear();
     return true;
   };
   P.cycleWeapon = () => {
@@ -508,6 +605,7 @@ export function createPlayer(G) {
     const world = G.world;
     P.t += dt;
     P.parryCd = Math.max(0, P.parryCd - dt);
+    P.ward = Math.max(0, P.ward - dt);
     P.hurtTime = Math.max(0, P.hurtTime - dt);
     P.iframes = false; P.parryActive = false;
     const m = moveInput();
@@ -556,7 +654,7 @@ export function createPlayer(G) {
     // ---------- Zustaende ----------
     switch (P.state) {
       case 'free': {
-        let speed = P.sprinting ? 6.4 : P.lock ? 3.1 : 3.6;
+        let speed = (P.sprinting ? 6.4 : P.lock ? 3.1 : 3.6) * P.moveMul;
         if (m.len > 0.1) {
           moveDirV = m.dir; moveSpeed = speed * (P.exhausted && !P.sprinting ? 0.8 : 1);
           if (P.lock && !P.lock.dead && !P.sprinting) {
@@ -659,6 +757,14 @@ export function createPlayer(G) {
         if (P.jumpH <= 0 && P.vy < 0) { P.jumpH = 0; P.setState('free', { blend: 0.08 }); Sound.play('step'); G.fx.dust(P.pos, 4); }
         break;
       }
+      case 'cast': {
+        const c = P.cast.spell; turn = false;
+        if (m.len > 0.1) { moveDirV = m.dir; moveSpeed = 1.4; }
+        if (P.t < c.cast && !c.self && P.lock && !P.lock.dead) P.yaw = turnToward(P.yaw, Math.atan2(P.lock.pos.x - P.pos.x, P.lock.pos.z - P.pos.z), 6 * dt);
+        if (!P.flags.released && P.t >= c.cast) { P.flags.released = true; G.spells.fire(c); }
+        if (P.t >= c.cast + 0.45) P.setState('free', { blend: 0.1 });
+        break;
+      }
       case 'cutscene': { moveDirV = null; P.iframes = true; turn = false; break; }
       case 'dead': {
         P.deathT += dt;
@@ -705,9 +811,10 @@ export function createPlayer(G) {
       case 'kindle': target = sample(FR.kindle, P.t, {}); break;
       case 'rest': target = sample(FR.rest, P.t, {}); break;
       case 'dead': target = sample(FR.dead, P.deathT, {}); break;
-      case 'jump': target = { ...(P.weapon === 'greatsword' ? READY_GS : READY), tuck: 0.7, lean: 0.15, hx: -0.2, hy: 0.5, hz: 0.3, dx: 0, dy: 0.3, dz: 1 }; break;
+      case 'cast': { const c = P.cast.spell, tt = P.t < c.cast ? (P.t / c.cast) * 0.45 : 0.45 + (P.t - c.cast); target = sample(c.self ? FRS.castUp : FRS.cast, tt, {}); break; }
+      case 'jump': target = { ...readyPose(), tuck: 0.7, lean: 0.15, hx: -0.2, hy: 0.5, hz: 0.3, dx: 0, dy: 0.3, dz: 1 }; break;
       default: {
-        target = { ...(P.weapon === 'greatsword' ? READY_GS : READY) };
+        target = { ...readyPose() };
         const b = Math.sin(performance.now() / 700);
         target.hy += b * 0.008; target.lean += b * 0.01;
         if (P.sprinting) { target.lean = 0.28; target.hx = -0.25; target.hy = 0.2; target.hz = 0.3; target.dx = 0; target.dy = 0.1; target.dz = -1; target.twist = 0; }
@@ -730,10 +837,10 @@ export function createPlayer(G) {
     if (P.state === 'attack' && a.trail && P.t >= a.trail[0] && P.t <= a.trail[1]) {
       h.root.updateMatrixWorld(true);
       const ud = h.weapon.userData; ud.trailBase.getWorldPosition(_tmpA); ud.trailTip.getWorldPosition(_tmpB);
-      trail.setColor(P.weapon === 'greatsword' ? 0xff9a45 : P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
+      trail.setColor(P.weapon === 'greatsword' ? 0xff9a45 : P.weapon === 'ironblade' ? 0xe8eef6 : P.weapon === 'staff' ? 0x9ab8ff : P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
       trail.push(_tmpA, _tmpB);
     }
-    trail.update(dt, P.weapon === 'greatsword' ? 0.3 : P.actName === 'ash' ? 0.35 : 0.2);
+    trail.update(dt, isGS() ? 0.3 : P.actName === 'ash' ? 0.35 : 0.2);
     G.updateCamera(dt);
   };
   return P;

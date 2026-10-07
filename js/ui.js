@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp, lerp } from './util.js';
 import { WEAPON_INFO } from './player.js';
+import { SPELLS } from './spells.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,7 +48,7 @@ export function createUI(G) {
     G.menuOpen = true; ui.menuMode = 'rest'; ui.restCtx = { lit, current };
     ui.restMap = lit.filter((b) => b !== current);
     el.restTitle.textContent = current.name;
-    let html = `<div class="opt"><b>E</b> Aufstehen</div><div class="opt"><b>U</b> Aufleveln <span class="dim">(Level ${G.player.level()})</span></div>`;
+    let html = `<div class="opt"><b>E</b> Aufstehen</div><div class="opt"><b>U</b> Aufleveln <span class="dim">(Level ${G.player.level()})</span></div><div class="opt"><b>F</b> Flaschen verteilen <span class="dim">(${G.player.maxEstus} HP · ${G.player.maxMana} FP)</span></div>`;
     if (ui.restMap.length) html += '<div class="sep">Teleportieren</div>' + ui.restMap.map((b, i) => `<div class="opt"><b>${i + 1}</b> ${b.name}</div>`).join('');
     el.restList.innerHTML = html;
     el.rest.classList.add('show');
@@ -62,12 +63,31 @@ export function createUI(G) {
       '<div class="sep"></div><div class="opt"><b>E</b> Zurück</div>';
     el.rest.classList.add('show');
   };
+  ui.showFlask = () => {
+    const P = G.player; ui.menuMode = 'flask'; const tot = P.flaskTotal();
+    el.restTitle.textContent = 'Flaschen verteilen';
+    const dots = (n, cls) => `<span class="fl ${cls}">${'●'.repeat(n)}</span>`;
+    el.restList.innerHTML = `<div class="lvl"><span>Flaschen gesamt <b>${tot}</b></span></div>
+      <div class="opt"><b>1</b> HP-Flaschen (Estus) <span class="val">${P.maxEstus}</span><span class="dim">je +150 HP</span></div><div class="flrow">${dots(P.maxEstus, 'hp') || '–'}</div>
+      <div class="opt"><b>2</b> FP-Flaschen (Asche) <span class="val">${P.maxMana}</span><span class="dim">je +${40 + (P.stats.mnd - 10) * 2} FP</span></div><div class="flrow">${dots(P.maxMana, 'fp') || '–'}</div>
+      <div class="sep">1 / → mehr HP  ·  2 / ← mehr FP</div><div class="opt"><b>E</b> Zurück</div>`;
+    el.rest.classList.add('show');
+  };
   ui.hideRest = () => { G.menuOpen = false; el.rest.classList.remove('show'); };
   ui.setWeapon = (name) => {
     const info = WEAPON_INFO[name];
     $('weapon-lbl').textContent = info.short; $('ash-lbl').textContent = info.ash;
-    $('weapon-ico').className = 'ico ' + (name === 'greatsword' ? 'gsword' : 'katana');
-    $('ash-ico').className = 'ico ash' + (name === 'greatsword' ? ' fire' : '');
+    const ico = { katana: 'katana', greatsword: 'gsword', ironblade: 'isword', staff: 'staff' }[name] || 'katana';
+    $('weapon-ico').className = 'ico ' + ico;
+    $('ash-ico').className = 'ico ash' + (name === 'greatsword' || name === 'ironblade' ? ' fire' : name === 'staff' ? ' spell' : '');
+  };
+  // Zauberleiste (nur mit Stab): Mausrad / 1-5 waehlt, Q wirkt
+  ui.setSpells = (P) => {
+    const bar = $('spellbar'), on = P.weapon === 'staff' && P.spells.length;
+    bar.classList.toggle('show', !!on);
+    if (!on) return;
+    bar.innerHTML = P.spells.map((id, i) => { const sp = SPELLS[id]; return `<div class="sp ${i === P.spellIdx ? 'on' : ''}" style="--c:#${sp.color.toString(16).padStart(6, '0')}"><b>${i + 1}</b><span>${sp.name}</span><i>${sp.fp}</i></div>`; }).join('');
+    const cur = SPELLS[P.spells[P.spellIdx]]; $('ash-lbl').textContent = cur ? cur.name : 'Zauber';
   };
 
   // ---- Cutscene-UI ----
