@@ -5,6 +5,7 @@ import { Trail } from './fx.js';
 import { Sound } from './audio.js';
 import { groundHeight } from './world.js';
 
+export const wrapPi = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 export const READY = { ...DEF, hx: -0.1, hy: 0.34, hz: 0.42, dx: 0.12, dy: 0.45, dz: 0.88, lg: -0.2, twist: 0.12, lean: 0.05, crouch: 0.04 };
 const C = (frames) => compile(frames, READY);
 const R0 = { t: 0 };
@@ -503,6 +504,7 @@ export function createPlayer(G) {
   const _tmpA = new THREE.Vector3(), _tmpB = new THREE.Vector3();
   P.update = (dt) => {
     readInput(dt);
+    if (G.cutscene) P.buf = null;
     const world = G.world;
     P.t += dt;
     P.parryCd = Math.max(0, P.parryCd - dt);
@@ -549,7 +551,7 @@ export function createPlayer(G) {
         }
       }
     }
-    G.ui.setPrompt(P.interact && !G.menuOpen ? P.interact.text : null);
+    G.ui.setPrompt(P.interact && !G.menuOpen && !G.cutscene ? P.interact.text : null);
 
     // ---------- Zustaende ----------
     switch (P.state) {
@@ -657,6 +659,7 @@ export function createPlayer(G) {
         if (P.jumpH <= 0 && P.vy < 0) { P.jumpH = 0; P.setState('free', { blend: 0.08 }); Sound.play('step'); G.fx.dust(P.pos, 4); }
         break;
       }
+      case 'cutscene': { moveDirV = null; P.iframes = true; turn = false; break; }
       case 'dead': {
         P.deathT += dt;
         break;
@@ -714,6 +717,7 @@ export function createPlayer(G) {
     // Sanfter Uebergang beim Zustandswechsel
     if (P.blendT < 1 && P.blendDur > 0) { P.blendT = Math.min(1, P.blendT + dt / P.blendDur); blendPose(P.prev, target, P.blendT, P.pose); }
     else Object.assign(P.pose, target);
+    P.pose.bpitch = wrapPi(P.pose.bpitch); P.pose.twist = wrapPi(P.pose.twist);
     // Gangrichtung relativ zum Koerper
     let lx = 0, lz = 1;
     if (P.moving && sp > 0.1) { const rel = Math.atan2(P.vel.x, P.vel.z) - P.yaw; lz = Math.cos(rel); lx = -Math.sin(rel); }

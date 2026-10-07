@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff } from './util.js';
 import { buildWorld, groundHeight, GLOW } from './world.js';
 import { createHazards } from './hazards.js';
+import { createCutscenes } from './cutscene.js';
 import { makeSword } from './models.js';
 import { WEAPON_INFO } from './player.js';
 import { makeFX } from './fx.js';
@@ -40,8 +41,10 @@ G.world = buildWorld(scene);
 G.fights = G.world.arenas.map((A) => ({ id: A.id, arena: A, dead: false, enemy: null }));
 G.fx = makeFX(scene);
 G.hazards = createHazards(G);
+G.cutscene = null; G.timeScale = 1;
 G.input = { keys: new Set(), pressed: new Set(), mouse: [false, false, false], pressedMouse: [false, false, false], shiftDown: 0, dx: 0, dy: 0 };
 G.ui = createUI(G);
+G.cutscenes = createCutscenes(G);
 G.hitstop = (t) => { G.hitT = Math.max(G.hitT, t); };
 G.shake = (a) => { G.shakeAmt = Math.max(G.shakeAmt, a); };
 
@@ -140,7 +143,8 @@ G.restAt = (b) => { populate(); G.save(); };
 G.startBoss = (f) => {
   if (!f || !f.enemy) return;
   G.activeFight = f; G.boss = f.enemy; G.world.setGateSealed(f.id, true);
-  f.enemy.setState('intro', 0.3); G.ui.setBoss(f.arena.bossName, true); Sound.bossMusic(true);
+  f.enemy.setState('intro', 0.3);
+  G.cutscenes.playIntro(f, () => { f.enemy.setState('chase', 0.3); f.enemy.cd = Math.max(f.enemy.cd, 0.8); G.ui.setBoss(f.arena.bossName, true); });
 };
 G.onBossDefeated = (b) => {
   const f = b.fight; if (!f) return;
@@ -150,6 +154,7 @@ G.onBossDefeated = (b) => {
   G.enemies.filter((o) => o.minion && !o.dead).forEach((o) => o.die());
   G.fx.ring(b.pos.clone(), { color: 0xffe0a0, r: 16, dur: 1.5 }); G.fx.souls(b.pos.clone().setY(2), 120);
   ensureArenaBonfire(f).lit = true;
+  if (!P.dead) G.cutscenes.playOutro(f, b);
   const rw = f.arena.reward, msgs = [];
   if (rw === 'greatsword') G.spawnDrop(f.arena.x, f.arena.z - 2);
   if (rw === 'estus' || rw === 'both') { P.maxEstus = Math.min(10, P.maxEstus + 1); P.estus = Math.min(P.maxEstus, P.estus + 1); msgs.push('Estus-Flasche +1 (max. ' + P.maxEstus + ')'); }
@@ -181,7 +186,9 @@ G.onPlayerDeath = () => {
 // ------------------------------------------------------------------ Kamera
 const camPos = new THREE.Vector3(), camTarget = new THREE.Vector3(), _v = new THREE.Vector3(), _tmp = { x: 0, z: 0 };
 let camInit = false;
+G.snapCamera = () => { camInit = false; };
 G.updateCamera = (dt) => {
+  if (G.cutscene) return;
   const I = G.input, sens = 0.0024;
   P.camYaw -= I.dx * sens; P.camPitch += I.dy * sens; I.dx = I.dy = 0;
   const ak = (I.keys.has('ArrowLeft') ? 1 : 0) - (I.keys.has('ArrowRight') ? 1 : 0), ak2 = (I.keys.has('ArrowDown') ? 1 : 0) - (I.keys.has('ArrowUp') ? 1 : 0);
@@ -229,6 +236,7 @@ const prevent = new Set(['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'A
 addEventListener('keydown', (e) => {
   if (prevent.has(e.code)) e.preventDefault();
   if (e.repeat) return;
+  if (G.cutscene && ['Space', 'Enter', 'KeyE', 'Escape'].includes(e.code)) { G.cutscenes.skip(); return; }
   I.keys.add(e.code); I.pressed.add(e.code);
   if (e.code.startsWith('Shift')) I.shiftDown = performance.now();
   if (e.code === 'KeyM') Sound.toggleMute();
@@ -293,7 +301,9 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (G.paused || !G.running) { renderer.render(scene, camera); return; }
+  const realDt = dt;
   if (G.hitT > 0) { G.hitT -= dt; dt *= 0.06; }
+  if (G.cutscene) dt *= G.cutscene.slow;
   G.time += dt;
   P.update(dt);
   for (const e of G.enemies) e.update(dt);
@@ -301,6 +311,7 @@ function frame(now) {
   G.world.updateGate(G.time);
   G.hazards.update(dt);
   G.fx.update(dt);
+  G.cutscenes.update(realDt);
   G.ui.update(dt);
   if (G.drop) { G.drop.sword.rotation.y += dt * 1.2; G.drop.sword.position.y = 1.4 + Math.sin(G.time * 2) * 0.12; }
   if (G.stain) { G.stain.dot.position.y = 0.5 + Math.sin(G.time * 2.5) * 0.15; G.stain.pil.rotation.y += dt; }

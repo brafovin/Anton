@@ -4,6 +4,7 @@ import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Sound } from './audio.js';
 import { groundHeight } from './world.js';
 
+const wrapPi = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
 
 // ------------------------- Basis-Posen -------------------------
@@ -77,7 +78,7 @@ const ATTACKS = {
       { t: 0.9, hx: 0.3, hy: 0.7, hz: 0.1, dx: 1, dy: 0.1, dz: -0.1, twist: 0.9, e: 2 }, { t: 1.08, hx: -0.3, hy: 0.5, hz: 0.55, dx: -1, dy: -0.1, dz: 0.6, twist: -0.9, shift: 0.2, e: 1 },
       { t: 1.42, hx: -0.1, hy: 1.0, hz: 0.0, dx: 0, dy: 1, dz: -0.4, lean: -0.4, twist: 0, e: 2 }, { t: 1.62, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.4, dz: 1, lean: 0.55, shift: 0.35, crouch: 0.15, e: 1 }, { t: 2.0, e: 3 }, { t: 2.6, ...IDLE.reaper, e: 0 }]) },
   rSpin: { name: 'Todeswirbel', dur: 3.1, windows: [[1.0, 1.12], [1.38, 1.5], [1.76, 1.88]], hs: 1.0, he: 1.88, range: 4.9, arc: 360, dmg: 70, parryable: false, danger: true, track: 0.8,
-    f: A(IDLE.reaper, [{ t: 0 }, { t: 0.8, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, glow: 1, e: 2 }, { t: 1.0, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, e: 3 }, { t: 1.9, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: -12.5, e: 3 }, { t: 2.3, twist: -12.5, crouch: 0.2, e: 2 }, { t: 3.1, ...IDLE.reaper, e: 0 }]) },
+    f: A(IDLE.reaper, [{ t: 0 }, { t: 0.8, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, glow: 1, e: 2 }, { t: 1.0, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: 0, e: 3 }, { t: 1.9, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0.0, dz: 0.2, crouch: 0.3, twist: -12.5, e: 3 }, { t: 2.3, twist: -12.5, crouch: 0.2, e: 2 }, { t: 3.1, ...IDLE.reaper, twist: IDLE.reaper.twist - 12.566, e: 0 }]) },
   rVanish: { name: 'Schattentanz', dur: 2.8, hs: 1.55, he: 1.7, range: 3.6, arc: 110, dmg: 115, parryable: true, track: 1.45, ev: [[0.15, 'vanish'], [1.2, 'appearBehind']],
     f: A(IDLE.reaper, [{ t: 0 }, { t: 1.2, hx: -0.2, hy: 0.55, hz: -0.05, dx: 0.1, dy: 0.3, dz: 1, twist: -0.7, crouch: 0.25, e: 2 }, { t: 1.55, hx: -0.05, hy: 0.55, hz: 0.6, dx: 0, dy: 0.2, dz: 1, twist: 0.4, lean: 0.5, shift: 0.4, crouch: 0.2, e: 1 }, { t: 1.9, e: 3 }, { t: 2.8, ...IDLE.reaper, e: 0 }]) },
   rShades: { name: 'Schattenbrut', dur: 2.7, hs: 99, he: 99, track: 1.0, ev: [[1.1, 'shades']],
@@ -136,6 +137,31 @@ const TYPES = {
     hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
     look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
   },
+};
+
+// ---- Inszenierte Posen der Boss-Intros (absolute Cutscene-Zeit in Sekunden) ----
+export const CINE = {
+  boss: A(IDLE.boss, [
+    { t: 0, crouch: 0.78, lean: 0.5, head: 0.35, hx: -0.05, hy: 0.18, hz: 0.32, dx: 0, dy: -1, dz: 0.15, lg: -0.2 },
+    { t: 3.4 }, { t: 4.7, crouch: 0.35, lean: 0.3, hy: 0.5, dx: 0, dy: -0.4, dz: 0.9, head: 0.1, e: 0 },
+    { t: 5.8, crouch: 0.05, lean: 0.05, hx: -0.1, hy: 0.35, hz: 0.45, dx: 0.1, dy: 0.2, dz: 1, head: 0, e: 2 },
+    { t: 6.8, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.35, glow: 1, e: 2 },
+    { t: 7.15, hx: -0.1, hy: 0.28, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, crouch: 0.15, shift: 0.3, e: 1 },
+    { t: 8.4, ...IDLE.boss, glow: 0, e: 2 }]),
+  witch: A(IDLE.witch, [
+    { t: 0, hx: -0.3, hy: 0.9, hz: 0.1, dx: 0, dy: 1, dz: 0.15, lfree: 1, lx: 0.6, ly: 0.55, lz: 0.15, lean: -0.15, head: -0.15, glow: 1 },
+    { t: 7.2 }, { t: 8.4, ...IDLE.witch, glow: 0, e: 2 }]),
+  giant: A(IDLE.giant, [
+    { t: 0, crouch: 0.9, lean: 0.55, head: 0.3, hx: -0.3, hy: 0.05, hz: 0.3, dx: 0.3, dy: 0.2, dz: 1, lfree: 1, lx: 0.3, ly: 0.1, lz: 0.3 },
+    { t: 3.7 }, { t: 5.5, crouch: 0.2, lean: 0.25, head: 0.1, e: 0 },
+    { t: 6.4, hx: -0.1, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: -0.3, lean: -0.5, crouch: -0.05, lx: 0.2, ly: 1.0, lz: 0.1, glow: 1, e: 2 },
+    { t: 7.1, hx: -0.1, hy: 0.3, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.6, crouch: 0.25, shift: 0.3, e: 1 },
+    { t: 8.5, ...IDLE.giant, glow: 0, e: 2 }]),
+  reaper: A(IDLE.reaper, [
+    { t: 0 }, { t: 5.0, e: 3 },
+    { t: 5.5, hx: -0.2, hy: 0.7, hz: 0.2, dx: 0.5, dy: 0.9, dz: 0.2, twist: -0.8, lean: -0.1, e: 2 },
+    { t: 6.4, hx: -0.25, hy: 0.55, hz: 0.35, dx: 1, dy: 0, dz: 0.2, crouch: 0.25, twist: -12.566, e: 3 },
+    { t: 7.2, ...IDLE.reaper, twist: IDLE.reaper.twist - 12.566, e: 0 }]),
 };
 
 export class Enemy {
@@ -377,9 +403,9 @@ export class Enemy {
       case 'intro': {
         // Boss-Auftritt
         this.yaw = turnToward(this.yaw, toP, 2 * dt);
-        if (!this.flags?.roar && this.t > 0.8) { this.flags = { roar: true }; Sound.play('roar'); G.shake(0.6); }
+        if (!G.cutscene && !this.flags?.roar && this.t > 0.8) { this.flags = { roar: true }; Sound.play('roar'); G.shake(0.6); }
         target = null;
-        if (this.t >= 2.8) { this.setState('chase', 0.3); this.cd = 0.8; }
+        if (this.t >= 2.8 && !G.cutscene) { this.setState('chase', 0.3); this.cd = 0.8; }
         break;
       }
       case 'phase': {
@@ -436,6 +462,7 @@ export class Enemy {
         else if (this.stBase) { st.emissive.copy(this.stBase.c); st.emissiveIntensity = this.stBase.i; }
       }
     }
+    if (G.cutscene && G.cutscene.boss === this && CINE[this.type] && G.cutscene.kind === 'intro') target = { ...sample(CINE[this.type], G.cutscene.t, {}) };
     if (!target) {
       if (this.state === 'attack') target = sample(this.atk.f, Math.min(this.t * this.timeScale, this.atk.dur), {});
       else if (this.state === 'intro' || this.state === 'phase') {
@@ -452,6 +479,7 @@ export class Enemy {
     const h = this.h;
     if (this.blendT < 1 && this.blendDur > 0) { this.blendT = Math.min(1, this.blendT + dt / this.blendDur); blendPose(this.prev, target, this.blendT, this.pose); }
     else Object.assign(this.pose, target);
+    this.pose.twist = wrapPi(this.pose.twist);
     h.root.position.set(this.pos.x, this.pos.y + this.yOff, this.pos.z);
     h.root.rotation.y = this.yaw;
     let lx = 0, lz = 1;

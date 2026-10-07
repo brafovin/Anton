@@ -70,6 +70,19 @@ export function createUI(G) {
     $('ash-ico').className = 'ico ash' + (name === 'greatsword' ? ' fire' : '');
   };
 
+  // ---- Cutscene-UI ----
+  ui.cineHint = () => {};
+  ui.subtitle = (who, text) => {
+    const box = $('cine-sub');
+    if (!text) { box.classList.remove('show'); return; }
+    $('cine-who').textContent = who || ''; $('cine-who').style.display = who ? 'block' : 'none'; $('cine-text').textContent = text; box.classList.add('show');
+  };
+  ui.titleCard = (title, sub) => {
+    const t = $('cine-title'); $('cine-title-main').textContent = title; $('cine-title-sub').textContent = sub || '';
+    t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  };
+  ui.hideTitle = () => { $('cine-title').classList.remove('show'); };
+
   ui.update = (dt) => {
     const P = G.player;
     const w = (n) => Math.round(n) + 'px';
