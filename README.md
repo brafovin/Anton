@@ -21,7 +21,7 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 | Leertaste | Springen |
 | Linke Maustaste | Leichter Angriff (3er-Kombo) |
 | Rechte Maustaste | Schwerer Angriff |
-| F | Parry – bei Erfolg Riposte mit Angriff |
+| F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
 | Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
 | T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |

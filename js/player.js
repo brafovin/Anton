@@ -80,7 +80,7 @@ const ATK = {
   l3: { f: FR.l3, dur: 1.0, hs: 0.3, he: 0.44, st: 17, dmg: 50, range: 3.2, arc: 70, cancel: 0.72, roll: 0.62, next: null, lunge: [0.16, 0.36, 6.0], sfx: 'swing', trail: [0.2, 0.5] },
   heavy: { f: FR.heavy, dur: 1.3, hs: 0.66, he: 0.8, st: 28, dmg: 78, range: 3.0, arc: 130, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.72, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.54, 0.9] },
   ash: { f: FR.ash, dur: 1.55, hs: 0.64, he: 0.72, st: 10, fp: 25, dmg: 110, range: 9.5, arc: 28, cancel: 1.25, roll: 1.2, next: null, lunge: [0.56, 0.74, 15], sfx: 'ash', sfxAt: 0.58, poise: true, line: true, fx: 'wave', trail: [0.58, 0.95] },
-  riposte: { f: FR.riposte, dur: 1.75, hs: 0.5, he: 0.52, st: 0, dmg: 170, range: 3, arc: 90, cancel: 1.4, roll: 1.35, next: null, sfx: 'swing', sfxAt: 0.35, trail: [0.38, 0.7] },
+  riposte: { f: FR.riposte, dur: 1.75, hs: 0.5, he: 0.52, st: 0, dmg: 105, range: 3, arc: 90, cancel: 1.4, roll: 1.35, next: null, sfx: 'swing', sfxAt: 0.35, trail: [0.38, 0.7] },
 };
 
 
@@ -127,7 +127,7 @@ const ATKG = {
   l3: { f: FRG.g3, dur: 1.5, hs: 0.64, he: 0.8, st: 28, dmg: 95, range: 3.6, arc: 120, cancel: 1.05, roll: 1.0, next: null, lunge: [0.5, 0.7, 3.4], sfx: 'swingHeavy', sfxAt: 0.5, poise: true, trail: [0.5, 0.95] },
   heavy: { f: FRG.heavy, dur: 1.95, hs: 1.1, he: 1.24, st: 40, dmg: 140, range: 3.9, arc: 150, cancel: 1.55, roll: 1.5, next: null, lunge: [0.9, 1.14, 5.5], sfx: 'swingHeavy', sfxAt: 0.9, poise: true, fx: 'slam', trail: [0.95, 1.4] },
   ash: { f: FRG.ash, dur: 1.85, hs: 0.93, he: 1.0, st: 10, fp: 30, dmg: 150, range: 6.2, arc: 360, cancel: 1.5, roll: 1.4, next: null, sfx: 'roar', sfxAt: 0.55, poise: true, fx: 'flame', trail: [0.8, 1.3] },
-  riposte: { f: FRG.riposte, dur: 1.9, hs: 0.55, he: 0.57, st: 0, dmg: 230, range: 3.2, arc: 90, cancel: 1.5, roll: 1.4, next: null, sfx: 'swingHeavy', sfxAt: 0.4, trail: [0.4, 0.8] },
+  riposte: { f: FRG.riposte, dur: 1.9, hs: 0.55, he: 0.57, st: 0, dmg: 150, range: 3.2, arc: 90, cancel: 1.5, roll: 1.4, next: null, sfx: 'swingHeavy', sfxAt: 0.4, trail: [0.4, 0.8] },
 };
 const TABLES = { katana: ATK, greatsword: ATKG };
 export const WEAPON_INFO = {
@@ -150,7 +150,7 @@ export function createPlayer(G) {
     lock: null, camYaw: 0, camPitch: 0.28, camDist: 4.6, camShake: 0,
     spawn: new THREE.Vector3(0, 0, 0), spawnYaw: Math.PI, lastBonfire: null, interact: null,
     prev: { ...READY }, blendT: 0, blendDur: 0.1, pose: { ...READY }, flags: {}, comboT: 0, drankHeal: false, kindleTarget: null,
-    hurtTime: 0, jumpH: 0, vy: 0, jumpSpeed: 3.4, dead: false, stain: null, radius: 0.42, rollDir: new THREE.Vector3(), walkLock: false, deathT: 0, lastPhase: 0,
+    hurtTime: 0, parryCd: 0, jumpH: 0, vy: 0, jumpSpeed: 3.4, dead: false, stain: null, radius: 0.42, rollDir: new THREE.Vector3(), walkLock: false, deathT: 0, lastPhase: 0,
   };
   G.player = P;
   P.camYaw = P.yaw;
@@ -264,9 +264,12 @@ export function createPlayer(G) {
     Sound.play('roll');
     return true;
   }
+  const PARRY_CD = 1.5; // Sekunden zwischen zwei Parry-Versuchen
   function startParry() {
-    if (P.st < 8) { return false; }
-    P.useSt(8);
+    if (P.parryCd > 0) { Sound.play('error'); G.ui.flashParry(); return false; }
+    if (P.st < 12) { return false; }
+    P.useSt(12);
+    P.parryCd = PARRY_CD;
     P.yaw = faceInput();
     P.setState('parry', { blend: 0.03 });
     return true;
@@ -410,6 +413,7 @@ export function createPlayer(G) {
     const mid = e.pos.clone().lerp(P.pos, 0.5); mid.y += 1.3;
     fx.parry(mid); Sound.play('parry'); G.shake(0.35); G.hitstop(0.16);
     P.st = Math.min(P.maxSt, P.st + 25); P.exhausted = false;
+    P.parryCd = Math.min(P.parryCd, 0.4); // Belohnung: nach gelungenem Parry fast sofort wieder bereit
     e.getParried(P);
   };
   P.hurt = (dmg, from, opts = {}) => {
@@ -501,6 +505,7 @@ export function createPlayer(G) {
     readInput(dt);
     const world = G.world;
     P.t += dt;
+    P.parryCd = Math.max(0, P.parryCd - dt);
     P.hurtTime = Math.max(0, P.hurtTime - dt);
     P.iframes = false; P.parryActive = false;
     const m = moveInput();
@@ -522,7 +527,7 @@ export function createPlayer(G) {
     if (P.buf && !P.dead) {
       const b = P.buf.name;
       if (b === 'roll') { if (P.state === 'free' || canRollCancel() || canAct()) { if (startRoll()) P.buf = null; } }
-      else if (canAct()) { if (tryAction(b) || b === 'estus' || b === 'interact') P.buf = null; }
+      else if (canAct()) { if (tryAction(b) || b === 'estus' || b === 'interact' || b === 'parry') P.buf = null; }
     }
 
     // Interaktions-Prompt

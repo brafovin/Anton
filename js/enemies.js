@@ -174,7 +174,7 @@ export class Enemy {
         return 'blocked';
       }
     }
-    if (riposte && this.isBoss) dmg *= 1.8;
+    if (riposte && this.isBoss) dmg *= 1.4;
     this.hp -= dmg; this.barT = 4; this.h.flash(0.18);
     const p = this.pos.clone(); p.y += 1.2 * this.T.scale; const d = new THREE.Vector3(this.pos.x - (from ? from.x : P.pos.x), 0.2, this.pos.z - (from ? from.z : P.pos.z)).normalize();
     G.fx.blood(p, riposte ? 40 : 16, d); if (riposte || poise) G.fx.sparks(p, 12, d);
