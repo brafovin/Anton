@@ -1,0 +1,378 @@
+import * as THREE from 'three';
+import { clamp, lerp } from './util.js';
+
+// ------------------------------------------------------------------
+//  Pose-System: Hand-Zielpunkte (im Torso-Raum) + 2-Knochen-IK
+//  Torso-Raum: +Z = vorne, +Y = oben, rechte Hand = -X
+// ------------------------------------------------------------------
+export const DEF = {
+  hx: -0.12, hy: 0.35, hz: 0.45,      // Position der rechten Hand (= Waffengriff)
+  dx: 0.1, dy: 0.55, dz: 0.85,        // Klingenrichtung
+  roll: 0,                            // Drehung um die Klingenachse
+  lg: -0.2,                           // Position der linken Hand entlang der Waffe
+  lfree: 0, lx: 0.3, ly: 0.2, lz: 0.2,// linke Hand frei (Schild, Flasche, ...)
+  twist: 0, lean: 0,                  // Torso-Drehung / -Neigung
+  shift: 0, crouch: 0,                // Koerper nach vorne / abgesenkt
+  bpitch: 0, tuck: 0,                 // Rolle: Koerper-Kippung / Beine anziehen
+  head: 0,                            // Kopfneigung
+  flask: 0, sheath: 0,                // Flasche sichtbar / Katana in Saya
+  glow: 0, e: 0,
+};
+const FIELDS = Object.keys(DEF);
+
+export function compile(frames, base = DEF) {
+  let prev = { ...DEF, ...base };
+  return frames.map((f) => { prev = { ...prev, ...f }; return prev; });
+}
+const easeFns = [
+  (t) => t * t * (3 - 2 * t),   // 0 weich
+  (t) => t * t * t,             // 1 beschleunigend (Schlag)
+  (t) => 1 - (1 - t) ** 3,      // 2 abbremsend
+  (t) => t,                     // 3 linear
+];
+const _out = { ...DEF };
+export function sample(frames, t, out = _out) {
+  if (t <= frames[0].t) { for (const k of FIELDS) out[k] = frames[0][k]; return out; }
+  const last = frames[frames.length - 1];
+  if (t >= last.t) { for (const k of FIELDS) out[k] = last[k]; return out; }
+  let i = 1;
+  while (frames[i].t < t) i++;
+  const a = frames[i - 1], b = frames[i];
+  const u = easeFns[b.e || 0]((t - a.t) / (b.t - a.t));
+  for (const k of FIELDS) out[k] = k === 'e' ? 0 : lerp(a[k], b[k], u);
+  return out;
+}
+export function blendPose(a, b, u, out = {}) {
+  for (const k of FIELDS) out[k] = lerp(a[k], b[k], u);
+  return out;
+}
+
+const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const _a = V(), _b = V(), _c = V(), _d = V();
+function ik(S, T, l1, l2, pole, elbow, hand) {
+  _a.subVectors(T, S);
+  let d = _a.length();
+  const maxD = (l1 + l2) * 0.999, minD = Math.abs(l1 - l2) + 0.02;
+  d = clamp(d, minD, maxD);
+  _a.normalize();
+  hand.copy(S).addScaledVector(_a, d);
+  const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  _b.copy(pole).addScaledVector(_a, -pole.dot(_a));
+  if (_b.lengthSq() < 1e-6) _b.set(0, -1, 0);
+  _b.normalize();
+  elbow.copy(S).addScaledVector(_a, a).addScaledVector(_b, h);
+}
+const UP = V(0, 1, 0);
+const _q = new THREE.Quaternion();
+function limb(mesh, a, b) {
+  _c.subVectors(b, a);
+  const len = _c.length();
+  mesh.position.copy(a);
+  if (len > 1e-5) { _q.setFromUnitVectors(UP, _c.divideScalar(len)); mesh.quaternion.copy(_q); }
+  mesh.scale.y = len;
+}
+const unitCyl = (rt, rb, seg = 8) => { const g = new THREE.CylinderGeometry(rt, rb, 1, seg); g.translate(0, 0.5, 0); return g; };
+
+export const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, ...o });
+
+// ------------------------------------------------------------------
+//  Waffen
+// ------------------------------------------------------------------
+export function makeKatana() {
+  const g = new THREE.Group();
+  const steel = mat(0xdce4ee, { metalness: 0.85, roughness: 0.22, emissive: 0x112233, emissiveIntensity: 0.4 });
+  const edge = mat(0xffffff, { metalness: 0.9, roughness: 0.1, emissive: 0x6688aa, emissiveIntensity: 0.6 });
+  const black = mat(0x15151a, { roughness: 0.6 });
+  const wrap = mat(0x2a1a14, { roughness: 0.9 });
+  const gold = mat(0xb8962e, { metalness: 0.8, roughness: 0.35 });
+  // Griff (Tsuka)
+  const tsuka = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.3, 8), wrap);
+  tsuka.position.y = -0.13; g.add(tsuka);
+  for (let i = 0; i < 6; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.004, 4, 10), black); r.rotation.x = Math.PI / 2; r.position.y = -0.25 + i * 0.045; g.add(r); }
+  const kashira = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), gold); kashira.position.y = -0.29; kashira.scale.y = 0.6; g.add(kashira);
+  const tsuba = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.012, 14), black); tsuba.position.y = 0.035; g.add(tsuba);
+  const habaki = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.016), gold); habaki.position.y = 0.065; g.add(habaki);
+  // gebogene Klinge aus Segmenten
+  const blade = new THREE.Group(); g.add(blade);
+  const N = 10, L = 0.92; let y = 0.085, z = 0, ang = 0;
+  const bladeMeshes = [];
+  for (let i = 0; i < N; i++) {
+    const seg = L / N, w = lerp(0.034, 0.02, i / N);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.006, seg * 1.05, w), steel);
+    ang -= 0.028;
+    m.rotation.x = ang + (i === N - 1 ? 0 : 0);
+    m.position.set(0, y + Math.cos(ang) * seg / 2, z + Math.sin(ang) * seg / 2);
+    y += Math.cos(ang) * seg; z += Math.sin(ang) * seg;
+    blade.add(m); bladeMeshes.push(m);
+    const e = new THREE.Mesh(new THREE.BoxGeometry(0.004, seg * 1.05, 0.006), edge);
+    e.position.copy(m.position); e.position.z += Math.cos(ang) * w / 2; e.position.y -= Math.sin(ang) * w / 2;
+    e.rotation.x = ang; blade.add(e);
+  }
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.05, 4), steel);
+  tip.rotation.set(ang, Math.PI / 4, 0); tip.position.set(0, y + 0.02, z - 0.005); tip.scale.set(0.3, 1, 1); blade.add(tip);
+  // Marker fuer Slash-Trail
+  const mBase = new THREE.Object3D(); mBase.position.set(0, 0.2, 0); g.add(mBase);
+  const mTip = new THREE.Object3D(); mTip.position.set(0, y + 0.04, z); g.add(mTip);
+  g.userData = { trailBase: mBase, trailTip: mTip, steel, edge, glowMats: [steel, edge], length: y };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeSaya() {
+  const g = new THREE.Group();
+  const lacquer = mat(0x120d12, { roughness: 0.35, metalness: 0.3 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.9, 0.065), lacquer);
+  body.position.y = 0.45; g.add(body);
+  const kojiri = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mat(0xb8962e, { metalness: 0.8 })); kojiri.position.y = 0.9; g.add(kojiri);
+  const koiguchi = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.075), mat(0xb8962e, { metalness: 0.8 })); koiguchi.position.y = 0.02; g.add(koiguchi);
+  const sageo = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.05, 0.07), mat(0x7a1a1a)); sageo.position.y = 0.2; g.add(sageo);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeSword({ len = 0.8, width = 0.06, color = 0x8a7a6a, rusty = true, glow = 0 } = {}) {
+  const g = new THREE.Group();
+  const steel = mat(color, { metalness: 0.7, roughness: rusty ? 0.7 : 0.3, emissive: glow ? 0xff5a10 : 0x000000, emissiveIntensity: glow });
+  const dark = mat(0x2a2018, { roughness: 0.9 });
+  const gold = mat(0x8a7030, { metalness: 0.7, roughness: 0.4 });
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 8), dark); grip.position.y = -0.12; g.add(grip);
+  const pom = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), gold); pom.position.y = -0.27; g.add(pom);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(width * 3.2, 0.04, 0.05), gold); guard.position.y = 0.03; g.add(guard);
+  const bl = new THREE.Mesh(new THREE.BoxGeometry(width, len, 0.016), steel); bl.position.y = 0.05 + len / 2; g.add(bl);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(width * 0.72, 0.14, 4), steel); tip.rotation.y = Math.PI / 4; tip.scale.z = 0.25; tip.position.y = 0.05 + len + 0.06; g.add(tip);
+  const mBase = new THREE.Object3D(); mBase.position.set(0, 0.25, 0); g.add(mBase);
+  const mTip = new THREE.Object3D(); mTip.position.set(0, 0.05 + len + 0.1, 0); g.add(mTip);
+  g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [steel], steel, length: len };
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeShield(color = 0x555a63, trim = 0x8a7030) {
+  const g = new THREE.Group();
+  const face = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.06, 5, 1), mat(color, { metalness: 0.5, roughness: 0.5 }));
+  face.rotation.x = Math.PI / 2; face.rotation.z = Math.PI / 5 * 0; g.add(face);
+  const boss = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(trim, { metalness: 0.7, roughness: 0.4 })); boss.position.z = 0.05; boss.scale.z = 0.6; g.add(boss);
+  const cross = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.01), mat(trim, { metalness: 0.7 })); cross.position.z = 0.032; g.add(cross);
+  const cross2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.01), mat(trim, { metalness: 0.7 })); cross2.position.z = 0.032; g.add(cross2);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+export function makeFlask() {
+  const g = new THREE.Group();
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.16, 10), new THREE.MeshStandardMaterial({ color: 0xffcc88, transparent: true, opacity: 0.45, roughness: 0.1 }));
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.058, 0.11, 10), new THREE.MeshStandardMaterial({ color: 0xff9a2a, emissive: 0xff7a10, emissiveIntensity: 1.6 }));
+  liquid.position.y = -0.02;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.07, 8), glass.material); neck.position.y = 0.11;
+  const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.022, 0.03, 8), mat(0x5a3a20)); cork.position.y = 0.16;
+  g.add(glass, liquid, neck, cork);
+  const l = new THREE.PointLight(0xff9a3a, 2.5, 3, 2); l.position.y = 0.0; g.add(l);
+  g.userData.liquid = liquid; g.userData.light = l;
+  return g;
+}
+
+// ------------------------------------------------------------------
+//  Humanoid
+// ------------------------------------------------------------------
+const HIP = 0.95, THIGH = 0.47, SHIN = 0.47, UPPER = 0.34, FORE = 0.34, SH_X = 0.25, SH_Y = 0.52;
+
+export function makeHumanoid(o) {
+  const O = {
+    scale: 1, skin: 0xc8a888, cloth: 0x3a3028, armor: 0x555a63, trim: 0x8a7030, accent: 0x7a1a1a,
+    head: 'hollow', hunch: 0, cape: false, tabard: false, pauldrons: true, plates: true,
+    weapon: 'sword', shield: false, twoHand: false, eye: 0x000000, bulk: 1, ...o,
+  };
+  const h = { opts: O, mats: [], flashT: 0 };
+  const M = (c, extra) => { const m = mat(c, extra); h.mats.push(m); return m; };
+  const skin = M(O.skin, { roughness: 0.85 });
+  const cloth = M(O.cloth, { roughness: 0.95 });
+  const armor = M(O.armor, { metalness: 0.55, roughness: 0.45 });
+  const trim = M(O.trim, { metalness: 0.7, roughness: 0.4 });
+  const accent = M(O.accent, { roughness: 0.9 });
+  h.flashMats = [skin, cloth, armor, trim, accent];
+
+  const root = new THREE.Group(); h.root = root;
+  const inner = new THREE.Group(); inner.scale.setScalar(O.scale); root.add(inner); h.inner = inner;
+  const pivot = new THREE.Group(); pivot.position.y = HIP; inner.add(pivot); h.pivot = pivot;
+  const torso = new THREE.Group(); pivot.add(torso); h.torso = torso;
+  const bulk = O.bulk;
+
+  // Becken
+  const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.34 * bulk, 0.18, 0.22 * bulk), cloth); pelvis.position.y = -0.04; pivot.add(pelvis);
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * bulk, 0.2 * bulk, 0.07, 10), M(0x2a1a10, { roughness: 0.8 })); belt.position.y = 0.06; belt.scale.z = 0.75; torso.add(belt);
+  // Brust
+  const chestGeo = new THREE.CylinderGeometry(0.25 * bulk, 0.19 * bulk, 0.62, 10);
+  const chest = new THREE.Mesh(chestGeo, O.plates ? armor : cloth); chest.position.y = 0.36; chest.scale.z = 0.68; torso.add(chest);
+  if (O.plates) {
+    const breast = new THREE.Mesh(new THREE.SphereGeometry(0.2 * bulk, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), armor);
+    breast.rotation.x = Math.PI / 2; breast.position.set(0, 0.4, 0.05); breast.scale.set(1.15, 0.7, 0.95); breast.visible = false; torso.add(breast);
+  }
+  const under = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * bulk, 0.2 * bulk, 0.24, 10), cloth); under.position.y = 0.1; under.scale.z = 0.7; torso.add(under);
+  if (O.tabard) {
+    const tf = new THREE.Mesh(new THREE.BoxGeometry(0.26 * bulk, 0.62, 0.018), accent); tf.position.set(0, -0.02, 0.135 * bulk); tf.rotation.x = -0.05; torso.add(tf);
+    const tb = tf.clone(); tb.position.z = -0.135 * bulk; tb.rotation.x = 0.05; torso.add(tb);
+  }
+  // Kopf
+  const head = new THREE.Group(); head.position.y = 0.73; torso.add(head); h.head = head;
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8), skin); neck.position.y = -0.07; head.add(neck);
+  buildHead(head, O, { skin, cloth, armor, trim, accent, M });
+  // Schultern
+  if (O.pauldrons) for (const s of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.15 * bulk, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), armor);
+    p.position.set(s * SH_X * 1.02, SH_Y + 0.02, 0); p.scale.set(1.1, 0.8, 1); p.rotation.z = -s * 0.25; torso.add(p);
+    const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * bulk, 0.13 * bulk, 0.05, 10), trim); p2.position.set(s * (SH_X + 0.06), SH_Y - 0.06, 0); p2.rotation.z = -s * 0.5; torso.add(p2);
+  }
+  // Cape
+  if (O.cape) {
+    const geo = new THREE.BoxGeometry(0.5 * bulk, 0.95, 0.025); geo.translate(0, -0.475, 0);
+    const c = new THREE.Mesh(geo, M(O.accent === 0 ? 0x222222 : O.capeColor ?? O.accent, { roughness: 0.95 })); c.position.set(0, SH_Y + 0.05, -0.17); torso.add(c); h.cape = c;
+  }
+  // Waffe
+  let weapon;
+  if (O.weapon === 'katana') weapon = makeKatana();
+  else if (O.weapon === 'greatsword') weapon = makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 });
+  else weapon = makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
+  torso.add(weapon); h.weapon = weapon;
+  if (O.weapon === 'katana') {
+    const saya = makeSaya(); saya.position.set(0.27, 0.02, 0.1); saya.rotation.x = -1.3; saya.rotation.z = -0.1; torso.add(saya); h.saya = saya;
+  }
+  if (O.shield) { h.shield = makeShield(O.shieldColor ?? 0x555a63, O.trim); torso.add(h.shield); }
+  h.flask = makeFlask(); h.flask.visible = false; torso.add(h.flask);
+
+  // Gliedmassen (Zylinder, die zwischen Gelenken aufgespannt werden)
+  const armMat = O.plates ? armor : cloth;
+  const mk = (rt, rb, m) => { const me = new THREE.Mesh(unitCyl(rt, rb), m); me.castShadow = true; return me; };
+  const sph = (r, m) => { const me = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), m); me.castShadow = true; return me; };
+  h.arm = [0, 1].map((i) => {
+    const up = mk(0.055 * bulk, 0.045 * bulk, armMat), fo = mk(0.05 * bulk, 0.04 * bulk, O.plates ? armor : skin);
+    const el = sph(0.05 * bulk, armMat), hd = sph(0.055 * bulk, i ? armor : armor);
+    torso.add(up, fo, el, hd);
+    return { up, fo, el, hd, S: V(i ? SH_X : -SH_X, SH_Y, 0), E: V(), H: V(), pole: V(i ? 0.6 : -0.6, -1, -0.35) };
+  });
+  const legMat = O.plates ? armor : cloth;
+  h.leg = [0, 1].map((i) => {
+    const th = mk(0.085 * bulk, 0.06 * bulk, cloth), sh = mk(0.06 * bulk, 0.05 * bulk, legMat);
+    const kn = sph(0.065 * bulk, legMat), ft = new THREE.Mesh(new THREE.BoxGeometry(0.115 * bulk, 0.09, 0.3 * bulk), M(0x1e1612, { roughness: 0.9 })); ft.castShadow = true;
+    pivot.add(th, sh, kn, ft);
+    return { th, sh, kn, ft, S: V(i ? 0.13 : -0.13, -0.02, 0), K: V(), A: V(), T: V() };
+  });
+  inner.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+
+  h.phase = 0; h.capeSwing = 0;
+  h.update = (p, gait = {}, dt = 0.016) => applyPose(h, p, gait, dt);
+  h.flash = (t = 0.15) => { h.flashT = t; };
+  h.tickFlash = (dt) => {
+    if (h.flashT > 0) { h.flashT -= dt; const k = clamp(h.flashT / 0.15, 0, 1); h.flashMats.forEach((m) => { m.emissive.setRGB(0.9 * k, 0.12 * k, 0.05 * k); }); }
+    else if (h.flashT !== -1) { h.flashMats.forEach((m) => m.emissive.setRGB(0, 0, 0)); h.flashT = -1; }
+  };
+  return h;
+}
+
+function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
+  const dark = M(0x050505, { roughness: 1 });
+  const add = (m) => { m.castShadow = true; head.add(m); return m; };
+  if (O.head === 'hollow') {
+    const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), skin)); s.scale.set(0.95, 1.1, 1);
+    for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), dark)); e.position.set(x, 0.02, 0.1); }
+    const m = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.02), dark)); m.position.set(0, -0.05, 0.105);
+    if (O.hunch) head.rotation.x = 0.35;
+  } else if (O.head === 'helm' || O.head === 'knight') {
+    const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), armor)); s.scale.set(0.95, 1.08, 1.05); s.position.y = 0.02;
+    const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.115, 0.14, 12), armor)); b.position.y = -0.06;
+    const slit = add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.022, 0.05), dark)); slit.position.set(0, 0.0, 0.1);
+    const ridge = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.26), trim)); ridge.position.set(0, 0.14, -0.02);
+    if (O.eye) { for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.01), new THREE.MeshBasicMaterial({ color: O.eye }))); e.position.set(x, 0.0, 0.127); } }
+    if (O.plume) { const pl = add(new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 6), accent)); pl.position.set(0, 0.2, -0.06); pl.rotation.x = -0.6; }
+  } else if (O.head === 'greathelm') {
+    const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.3, 8), armor)); b.position.y = 0.0;
+    const top = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.15, 0.1, 8), armor)); top.position.y = 0.2;
+    const slit = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.05), dark)); slit.position.set(0, 0.04, 0.14);
+    for (const x of [-0.045, 0.05]) { const e = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.01), new THREE.MeshBasicMaterial({ color: O.eye || 0xff6a10 }))); e.position.set(x, 0.04, 0.166); }
+    for (const s of [-1, 1]) {
+      const horn = add(new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.4, 6), M(0xc8bfa8, { roughness: 0.6 })));
+      horn.position.set(s * 0.19, 0.18, 0); horn.rotation.z = -s * 0.9; horn.rotation.x = -0.1;
+    }
+    const crest = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.34), accent)); crest.position.set(0, 0.27, -0.02);
+  } else if (O.head === 'hood') {
+    const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), skin)); s.position.z = 0.015;
+    const hood = add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), cloth)); hood.position.set(0, 0.015, -0.015); hood.scale.set(1, 1.05, 1.1);
+    const scarf = add(new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.045, 6, 12), accent)); scarf.rotation.x = Math.PI / 2; scarf.position.y = -0.09;
+    for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), dark)); e.position.set(x, 0.02, 0.105); }
+  }
+}
+
+const _S = V(), _T = V(), _el = V(), _hd = V(), _wq = new THREE.Quaternion(), _rq = new THREE.Quaternion(), _dir = V(), _lg = V();
+const _ankle = V(), _hipW = V(), _ZERO = V();
+export function applyPose(h, p, gait, dt) {
+  const { speed = 0, moving = false, stance = 1, lx = 0, lz = 1 } = gait;
+  const { pivot, torso } = h;
+  // Gang-Zyklus
+  if (moving) h.phase += dt * (3.2 + speed * 7.5);
+  const stride = moving ? 0.16 + speed * 0.3 : 0.0;
+  const bob = moving ? Math.abs(Math.sin(h.phase)) * 0.035 * (0.5 + speed) : 0;
+  // Pivot / Torso
+  pivot.position.set(0, HIP - p.crouch - bob + (p.bpitch ? 0 : 0), p.shift);
+  pivot.rotation.set(p.bpitch, 0, 0);
+  torso.rotation.set(p.lean, p.twist, 0);
+  h.head.rotation.x = p.head - p.lean * 0.6;
+  h.head.rotation.y = -p.twist * 0.6;
+  if (h.opts.hunch) torso.rotation.x += h.opts.hunch;
+
+  // Beine
+  const stanceZ = (moving ? 0 : 0.14) * stance;
+  for (let i = 0; i < 2; i++) {
+    const L = h.leg[i], side = i ? 1 : -1;
+    const ph = h.phase + (i ? Math.PI : 0);
+    const zf = Math.sin(ph) * stride * lz + (i ? 1 : -1) * stanceZ * (h.opts.stanceFlip ? -1 : 1);
+    const xf = Math.sin(ph) * stride * lx;
+    const lift = moving ? Math.max(0, Math.cos(ph)) * (0.06 + speed * 0.12) : 0;
+    const groundY = -(HIP - p.crouch - bob) + 0.075;
+    // normal
+    _T.set(side * 0.15 * (1 + (1 - stance) * 0.2) + xf, groundY + lift, zf);
+    // zusammengerollt (Rolle)
+    if (p.tuck > 0.001) { _ankle.set(side * 0.13, -0.28, 0.36); _T.lerp(_ankle, p.tuck); }
+    L.S.x = side * 0.13;
+    ik(L.S, _T, THIGH, SHIN, V(0, 0.1, 1), L.K, L.A);
+    limb(L.th, L.S, L.K); limb(L.sh, L.K, L.A); L.kn.position.copy(L.K);
+    L.ft.position.set(L.A.x, L.A.y - 0.02, L.A.z + 0.06);
+    L.ft.rotation.set(p.tuck * 0.5 + (lift > 0.02 ? -0.3 : 0), 0, 0);
+  }
+
+  // Waffe + Arme
+  _dir.set(p.dx, p.dy, p.dz).normalize();
+  _wq.setFromUnitVectors(UP, _dir);
+  _rq.setFromAxisAngle(UP, p.roll);
+  _wq.multiply(_rq);
+  const R = h.arm[0], Lf = h.arm[1];
+  _T.set(p.hx, p.hy, p.hz);
+  ik(R.S, _T, UPPER, FORE, R.pole, R.E, R.H);
+  h.weapon.position.copy(R.H);
+  h.weapon.quaternion.copy(_wq);
+  // linke Hand
+  _lg.set(0, p.lg, 0).applyQuaternion(_wq).add(R.H);
+  if (p.lfree > 0) { _T.set(p.lx, p.ly, p.lz); _lg.lerp(_T, p.lfree); }
+  ik(Lf.S, _lg, UPPER, FORE, Lf.pole, Lf.E, Lf.H);
+  for (const A of h.arm) {
+    limb(A.up, A.S, A.E); limb(A.fo, A.E, A.H); A.el.position.copy(A.E); A.hd.position.copy(A.H);
+  }
+  // Schild am linken Unterarm
+  if (h.shield) {
+    h.shield.position.set(Lf.H.x + 0.1, Lf.H.y + 0.05, Lf.H.z + 0.12);
+    h.shield.rotation.set(0.1, 0.35 - p.lfree * 0.1, 0);
+  }
+  // Flasche
+  if (h.flask) {
+    h.flask.visible = p.flask > 0.5;
+    h.flask.position.set(Lf.H.x, Lf.H.y + 0.05, Lf.H.z + 0.03);
+    h.flask.rotation.set(-0.5 * p.flask, 0, 0.15);
+  }
+  // Cape
+  if (h.cape) {
+    h.capeSwing += dt * (2 + speed * 6);
+    h.cape.rotation.x = 0.08 + speed * 0.5 + Math.sin(h.capeSwing) * 0.04 * (0.4 + speed) + (p.bpitch ? -0.5 : 0);
+    h.cape.rotation.z = Math.sin(h.capeSwing * 0.7) * 0.05 * (0.4 + speed);
+  }
+  // Glow
+  const ud = h.weapon.userData;
+  if (ud.glowMats && p.glow !== undefined) {
+    for (const m of ud.glowMats) { if (m.emissive) { if (h.opts.weapon === 'katana') { m.emissive.setRGB(0.2 + p.glow * 0.8, 0.3 + p.glow * 0.5, 0.45 + p.glow * 0.6); m.emissiveIntensity = 0.4 + p.glow * 2.2; } } }
+  }
+  h.tickFlash(dt);
+}
