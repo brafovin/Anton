@@ -5,10 +5,10 @@ import { mat } from './models.js';
 export const BOUNDS = { x0: -85, x1: 85, z0: -196, z1: 48 };
 // Boss-Arenen: a = Richtung des Nebeltors (x=cos a, z=sin a), zeigt zur Spielwelt
 export const ARENAS = [
-  { id: 'hadrian', x: 0, z: -152, r: 24, a: Math.PI / 2, style: 'castle', wallH: 10, boss: 'boss', bossName: 'Sir Hadrian, Wächter der Asche', bonfire: { id: 3, name: 'Arena des Wächters' }, reward: 'greatsword', camDist: 6.6, floor: 0x5a5852, gateColor: 0xd8e4ff },
-  { id: 'morwen', x: -46, z: -30, r: 17, a: 0, style: 'grove', wallH: 5, boss: 'witch', bossName: 'Morwen, Hexe der Asche', bonfire: { id: 4, name: 'Hexenhain' }, reward: 'mana', camDist: 7.4, floor: 0x26331f, gateColor: 0xcfa8ff },
-  { id: 'gorm', x: 46, z: -30, r: 19, a: Math.PI, style: 'quarry', wallH: 9, boss: 'giant', bossName: 'Gorm, der Grabriese', bonfire: { id: 5, name: 'Steinbruch' }, reward: 'estus', camDist: 9.2, floor: 0x54463a, gateColor: 0xffd8a0 },
-  { id: 'vael', x: 0, z: 26, r: 16, a: -Math.PI / 2, style: 'graveyard', wallH: 4, boss: 'reaper', bossName: 'Vael, der Henker', bonfire: { id: 6, name: 'Henkersplatz' }, reward: 'both', camDist: 7.0, floor: 0x24242a, gateColor: 0xffa0a0 },
+  { id: 'hadrian', tier: 0, hp: 1700, souls: 8000, dmgMul: 1.0, speedMul: 1.0, cdMul: 1.0, x: 0, z: -152, r: 24, a: Math.PI / 2, style: 'castle', wallH: 10, boss: 'boss', bossName: 'Sir Hadrian, Wächter der Asche', bonfire: { id: 3, name: 'Arena des Wächters' }, reward: 'greatsword', camDist: 6.6, floor: 0x5a5852, gateColor: 0xd8e4ff },
+  { id: 'morwen', tier: 1, hp: 2400, souls: 11000, dmgMul: 1.15, speedMul: 1.06, cdMul: 0.88, x: -46, z: -30, r: 17, a: 0, style: 'grove', wallH: 5, boss: 'witch', bossName: 'Morwen, Hexe der Asche', bonfire: { id: 4, name: 'Hexenhain' }, reward: 'mana', camDist: 7.4, floor: 0x26331f, gateColor: 0xcfa8ff },
+  { id: 'gorm', tier: 2, hp: 3800, souls: 15000, dmgMul: 1.3, speedMul: 1.12, cdMul: 0.75, x: 46, z: -30, r: 19, a: Math.PI, style: 'quarry', wallH: 9, boss: 'giant', bossName: 'Gorm, der Grabriese', bonfire: { id: 5, name: 'Steinbruch' }, reward: 'estus', camDist: 9.2, floor: 0x54463a, gateColor: 0xffd8a0 },
+  { id: 'vael', tier: 3, hp: 4200, souls: 20000, dmgMul: 1.5, speedMul: 1.22, cdMul: 0.6, x: 0, z: 26, r: 16, a: -Math.PI / 2, style: 'graveyard', wallH: 4, boss: 'reaper', bossName: 'Vael, der Henker', bonfire: { id: 6, name: 'Henkersplatz' }, reward: 'both', camDist: 7.0, floor: 0x24242a, gateColor: 0xffa0a0 },
 ];
 export const ARENA = ARENAS[0]; // Rueckwaertskompatibel
 export const GATE_W = 8;
@@ -461,11 +461,22 @@ export function buildWorld(scene) {
     mesh.position.set(g.x, groundHeight(g.x, g.z) + 5.5, g.z); mesh.rotation.y = Math.atan2(g.nx, g.nz); scene.add(mesh);
     const rot = Math.atan2(tx, tz);
     const collider = { type: 'box', x: A.x + g.nx * (A.r + 1.2), z: A.z + g.nz * (A.r + 1.2), hx: 0.5, hz: 5, rot, c: Math.cos(rot), s: Math.sin(rot), topY: 99 };
-    W.gates[A.id] = { mesh, mat: gm, collider, sealed: false, arena: A };
+    // Beschriftung ueber dem Tor, solange es versiegelt ist
+    const lc = document.createElement('canvas'); lc.width = 512; lc.height = 128; const lg = lc.getContext('2d');
+    lg.font = 'bold 64px Georgia, serif'; lg.textAlign = 'center'; lg.textBaseline = 'middle'; lg.fillStyle = '#d83a2a'; lg.shadowColor = '#000'; lg.shadowBlur = 12; lg.fillText('VERSIEGELT', 256, 52);
+    lg.font = '34px Georgia, serif'; lg.fillStyle = '#e8c8a0'; lg.fillText('Nr. ' + (A.tier + 1) + ' von ' + ARENAS.length, 256, 100);
+    const lt = new THREE.CanvasTexture(lc); lt.colorSpace = THREE.SRGBColorSpace;
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: lt, transparent: true, depthWrite: false, fog: false }));
+    label.scale.set(7, 1.75, 1); label.position.set(g.x + g.nx * 0.8, groundHeight(g.x, g.z) + 5.4, g.z + g.nz * 0.8); label.visible = false; scene.add(label);
+    W.gates[A.id] = { mesh, mat: gm, collider, sealed: false, arena: A, label, locked: false, baseColor: new THREE.Color(A.gateColor) };
   }
+  W.setGateLocked = (id, v) => {
+    const g0 = W.gates[id]; g0.locked = v; g0.label.visible = v && g0.mesh.visible;
+    g0.mat.color.copy(v ? new THREE.Color(0x802020) : g0.baseColor);
+  };
   W.setGateSealed = (id, v) => { const G0 = W.gates[id]; G0.sealed = v; const i = W.colliders.indexOf(G0.collider); if (v && i < 0) W.colliders.push(G0.collider); if (!v && i >= 0) W.colliders.splice(i, 1); };
-  W.setGateVisible = (id, v) => { W.gates[id].mesh.visible = v; };
-  W.updateGate = (t) => { fogT.offset.set(t * 0.03, t * 0.015); for (const k in W.gates) W.gates[k].mat.opacity = 0.7 + Math.sin(t * 1.5 + k.length) * 0.12; };
+  W.setGateVisible = (id, v) => { const g0 = W.gates[id]; g0.mesh.visible = v; g0.label.visible = v && g0.locked; };
+  W.updateGate = (t) => { fogT.offset.set(t * 0.03, t * 0.015); for (const k in W.gates) { const g0 = W.gates[k]; g0.mat.opacity = g0.locked ? 0.55 + Math.sin(t * 3) * 0.1 : 0.7 + Math.sin(t * 1.5 + k.length) * 0.12; } };
 
   // Halo-Nebel: tiefliegende Nebelkarten, die langsam driften
   const mistMat = new THREE.MeshBasicMaterial({ map: fogT, color: 0x8a96b0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });

@@ -46,6 +46,14 @@ G.hitstop = (t) => { G.hitT = Math.max(G.hitT, t); };
 G.shake = (a) => { G.shakeAmt = Math.max(G.shakeAmt, a); };
 
 // ------------------------------------------------------------------ Gegner
+// Feste Boss-Reihenfolge: Hadrian -> Morwen -> Gorm -> Vael. Ein Tor oeffnet sich erst, wenn der Vorgaenger besiegt ist.
+G.isUnlocked = (f) => { const i = G.fights.indexOf(f); return f.dead || i === 0 || G.fights[i - 1].dead; };
+G.refreshGates = () => {
+  for (const f of G.fights) {
+    G.world.setGateSealed(f.id, !f.dead); G.world.setGateVisible(f.id, !f.dead);
+    G.world.setGateLocked(f.id, !f.dead && !G.isUnlocked(f));
+  }
+};
 function populate() {
   const P = G.player;
   G.enemies.forEach((e) => e.dispose()); G.enemies = spawnAll(G);
@@ -54,8 +62,8 @@ function populate() {
   for (const f of G.fights) {
     f.enemy = null;
     if (!f.dead) { f.enemy = spawnBoss(G, f); G.enemies.push(f.enemy); }
-    G.world.setGateSealed(f.id, !f.dead); G.world.setGateVisible(f.id, !f.dead);
   }
+  G.refreshGates();
   if (G.fights[0].dead && !P.owned.greatsword) G.spawnDrop(G.fights[0].arena.x, G.fights[0].arena.z - 2);
 }
 G.player = null;
@@ -136,9 +144,8 @@ G.startBoss = (f) => {
 };
 G.onBossDefeated = (b) => {
   const f = b.fight; if (!f) return;
-  f.dead = true; G.activeFight = null;
+  f.dead = true; G.activeFight = null; G.refreshGates();
   G.ui.banner('FEIND GEFALLEN', 'gold', 5.5); Sound.play('victory'); Sound.bossMusic(false); G.ui.setBoss(null, false);
-  G.world.setGateSealed(f.id, false); G.world.setGateVisible(f.id, false);
   G.hazards.clear();
   G.enemies.filter((o) => o.minion && !o.dead).forEach((o) => o.die());
   G.fx.ring(b.pos.clone(), { color: 0xffe0a0, r: 16, dur: 1.5 }); G.fx.souls(b.pos.clone().setY(2), 120);
@@ -147,6 +154,8 @@ G.onBossDefeated = (b) => {
   if (rw === 'greatsword') G.spawnDrop(f.arena.x, f.arena.z - 2);
   if (rw === 'estus' || rw === 'both') { P.maxEstus = Math.min(10, P.maxEstus + 1); P.estus = Math.min(P.maxEstus, P.estus + 1); msgs.push('Estus-Flasche +1 (max. ' + P.maxEstus + ')'); }
   if (rw === 'mana' || rw === 'both') { P.maxMana = Math.min(8, P.maxMana + 1); P.mana = Math.min(P.maxMana, P.mana + 1); msgs.push('Aschen-Flasche +1 (max. ' + P.maxMana + ')'); }
+  const nxt = G.fights[G.fights.indexOf(f) + 1];
+  if (nxt && !nxt.dead) setTimeout(() => G.ui.toast('Das Nebeltor von ' + nxt.arena.bossName.split(',')[0] + ' öffnet sich'), msgs.length ? 6200 : 2500);
   if (msgs.length) setTimeout(() => G.ui.toast(msgs.join(' · ')), 2500);
   G.save();
 };

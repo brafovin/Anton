@@ -140,7 +140,7 @@ const TYPES = {
 
 export class Enemy {
   constructor(G, type, x, z, yaw = 0, opts = {}) {
-    this.G = G; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
+    this.G = G; this.dmgMul = 1; this.speedMul = 1; this.cdMul = 1; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
     this.isBoss = !!T.isBoss; this.radius = T.radius * (this.isBoss ? 1 : 1); this.maxHp = T.hp; this.hp = T.hp;
     this.home = new THREE.Vector3(x, 0, z); this.homeYaw = yaw;
     this.pos = new THREE.Vector3(x, groundHeight(x, z), z); this.yaw = yaw; this.vel = new THREE.Vector3();
@@ -226,7 +226,7 @@ export class Enemy {
     // Ansturm: trifft alles auf dem Weg
     if (a.charge && lunging && !this.flags.chargeHit) {
       const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
-      if (d < this.radius + P.radius + 0.6 && P.jumpH < 0.5) { this.flags.chargeHit = true; P.hurt(a.dmg, this.pos, { knock: true }); }
+      if (d < this.radius + P.radius + 0.6 && P.jumpH < 0.5) { this.flags.chargeHit = true; P.hurt(a.dmg * this.dmgMul, this.pos, { knock: true }); }
       if (Math.random() < 0.6) G.fx.dust(this.pos, 2);
     }
     // Sprung
@@ -266,14 +266,14 @@ export class Enemy {
           hit = Math.hypot(P.pos.x - c.x, P.pos.z - c.z) < sr; // Aufschlagpunkt statt Kegel
         }
         if (a.leap && !this.flags.land) { this.flags.land = true; this.yOff = 0; const c = this.pos.clone(); c.y = groundHeight(c.x, c.z); G.fx.ring(c, { color: 0xff7a30, r: 11, dur: 0.7 }); G.fx.dust(c, 40); G.fx.add.emit(c, 60, { vel: 9, up: 1.5, life: 0.8, size: 0.22, color: [1, 0.5, 0.15], gravity: 10 }); G.fx.flash(c.clone().setY(c.y + 1), 0xff7a30, 140, 0.5); G.shake(1.0); Sound.play('bossSlam'); }
-        if (hit) { this.flags[key] = true; P.hurt(dmg, this.pos, { knock: this.isBoss && !a.windows }); }
+        if (hit) { this.flags[key] = true; P.hurt(dmg * this.dmgMul, this.pos, { knock: this.isBoss && !a.windows }); }
         else if (a.slam || a.leap) this.flags[key] = true;
       }
     }
     if (this.t * ts >= a.dur) {
       this.yOff = 0; this.setState('recover', 0.15);
       this.recoverT = this.isBoss ? rand(0.25, 0.7) : rand(0.4, 1.0);
-      const cr = this.T.cdRange; this.cd = cr ? rand(cr[0], cr[1]) : this.isBoss ? rand(0.3, 0.9) : rand(0.8, 1.8);
+      const cr = this.T.cdRange; this.cd = (cr ? rand(cr[0], cr[1]) : this.isBoss ? rand(0.3, 0.9) : rand(0.8, 1.8)) * this.cdMul;
     }
   }
 
@@ -304,8 +304,8 @@ export class Enemy {
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
     this.cd -= dt;
     let moveDir = null, speed = 0, target = null;
-    const spdMul = this.phase2 ? (T.p2speed || 1.25) : 1;
-    this.timeScale = this.phase2 ? (T.p2time || 1.2) : 1;
+    const spdMul = (this.phase2 ? (T.p2speed || 1.25) : 1) * this.speedMul;
+    this.timeScale = (this.phase2 ? (T.p2time || 1.2) : 1) * this.speedMul;
     switch (this.state) {
       case 'idle': {
         this.wanderT -= dt; if (this.wanderT <= 0) { this.wanderT = rand(3, 7); this.wanderYaw = this.homeYaw + rand(-1, 1); }
@@ -474,7 +474,10 @@ export function spawnAll(G) {
 }
 export function spawnBoss(G, fight) {
   const A = fight.arena, sx = A.x - A.nx * 5, sz = A.z - A.nz * 5;
-  return new Enemy(G, A.boss, sx, sz, Math.atan2(A.nx, A.nz), { arena: A, fight, name: A.bossName });
+  const e = new Enemy(G, A.boss, sx, sz, Math.atan2(A.nx, A.nz), { arena: A, fight, name: A.bossName });
+  // Schwierigkeitsstufe: spaetere Bosse sind zaeher, schneller und schlagen haerter zu
+  e.maxHp = e.hp = A.hp; e.souls = A.souls; e.dmgMul = A.dmgMul; e.speedMul = A.speedMul; e.cdMul = A.cdMul;
+  return e;
 }
 
 // ---------------- Boss-Ereignisse (Projektile, Teleport, Beschwoerung ...) ----------------
@@ -502,12 +505,12 @@ const EV = {
   fireball(e) {
     const G = e.G, P = G.player, m = muzzle(e), n = e.phase2 ? 5 : 3, base = Math.atan2(P.pos.x - m.x, P.pos.z - m.z), dist = Math.hypot(P.pos.x - m.x, P.pos.z - m.z);
     const dy = clamp((P.pos.y + 1.1 - m.y) / Math.max(dist, 4), -0.25, 0.25);
-    for (let i = 0; i < n; i++) { const ang = base + (i - (n - 1) / 2) * 0.21; G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), dy, Math.cos(ang)), speed: 15, dmg: 70, r: 0.6, color: 0xff7a30, kind: 'fire', life: 4, size: 1.5 }); }
+    for (let i = 0; i < n; i++) { const ang = base + (i - (n - 1) / 2) * 0.21; G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), dy, Math.cos(ang)), speed: 15, dmg: 70 * e.dmgMul, r: 0.6, color: 0xff7a30, kind: 'fire', life: 4, size: 1.5 }); }
     G.fx.flash(m, 0xff8a30, 70, 0.3); Sound.play('ash');
   },
   orb(e) {
     const G = e.G, P = G.player, m = muzzle(e), n = e.phase2 ? 2 : 1;
-    for (let i = 0; i < n; i++) { const ang = Math.atan2(P.pos.x - m.x, P.pos.z - m.z) + (i ? 0.7 : 0); G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), 0.05, Math.cos(ang)), speed: 6.5, homing: 1.7, dmg: 90, r: 0.85, color: 0xb070ff, kind: 'orb', life: 9, size: 2.1 }); }
+    for (let i = 0; i < n; i++) { const ang = Math.atan2(P.pos.x - m.x, P.pos.z - m.z) + (i ? 0.7 : 0); G.hazards.shoot({ pos: m.clone(), dir: new V3(Math.sin(ang), 0.05, Math.cos(ang)), speed: 6.5, homing: 1.7, dmg: 90 * e.dmgMul, r: 0.85, color: 0xb070ff, kind: 'orb', life: 9, size: 2.1 }); }
     G.fx.flash(m, 0xb070ff, 70, 0.3); Sound.play('ash');
   },
   pools(e) {
@@ -516,13 +519,13 @@ const EV = {
       let x = P.pos.x, z = P.pos.z;
       if (i) { const ang = rand(6.28), rr = rand(2.5, 7); x += Math.cos(ang) * rr; z += Math.sin(ang) * rr; }
       [x, z] = clampArena(e, x, z, 2);
-      G.hazards.area({ x, z, r: 2.8, delay: 1.0, life: 6, dmg: 38, tick: 0.6, kind: 'pool', color: 0xff5a1a });
+      G.hazards.area({ x, z, r: 2.8, delay: 1.0, life: 6, dmg: 38 * e.dmgMul, tick: 0.6, kind: 'pool', color: 0xff5a1a });
     }
     Sound.play('bossSlam');
   },
   summon(e) { const n = Math.min(2, 4 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'hollow'); Sound.play('roar'); e.G.shake(0.3); },
   shades(e) { const n = Math.min(2, 3 - minionsAlive(e)); for (let i = 0; i < n; i++) spawnMinion(e, 'shade'); Sound.play('roar'); },
-  burst(e) { e.G.hazards.area({ x: e.pos.x, z: e.pos.z, r: 5.4, delay: 0.85, dmg: 100, kind: 'blast', color: 0xb070ff, knock: true }); Sound.play('ashCharge'); },
+  burst(e) { e.G.hazards.area({ x: e.pos.x, z: e.pos.z, r: 5.4, delay: 0.85, dmg: 100 * e.dmgMul, kind: 'blast', color: 0xb070ff, knock: true }); Sound.play('ashCharge'); },
   vanish(e) {
     const c = e.pos.clone(); c.y += 1; e.G.fx.add.emit(c, 40, { vel: 3, up: 1.5, life: 0.9, size: 0.4, color: [0.5, 0.25, 0.8], gravity: -1 });
     e.G.fx.norm.emit(c, 16, { vel: 2, up: 1, life: 1.0, size: 0.6, color: [0.1, 0.05, 0.15, 0.6], gravity: -0.5 });
@@ -545,7 +548,7 @@ const EV = {
   },
   stompRing(e) {
     const G = e.G, c = e.pos.clone();
-    G.hazards.area({ x: c.x, z: c.z, kind: 'ring', speed: 11, thick: 1.8, maxR: 21, dmg: 125, color: 0xffb060 });
+    G.hazards.area({ x: c.x, z: c.z, kind: 'ring', speed: 11, thick: 1.8, maxR: 21, dmg: 125 * e.dmgMul, color: 0xffb060 });
     G.fx.dust(c, 30); G.fx.ring(c, { color: 0xffb060, r: 6, dur: 0.5 }); G.shake(0.9); Sound.play('bossSlam');
   },
   rock(e) {
@@ -553,7 +556,7 @@ const EV = {
     for (let i = 0; i < n; i++) {
       let x = P.pos.x + P.vel.x * 0.6, z = P.pos.z + P.vel.z * 0.6; if (i) { x += rand(-5, 5); z += rand(-5, 5); }
       [x, z] = clampArena(e, x, z, 2);
-      G.hazards.area({ x, z, r: 3.5, delay: 1.3, dmg: 150, kind: 'rock', color: 0xff9a50 });
+      G.hazards.area({ x, z, r: 3.5, delay: 1.3, dmg: 150 * e.dmgMul, kind: 'rock', color: 0xff9a50 });
     }
     Sound.play('roar');
   },

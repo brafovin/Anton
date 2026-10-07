@@ -39,14 +39,14 @@ python3 -m http.server 8000   # dann http://localhost:8000 öffnen
 - **Speicherstand:** Fortschritt (Level, Waffen, Leuchtfeuer, Boss) wird automatisch im Browser gespeichert; auf dem Startbildschirm gibt es „Neues Spiel“.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
 - **Gegner:** Hohle Soldaten und Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung).
-- **4 Bosse** mit je eigener Arena, eigenem Nebeltor, Bonfire nach dem Sieg und zwei Phasen:
+- **4 Bosse in fester Reihenfolge** – jeder ist stärker als der vorherige (mehr Leben, härtere Treffer, höheres Tempo, kürzere Pausen). Das Nebeltor des nächsten Bosses ist **versiegelt**, bis der Vorgänger besiegt ist. Jeder Boss hat eigene Arena, Bonfire nach dem Sieg und zwei Phasen:
 
-| Boss | Ort | Fähigkeiten | Belohnung |
-|---|---|---|---|
-| **Sir Hadrian**, Wächter der Asche | Burg (Norden) | Rundumschlag, Zerschmettern (rot), Sturmstoß, Sprung (Phase 2) | Hadrians Ascheklinge |
-| **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, beschwört Hohle, Teleport, Aschenwelle | +1 Aschen-Flasche |
-| **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
-| **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2) | +1 Estus & +1 Aschen-Flasche |
+| # | Boss | Ort | Fähigkeiten | Belohnung |
+|---|---|---|---|---|
+| 1 | **Sir Hadrian**, Wächter der Asche | Burg (Norden) | Rundumschlag, Zerschmettern (rot), Sturmstoß, Sprung (Phase 2) | Hadrians Ascheklinge |
+| 2 | **Morwen**, Hexe der Asche | Hexenhain (Westen) | Feuersalve, verfolgende Seelenorbs (mit einem Schlag zerstörbar), Flammenfelder, beschwört Hohle, Teleport, Aschenwelle | +1 Aschen-Flasche |
+| 3 | **Gorm**, der Grabriese | Steinbruch (Osten) | Hieb, Zermalmen (rot), Ansturm (läuft er in die Wand, ist er benommen → Riposte), Erdstoß-Schockwelle (überspringen!), Felswurf | +1 Estus-Flasche |
+| 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2) | +1 Estus & +1 Aschen-Flasche |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
 
 ## Code
