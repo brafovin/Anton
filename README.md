@@ -32,6 +32,8 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 
 **Flaschen verteilen (wie in Elden Ring):** Am Leuchtfeuer `F` drücken. Die Gesamtzahl der Flaschen bleibt gleich, du entscheidest, wie viele HP- (R) und FP-Flaschen (T) du hast (`1`/`→` mehr HP, `2`/`←` mehr FP). Boss-Belohnungen erhöhen die Gesamtzahl (max. 14).
 
+**Grafik:** Bloom (leuchtende Feuer, Zauber, Klingen), Color-Grading (kühle Schatten, warme Lichter, Vignette, leichtes Filmkorn), MSAA, Umgebungsreflexion auf Metall, Gegenlicht und schwebende Staubkörner. Im Hauptmenü und im Pausenmenü schaltet *Grafik* zwischen **Hoch / Mittel / Niedrig** um (wird gespeichert) – bei schwächeren Rechnern einfach auf Niedrig stellen.
+
 **Speichern/Laden:** Es wird automatisch gespeichert (Leuchtfeuer, Level-Up, Bosse …); im Pausenmenü (`Esc`) gibt es außerdem *Speichern* und *Hauptmenü*. Es gibt **5 Spielstand-Slots**, die parallel existieren: „Neues Spiel“ fragt zuerst nach einem Slot (ein belegter Slot wird mit Warnhinweis überschrieben), „Spiel laden“ zeigt alle Slots mit Klasse, Level, Bossfortschritt und Zeitstempel und erlaubt das Löschen (mit Rückfrage). Gespeichert wird immer in den aktiven Slot; ein alter Einzel-Spielstand wird automatisch in einen Slot übernommen. Test-Parameter: `?autostart&slot=2`.
 
 ## Steuerung

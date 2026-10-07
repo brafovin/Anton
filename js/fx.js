@@ -109,6 +109,30 @@ export function makeFX(scene) {
     m.rotation.set(0, yaw, 0.12);
     scene.add(m); waves.push({ m, t: 0, life, speed, yaw });
   };
+  // Schwebende Staubkoerner / Glutfunken rund um die Kamera (Wrap im Vertex-Shader, keine CPU-Kosten)
+  const AMB_MAX = 700, AMB_BOX = new THREE.Vector3(46, 18, 46);
+  const ambGeo = new THREE.BufferGeometry();
+  { const pos = new Float32Array(AMB_MAX * 3), seed = new Float32Array(AMB_MAX * 2);
+    for (let i = 0; i < AMB_MAX; i++) { pos[i * 3] = Math.random() * AMB_BOX.x; pos[i * 3 + 1] = Math.random() * AMB_BOX.y; pos[i * 3 + 2] = Math.random() * AMB_BOX.z; seed[i * 2] = Math.random(); seed[i * 2 + 1] = Math.random(); }
+    ambGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); ambGeo.setAttribute('seed', new THREE.BufferAttribute(seed, 2)); }
+  const ambMat = new THREE.ShaderMaterial({
+    uniforms: { uCenter: { value: new THREE.Vector3() }, uTime: { value: 0 }, uBox: { value: AMB_BOX } },
+    vertexShader: `uniform vec3 uCenter, uBox; uniform float uTime; attribute vec2 seed; varying float vA; varying float vW;
+      void main(){
+        vec3 drift = vec3(sin(uTime*.13+seed.x*40.)*.5, .18+seed.y*.25, cos(uTime*.11+seed.y*40.)*.5);
+        vec3 p = position + drift*uTime;
+        vec3 rel = mod(p - uCenter + uBox*.5, uBox) - uBox*.5;
+        rel.x += sin(uTime*.7+seed.x*30.)*.25; rel.z += cos(uTime*.6+seed.y*30.)*.25;
+        vec4 mv = viewMatrix*vec4(uCenter+rel,1.);
+        float edge = 1. - smoothstep(.55, 1., length(rel/(uBox*.5)));
+        vA = edge*(.35+.65*sin(uTime*(.8+seed.x*1.6)+seed.y*30.)*.5+.325); vW = seed.x;
+        gl_PointSize = (.05+seed.y*.07)*(300./-mv.z); gl_Position = projectionMatrix*mv; }`,
+    fragmentShader: `varying float vA; varying float vW; void main(){ float d = length(gl_PointCoord-.5); float a = smoothstep(.5,.0,d)*vA*.8; if(a<.01) discard;
+      gl_FragColor = vec4(mix(vec3(.75,.8,1.), vec3(1.,.7,.35), step(.88,vW)), a); }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const ambient = new THREE.Points(ambGeo, ambMat); ambient.frustumCulled = false; ambGeo.setDrawRange(0, 0); scene.add(ambient);
+  fx.ambient = { setCount: (n) => ambGeo.setDrawRange(0, Math.min(AMB_MAX, n)), update: (t, center) => { ambMat.uniforms.uTime.value = t; ambMat.uniforms.uCenter.value.copy(center); } };
   fx.update = (dt) => {
     fx.add.update(dt); fx.norm.update(dt);
     if (flashT > 0) { flashT -= dt; flashLight.intensity = flashI * clamp(flashT / flashMax, 0, 1); } else flashLight.intensity = 0;

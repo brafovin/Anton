@@ -11,10 +11,10 @@ import { createUI } from './ui.js';
 import { createPlayer } from './player.js';
 import { Enemy, spawnAll, spawnBoss } from './enemies.js';
 import { Sound } from './audio.js';
+import { createGfx, QUALITY } from './gfx.js';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
@@ -27,20 +27,25 @@ scene.fog = new THREE.FogExp2(FOG, 0.0085);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 700);
 
 // Licht: kaltes Mondlicht + warme Leuchtfeuer
-scene.add(new THREE.HemisphereLight(0x9aa8d0, 0x3a342c, 1.7));
+const hemi = new THREE.HemisphereLight(0x9aa8d0, 0x3a342c, 1.1);
+scene.add(hemi);
 const moon = new THREE.DirectionalLight(0xb4c4f0, 2.4);
 moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048);
 Object.assign(moon.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 140 });
 moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
 scene.add(moon, moon.target);
+// schwaches Gegenlicht (Rim) aus der Gegenrichtung des Mondes: hebt Silhouetten von Rüstungen ab
+const rim = new THREE.DirectionalLight(0x7088c8, 0.7); rim.position.set(30, 14, -24); scene.add(rim);
 const MOON_DIR = new THREE.Vector3(-0.5, 0.8, 0.35).normalize();
 
 // ------------------------------------------------------------------
 const G = { scene, camera, renderer, enemies: [], boss: null, fights: [], activeFight: null, stain: null, menuOpen: false, running: false, paused: true, time: 0, hitT: 0, shakeAmt: 0 };
-window.G = G;
+window.G = G; G.moon = moon;
 G.world = buildWorld(scene);
 G.fights = G.world.arenas.map((A) => ({ id: A.id, arena: A, dead: false, enemy: null }));
 G.fx = makeFX(scene);
+G.gfx = createGfx(G); G.gfx.buildEnvironment();
+{ let q = 'high'; try { q = localStorage.getItem('aschenfeuer-gfx') || 'high'; } catch (e) { /* ignore */ } G.gfx.setQuality(QUALITY[q] ? q : 'high', false); }
 G.hazards = createHazards(G);
 G.spells = createSpells(G);
 G.cutscene = null; G.timeScale = 1;
@@ -349,7 +354,7 @@ addEventListener('mousedown', (e) => {
 addEventListener('mouseup', (e) => { I.mouse[e.button] = false; });
 addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) { I.dx += e.movementX; I.dy += e.movementY; } });
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+addEventListener('resize', () => { G.gfx.resize(); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => {
@@ -364,6 +369,7 @@ $('resume').addEventListener('click', resume);
 $('btn-save').addEventListener('click', () => { G.save(); $('pause-msg').textContent = `Gespeichert in Slot ${G.slot}.`; Sound.play('ui'); });
 $('btn-menu').addEventListener('click', () => { G.save(); location.href = location.pathname; });
 
+document.querySelectorAll('.gfxbtn').forEach((b) => { b.textContent = 'Grafik: ' + G.gfx.label(); b.addEventListener('click', () => { G.gfx.cycle(); Sound.play('ui'); document.querySelectorAll('.gfxbtn').forEach((x) => { x.textContent = 'Grafik: ' + G.gfx.label(); }); }); });
 // ---- Hauptmenue: Neues Spiel / Spiel laden / Klassenwahl ----
 const CLASS_ORDER = ['ninja', 'magier', 'ritter'];
 let chosenClass = 'ninja';
@@ -481,7 +487,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (G.paused || !G.running) { menuUpdate(dt); renderer.render(scene, camera); return; }
+  if (G.paused || !G.running) { menuUpdate(dt); G.fx.ambient.update(now / 1000, camera.position); G.gfx.render(dt); return; }
   const realDt = dt;
   if (G.hitT > 0) { G.hitT -= dt; dt *= 0.06; }
   if (G.cutscene) dt *= G.cutscene.slow;
@@ -511,6 +517,7 @@ function frame(now) {
   moon.position.set(P.pos.x + MOON_DIR.x * 60, P.pos.y + MOON_DIR.y * 60, P.pos.z + MOON_DIR.z * 60); moon.target.position.copy(P.pos);
   G.world.sky.position.copy(camera.position);
   I.pressed.clear(); I.pressedMouse.fill(false);
-  renderer.render(scene, camera);
+  G.fx.ambient.update(now / 1000, camera.position);
+  G.gfx.render(realDt);
 }
 requestAnimationFrame(frame);
