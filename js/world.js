@@ -303,7 +303,7 @@ export function buildWorld(scene) {
       tbox(0.9, 2.6, 3, -2.2, 3.1, 0.2, stoneDark); tbox(0.9, 2.6, 3, 2.2, 3.1, 0.2, stoneDark);
       for (const sx of [-1, 1]) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 5, 6), gold); sp.position.set(sx * 1.7, 13.5, -1.4); sp.castShadow = true; th.add(sp); }
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.7), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffb020, emissiveIntensity: 3 })); gem.scale.y = 1.5; gem.position.set(0, 9.5, -0.9); th.add(gem);
-      th.add(Object.assign(new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xffc050, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })), { position: new THREE.Vector3(0, 9.5, -0.5), scale: new THREE.Vector3(9, 9, 1) }));
+      const thGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xffc050, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); thGlow.position.set(0, 9.5, -0.5); thGlow.scale.set(9, 9, 1); th.add(thGlow);
       scene.add(th); circle(tp.x, tp.z, 3.2);
       // Saeulen mit Flammen + Banner
       for (let i = 0; i < 12; i++) {
