@@ -487,7 +487,7 @@ export function createPlayer(G, clsId = 'ninja') {
   };
   P.hurt = (dmg, from, opts = {}) => {
     if (P.dead) return 'dead';
-    if (P.iframes) return 'dodged';
+    if (P.iframes && !opts.unblockable) return 'dodged';
     if (P.ward > 0) dmg *= 0.5;
     P.hp -= dmg; P.hurtTime = 0.3;
     G.ui.hurt(); G.shake(0.5); G.hitstop(0.08);

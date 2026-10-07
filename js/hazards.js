@@ -29,7 +29,7 @@ export function createHazards(G) {
 
   // ---------------- Bodenflaechen ----------------
   // kind: 'pool' (Dauerschaden), 'blast' (einmalige Explosion), 'ring' (wandernde Schockwelle), 'rock' (fallender Felsen)
-  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false, shape = 'rock' }) => {
+  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false, shape = 'rock', jumpOnly = false }) => {
     const y = groundHeight(x, z) + 0.12;
     const group = new THREE.Group(); group.position.set(x, y, z);
     const disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -49,11 +49,11 @@ export function createHazards(G) {
       rock.position.y = 22; group.add(rock);
     }
     scene.add(group);
-    const a = { x, z, r, delay, life, dmg, tick, kind, color, speed, thick, maxR, knock, t: 0, tickT: 0, group, disc, edge, rock, done: false, hit: false, active: false };
+    const a = { x, z, r, delay, life, dmg, tick, kind, color, speed, thick, maxR, knock, jumpOnly, t: 0, tickT: 0, group, disc, edge, rock, done: false, hit: false, active: false };
     H.areas.push(a); return a;
   };
 
-  const hurtPlayer = (a, dmg, knock) => G.player.hurt(dmg, { x: a.x, y: 0, z: a.z }, { knock });
+  const hurtPlayer = (a, dmg, knock, unblockable = false) => G.player.hurt(dmg, { x: a.x, y: 0, z: a.z }, { knock, unblockable });
 
   H.update = (dt) => {
     const P = G.player;
@@ -107,7 +107,7 @@ export function createHazards(G) {
       } else if (a.kind === 'ring') {
         const R = a.speed * a.t; a.edge.scale.setScalar(Math.max(0.5, R));
         a.edge.material.opacity = 0.9 * (1 - R / a.maxR);
-        if (!a.hit && Math.abs(pd - R) < a.thick && P.jumpH < 0.35 && !P.dead && !P.iframes) { a.hit = true; hurtPlayer(a, a.dmg, true); }
+        if (!a.hit && Math.abs(pd - R) < a.thick && P.jumpH < 0.35 && !P.dead && (a.jumpOnly || !P.iframes)) { a.hit = true; hurtPlayer(a, a.dmg, true, a.jumpOnly); }
         if (R >= a.maxR) a.done = true;
       }
     }
