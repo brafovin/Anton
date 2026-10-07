@@ -33,6 +33,7 @@ export function createUI(G) {
   };
   ui.hurt = () => { el.hurt.style.opacity = 1; };
   ui.flashMana = () => { el.manaSlot.classList.add('flash'); setTimeout(() => el.manaSlot.classList.remove('flash'), 400); };
+  ui.flashParry = () => { const e = $('slot-parry'); e.classList.add('flash'); setTimeout(() => e.classList.remove('flash'), 300); };
   ui.flashFP = () => { el.fpBar.classList.add('flash'); setTimeout(() => el.fpBar.classList.remove('flash'), 400); };
   ui.flashEstus = () => { el.estusSlot.classList.add('flash'); setTimeout(() => el.estusSlot.classList.remove('flash'), 400); };
   ui.souls = (n) => {
@@ -82,6 +83,7 @@ export function createUI(G) {
     el.stBar.classList.toggle('exhausted', P.exhausted);
     el.estus.textContent = P.estus;
     el.estusSlot.classList.toggle('empty', P.estus <= 0);
+    $('parry-cd').style.height = Math.min(100, (P.parryCd / 1.5) * 100) + '%'; $('slot-parry').classList.toggle('cooling', P.parryCd > 0);
     el.mana.textContent = P.mana; el.manaSlot.classList.toggle('empty', P.mana <= 0);
     el.ashSlot.classList.toggle('empty', P.fp < P.ashCost());
     soulsShown = lerp(soulsShown, P.souls, 1 - Math.exp(-6 * dt)); if (Math.abs(soulsShown - P.souls) < 1) soulsShown = P.souls;
