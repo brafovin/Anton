@@ -10,7 +10,7 @@ export const ARENAS = [
   { id: 'gorm', tier: 2, hp: 3800, souls: 15000, dmgMul: 1.3, speedMul: 1.12, cdMul: 0.75, x: 46, z: -30, r: 19, a: Math.PI, style: 'quarry', wallH: 9, boss: 'giant', bossName: 'Gorm, der Grabriese', bonfire: { id: 5, name: 'Steinbruch' }, reward: 'estus', camDist: 9.2, floor: 0x54463a, gateColor: 0xffd8a0 },
   { id: 'vael', tier: 3, hp: 4200, souls: 20000, dmgMul: 1.5, speedMul: 1.22, cdMul: 0.6, x: 0, z: 26, r: 16, a: -Math.PI / 2, style: 'graveyard', wallH: 4, boss: 'reaper', bossName: 'Vael, der Henker', bonfire: { id: 6, name: 'Henkersplatz' }, reward: 'both', camDist: 7.0, floor: 0x24242a, gateColor: 0xffa0a0 },
   // Endboss: schwebender Thronsaal hoch ueber der Welt (Zugang nur per Teleport nach dem vierten Boss)
-  { id: 'king', tier: 4, hp: 7500, souls: 60000, dmgMul: 1.75, speedMul: 1.24, cdMul: 0.55, x: 0, z: -330, r: 26, a: Math.PI / 2, style: 'throne', wallH: 3.4, hFix: 62, spawnBack: 16.5, boss: 'king', bossName: 'Aschenkönig Aldrar, der Unbesiegte', bonfire: { id: 8, name: 'Thron des Königs' }, reward: 'both', camDist: 9.4, floor: 0x17141c, gateColor: 0xffd870 },
+  { id: 'king', tier: 4, hp: 5500, souls: 60000, dmgMul: 1.75, speedMul: 1.24, cdMul: 0.55, x: 0, z: -330, r: 26, a: Math.PI / 2, style: 'throne', wallH: 3.4, hFix: 62, spawnBack: 16.5, boss: 'king', bossName: 'Aschenkönig Aldrar, der Unbesiegte', bonfire: { id: 8, name: 'Thron des Königs' }, reward: 'both', camDist: 9.4, floor: 0x17141c, gateColor: 0xffd870 },
 ];
 export const ARENA = ARENAS[0]; // Rueckwaertskompatibel
 export const GATE_W = 8;
