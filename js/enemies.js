@@ -6,6 +6,7 @@ import { groundHeight, REGIONS } from './world.js';
 
 const wrapPi = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
+const _bp = new THREE.Vector3();
 
 // ------------------------- Basis-Posen -------------------------
 const IDLE = {
@@ -29,6 +30,32 @@ const REACT = { // Torso-Reaktionen
 };
 
 const A = (base, frames) => compile(frames, base);
+// Horizontaler Winkel, um den die Klinge beim Schlag von der Blickrichtung des Koerpers abweicht (Torso-Drehung + Klingenrichtung der Pose).
+// Der Gegner dreht sich um genau diesen Winkel weiter, damit die Waffe wirklich auf den Spieler zeigt.
+// Wie weit die Klinge beim Schlag nach vorn reicht (Faktor * Gegnergroesse, aus den Posen; Seitenhiebe reichen kuerzer als Stoesse)
+function strikeReach(a, wlen) {
+  if (a._reach !== undefined) return a._reach;
+  const wins = a.windows || [[a.hs, a.he]]; let best = 0.6;
+  for (const [hs, he] of wins) for (let k = 0; k <= 10; k++) {
+    const pp = sample(a.f, Math.min(lerp(hs - 0.14, he, k / 10), a.dur), {}), l = Math.hypot(pp.dx, pp.dy, pp.dz) || 1, sn = Math.sin(pp.twist), cs = Math.cos(pp.twist);
+    for (const q of [0.35, 0.65, 1]) { // nur Klingenpunkte, die vor dem Koerper (nicht seitlich) liegen, zaehlen
+      const x = pp.hx + (pp.dx / l) * wlen * q, z = pp.hz + (pp.dz / l) * wlen * q;
+      if (Math.abs(x * cs - z * sn) < 0.7) best = Math.max(best, x * sn + z * cs + pp.shift);
+    }
+  }
+  return (a._reach = best);
+}
+function strikeOffset(a, w) {
+  a._off = a._off || [];
+  if (a._off[w] !== undefined) return a._off[w];
+  const [hs, he] = (a.windows || [[a.hs, a.he]])[w]; let best = 0, bm = 9;
+  for (let k = 0; k <= 10; k++) {
+    const pp = sample(a.f, Math.min(lerp(hs - 0.14, he, k / 10), a.dur), {});
+    const beta = wrapPi(pp.twist + (Math.hypot(pp.dx, pp.dz) > 0.35 ? Math.atan2(pp.dx, pp.dz) : 0));
+    if (Math.abs(beta) < bm) { bm = Math.abs(beta); best = beta; }
+  }
+  return (a._off[w] = best);
+}
 const ATTACKS = {
   hSlash: { name: 'Hieb', dur: 1.3, hs: 0.66, he: 0.8, range: 2.5, arc: 120, dmg: 48, parryable: true, track: 0.45, lunge: [0.6, 0.78, 4.2],
     f: A(IDLE.hollow, [{ t: 0 }, { t: 0.55, hx: -0.35, hy: 1.0, hz: 0.0, dx: -0.2, dy: 0.9, dz: -0.35, twist: -0.5, lean: -0.2, lfree: 1, lx: 0.2, ly: 0.8, lz: 0.1, e: 2 }, { t: 0.72, hx: 0.1, hy: 0.3, hz: 0.55, dx: 0.3, dy: -0.2, dz: 1, twist: 0.5, lean: 0.4, shift: 0.2, e: 1 }, { t: 0.95, e: 2 }, { t: 1.3, ...IDLE.hollow, e: 0 }]) },
@@ -163,7 +190,7 @@ const TYPES = {
     phaseMsg: 'Gorm brüllt vor Wut',
     choose: (e, d) => {
       const o = [];
-      if (d < 8.5) { o.push('gSwat', 'gSwat', 'gSmash'); if (e.phase2 || Math.random() < 0.5) o.push('gStomp'); }
+      if (d < 8.5) { if (d < 3.8) o.push('gSwat', 'gSwat'); o.push('gSmash'); if (e.phase2 || Math.random() < 0.5) o.push('gStomp'); }
       else { o.push('gCharge', 'gCharge', 'gRock'); if (e.phase2) o.push('gRock', 'gStomp'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
@@ -188,7 +215,7 @@ const TYPES = {
     choose: (e, d) => {
       const o = [];
       if (d > 11) { o.push('kLunge', 'kWave', 'kBow', 'kBow', 'kStomp'); if (e.phase2) o.push('kLeap', 'kPillars', 'kBowRain'); if (e.phase3) o.push('kMeteors', 'kBlink', 'kBowRain'); }
-      else { o.push('kSweep', 'kSweep', 'kCombo', 'kSlam', 'kStomp'); if (e.phase2) o.push('kStomp'); if (d > 5) o.push('kLunge', 'kBow'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap', 'kBowRain'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors', 'kBow'); }
+      else { if (d < 3.8) o.push('kSweep', 'kSweep'); o.push('kCombo', 'kSlam', 'kStomp'); if (e.phase2) o.push('kStomp'); if (d > 5) o.push('kLunge', 'kBow'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap', 'kBowRain'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors', 'kBow'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
     look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', weapons: ['kingsword', 'kingbow'], bulk: 1.38, eye: 0xffd060 },
@@ -329,21 +356,73 @@ export class Enemy {
     if (this.mini) G.onMiniDefeated(this);
   }
 
+  // ---------------- Waffen-Hitbox ----------------
+  // Klinge = Strecke zwischen den Trail-Markern der Waffe (Welt-Koordinaten); mit dem Weg seit dem letzten Bild,
+  // damit schnelle Schwuenge nicht durch den Spieler "tunneln"
+  trackBlade() {
+    const ud = this.h.weapon.userData; if (!ud || !ud.trailBase || !ud.trailTip) return null;
+    this.h.root.updateMatrixWorld(true);
+    const cur = { b: new THREE.Vector3(), t: new THREE.Vector3() };
+    ud.trailBase.getWorldPosition(cur.b); ud.trailTip.getWorldPosition(cur.t);
+    const out = { cur, prev: this.prevBlade || cur }; this.prevBlade = cur; return out;
+  }
+  bladeReach() { const ud = this.h.weapon.userData; return (ud && ud.length ? ud.length : 0.8) * this.T.scale * 0.85 + 0.3 * this.T.scale; }
+  bladeHits(P, blade) {
+    // Waagerecht grosszuegig, nach oben so hoch wie die Schwuenge grosser Gegner reichen (Schlag ueber Kopfhoehe trifft trotzdem)
+    const sc = this.T.scale, rad = P.radius + 0.3 + 0.18 * sc, y0 = P.pos.y - 0.3, y1 = P.pos.y + 1.9 + 1.1 * sc, { cur, prev } = blade, p = _bp;
+    for (let s = 1; s <= 4; s++) {
+      const u = s / 4;
+      for (let i = 0; i <= 8; i++) {
+        const k = i / 8;
+        p.set(lerp(lerp(prev.b.x, cur.b.x, u), lerp(prev.t.x, cur.t.x, u), k), lerp(lerp(prev.b.y, cur.b.y, u), lerp(prev.t.y, cur.t.y, u), k), lerp(lerp(prev.b.z, cur.b.z, u), lerp(prev.t.z, cur.t.z, u), k));
+        if (p.y > y0 && p.y < y1 && Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < rad) return true;
+      }
+    }
+    return false;
+  }
+
   // ---------------- Angriff ----------------
   startAttack(name) {
     const a = ATTACKS[name]; this.atk = a; this.atkName = name; this.setState('attack', 0.1); this.useBow(a.bow);
-    this.hitDone = false; this.sfx = false; this.flags = {};
+    this.hitDone = false; this.sfx = false; this.flags = {}; this.prevBlade = null;
     if (a.leap) { this.leapFrom.copy(this.pos); }
   }
   attackUpdate(dt) {
     const G = this.G, P = G.player, a = this.atk, ts = this.timeScale;
     const t = this.t * ts;
-    const toP = Math.atan2(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
-    if (t < a.track) this.yaw = turnToward(this.yaw, toP, (this.isBoss ? 2.4 : 2.8) * dt * ts);
+    const aim = this.isBoss || this.mini; // Bosse und Minibosse zielen wirklich auf den Spieler
+    let toP = Math.atan2(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
+    if (aim) { // Vorhalt: dorthin zielen, wo der Spieler beim Treffer sein wird
+      const lead = clamp((a.hs < 90 ? a.hs : a.track) - t, 0, 0.5) * 0.85;
+      toP = Math.atan2(P.pos.x + P.vel.x * lead - this.pos.x, P.pos.z + P.vel.z * lead - this.pos.z);
+    }
+    const wins0 = a.windows || [[a.hs, a.he]];
+    let tracking = t < a.track;
+    if (aim && a.hs < 90) { // bis kurz vor dem Schlag nachfuehren (auch zwischen den Schlaegen einer Kombo)
+      if (t < Math.max(a.track, a.hs - 0.12)) tracking = true;
+      for (let i = 1; i < wins0.length; i++) if (t > wins0[i - 1][1] && t < wins0[i][0] - 0.1) tracking = true;
+    }
+    if (tracking && aim && a.arc < 360 && !a.slam && !a.leap && !a.charge && a.hs < 90) { // Koerper so drehen, dass die KLINGE (nicht die Brust) auf den Spieler zeigt
+      let w = 0; while (w < wins0.length - 1 && t > wins0[w][1]) w++;
+      toP -= strikeOffset(a, w);
+    }
+    if (tracking) this.yaw = turnToward(this.yaw, toP, (aim ? 3.6 : 2.8) * dt * ts);
     // Ereignisse (Projektile, Teleport, Beschwoerung ...)
     if (a.ev) a.ev.forEach(([et, name], i) => { if (!this.flags['e' + i] && t >= et) { this.flags['e' + i] = true; EV[name](this, a); } });
     const lunging = a.lunge && t >= a.lunge[0] && t <= a.lunge[1];
-    if (lunging) { const f = fwd(this.yaw); this.pos.x += f.x * a.lunge[2] * dt * ts; this.pos.z += f.z * a.lunge[2] * dt * ts; }
+    if (lunging) {
+      let lk = 1;
+      if (aim && !a.charge) { // Ausfallschritt endet am Spieler statt durch ihn hindurch zu laufen
+        if (this.flags.lungeK === undefined) {
+          const dd = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z), orig = a.lunge[2] * (a.lunge[1] - a.lunge[0]);
+          const contact = this.radius + P.radius + 0.35; // Seitenhiebe streichen dicht vor dem Koerper vorbei: erst bis zum Kontakt ruecken; Stoesse reichen weiter
+          const Df = a.arc >= 100 ? contact : Math.max(contact, strikeReach(a, (this.h.weapon.userData.length || 0.8) * 0.9) * this.T.scale * 0.75);
+          this.flags.lungeK = clamp((dd - Df) / Math.max(0.1, orig), 0.15, 3.5);
+        }
+        lk = this.flags.lungeK;
+      }
+      const f = fwd(this.yaw); this.pos.x += f.x * a.lunge[2] * lk * dt * ts; this.pos.z += f.z * a.lunge[2] * lk * dt * ts;
+    }
     if (!this.sfx && t >= a.hs - 0.22 && a.hs < 90) { this.sfx = true; Sound.play(this.isBoss ? 'swingHeavy' : 'swing'); }
     // Ansturm: trifft alles auf dem Weg
     if (a.charge && lunging && !this.flags.chargeHit) {
@@ -364,6 +443,8 @@ export class Enemy {
       } else this.yOff = 0;
     }
     if (a.hops) { this.yOff = 0; for (const th of a.hops) if (t >= th - 0.42 && t <= th) this.yOff = Math.sin(((t - (th - 0.42)) / 0.42) * Math.PI) * 1.3; }
+    // Klingenposition dieses Bildes (fuer die Waffen-Hitbox) mit Weg seit dem letzten Bild
+    const blade = aim && a.arc < 360 && !a.slam && !a.leap && !a.charge ? this.trackBlade() : null;
     // Trefferfenster (ein Angriff kann mehrere haben)
     const wins = a.windows || [[a.hs, a.he]];
     for (let i = 0; i < wins.length; i++) {
@@ -375,10 +456,12 @@ export class Enemy {
         const d = Math.hypot(P.pos.x - this.pos.x, P.pos.z - this.pos.z);
         if (d < a.range + 1.2 && P.tryParry(this, a)) { this.flags[key] = true; P.parried(this); return; }
       }
-      if (t >= hs && t <= he) {
+      if (blade ? (t >= hs - 0.16 && t <= he + 0.04) : (t >= hs && t <= he)) {
         const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, d = Math.hypot(dx, dz);
         let hit = false;
-        if (a.arc >= 360) hit = d < a.range && P.pos.y < this.pos.y + 1.2;
+        if (blade) { // echte Klinge statt Kegel: Treffer nur, wo die Waffe den Spieler beruehrt (oder im Koerperkontakt)
+          hit = this.bladeHits(P, blade) || (d < this.radius + P.radius + 0.3 && Math.abs(angleDiff(this.yaw + strikeOffset(a, i), Math.atan2(dx, dz))) < 1.7);
+        } else if (a.arc >= 360) hit = d < a.range && P.pos.y < this.pos.y + 1.2;
         else hit = d < a.range + P.radius && Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < (a.arc * Math.PI) / 360 + 0.1;
         if (a.slam && !this.flags.slamFx) {
           this.flags.slamFx = true;
@@ -405,7 +488,7 @@ export class Enemy {
     if (!this.isBoss) return pick(T.attacks);
     const opts = [];
     if (dist > 8) { opts.push('bThrust', 'bThrust'); if (this.phase2) opts.push('bLeap', 'bLeap'); }
-    else { opts.push('bSweep', 'bSweep', 'bSlam'); if (dist > 4.5) opts.push('bThrust'); if (this.phase2) opts.push('bLeap'); }
+    else { if (dist < 4.2) opts.push('bSweep', 'bSweep'); opts.push('bSlam'); if (dist > 3.5) opts.push('bThrust'); if (this.phase2) opts.push('bLeap'); }
     let n = pick(opts);
     if (n === this.lastAtk && Math.random() < 0.6) n = pick(opts);
     this.lastAtk = n; return n;
