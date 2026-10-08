@@ -237,6 +237,7 @@ export function createPlayer(G, clsId = 'ninja') {
     if (I.pressed.has('Space')) P.queue('jump');
     if (I.pressed.has('KeyF')) P.queue('parry');
     if (I.pressed.has('KeyQ')) { if (P.weapon === 'staff') P.cycleSpell2(1); else P.queue('ash'); }
+    if (I.pressed.has('KeyX') && P.weapon === 'staff') P.cycleSpell2(-1);
     if (I.pressed.has('KeyR')) P.queue('estus');
     if (I.pressed.has('KeyT')) P.queue('mana');
     if (I.pressed.has('KeyE')) P.queue('interact');
