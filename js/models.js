@@ -18,6 +18,8 @@ export const DEF = {
   head: 0,                            // Kopfneigung
   flask: 0, sheath: 0,                // Flasche sichtbar / Katana in Saya
   glow: 0, draw: 0, e: 0,
+  odx: -0.1, ody: 0.15, odz: 1,       // Klingenrichtung der zweiten Waffe (linke Hand, nur mit h.offhand)
+  sit: 0,                             // 0..1: Beine nach vorn (sitzend, zusammen mit crouch ~0.5)
 };
 const FIELDS = Object.keys(DEF);
 
@@ -364,6 +366,7 @@ export function makeHumanoid(o) {
   // Waffe
   const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'kingbow' ? makeBow() : n === 'kingsword' ? makeSword({ len: 1.8, width: 0.21, color: 0xe6d49a, rusty: false, glow: 1.5 }) : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
+    : n === 'kingsword2' ? makeSword({ len: 1.8, width: 0.21, color: 0x3a2a58, rusty: false, glow: 1.6, glowColor: 0xa050ff })
     : n === 'keule' ? makeClub() : n === 'sichel' ? makeScythe()
     : n === 'mondklinge' ? makeSword({ len: 1.2, width: 0.11, color: 0xb4ccf4, rusty: false, glow: 0.7, glowColor: 0x4a78ff })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
@@ -376,6 +379,7 @@ export function makeHumanoid(o) {
     h.weapon = h.weapons[n]; h.opts.weapon = n;
     if (h.saya) h.saya.visible = n === 'katana';
   };
+  if (O.offhand) { h.offhand = mkWeapon(O.offhand); h.offhand.visible = false; torso.add(h.offhand); }
   if (O.weapon === 'katana' || (O.weapons || []).includes('katana')) {
     const saya = makeSaya(); saya.position.set(0.27, 0.02, 0.1); saya.rotation.x = -1.3; saya.rotation.z = -0.1; torso.add(saya); h.saya = saya;
   }
@@ -485,7 +489,7 @@ function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
 }
 
 const _S = V(), _T = V(), _el = V(), _hd = V(), _wq = new THREE.Quaternion(), _rq = new THREE.Quaternion(), _dir = V(), _lg = V();
-const _ankle = V(), _hipW = V(), _ZERO = V();
+const _ankle = V(), _hipW = V(), _ZERO = V(), _od = V();
 export function applyPose(h, p, gait, dt) {
   const { speed = 0, moving = false, stance = 1, lx = 0, lz = 1 } = gait;
   const { pivot, torso } = h;
@@ -514,6 +518,7 @@ export function applyPose(h, p, gait, dt) {
     _T.set(side * 0.15 * (1 + (1 - stance) * 0.2) + xf, groundY + lift, zf);
     // zusammengerollt (Rolle)
     if (p.tuck > 0.001) { _ankle.set(side * 0.13, -0.28, 0.36); _T.lerp(_ankle, p.tuck); }
+    if (p.sit > 0.001) { _ankle.set(side * 0.16, groundY, 0.46); _T.lerp(_ankle, p.sit); }
     if (p.kneel > 0.001) { _ankle.set(side * 0.14, groundY + 0.1, -0.44); _T.lerp(_ankle, p.kneel); }
     L.S.x = side * 0.13;
     ik(L.S, _T, THIGH, SHIN, V(0, 0.1, 1), L.K, L.A);
@@ -537,6 +542,9 @@ export function applyPose(h, p, gait, dt) {
   if (h.weapon.userData.bow) { _lg.set(0, 0, -0.62 * (p.draw || 0) - 0.04).applyQuaternion(_wq).add(R.H); h.weapon.userData.bow.setDraw(p.draw || 0); }
   if (p.lfree > 0) { _T.set(p.lx, p.ly, p.lz); _lg.lerp(_T, p.lfree); }
   ik(Lf.S, _lg, UPPER, FORE, Lf.pole, Lf.E, Lf.H);
+  if (h.offhand && h.offhand.visible) { // zweite Klinge in der linken Hand
+    h.offhand.position.copy(Lf.H); _od.set(p.odx, p.ody, p.odz).normalize(); h.offhand.quaternion.setFromUnitVectors(UP, _od);
+  }
   for (const A of h.arm) {
     limb(A.up, A.S, A.E); limb(A.fo, A.E, A.H); A.el.position.copy(A.E); A.hd.position.copy(A.H);
   }

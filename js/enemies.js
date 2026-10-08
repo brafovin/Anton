@@ -18,6 +18,8 @@ IDLE.witch = { ...DEF, hx: -0.28, hy: 0.4, hz: 0.25, dx: 0.05, dy: 1, dz: 0.12, 
 IDLE.giant = { ...DEF, hx: -0.35, hy: 0.55, hz: 0.05, dx: -0.15, dy: 0.9, dz: -0.35, lfree: 1, lx: 0.35, ly: 0.2, lz: 0.1, lean: 0.15, twist: 0.1, crouch: 0.05 };
 IDLE.reaper = { ...DEF, hx: -0.18, hy: 0.32, hz: 0.38, dx: 0.1, dy: 0.85, dz: 0.5, lg: -0.3, lean: 0.08, twist: 0.15, crouch: 0.1 };
 IDLE.shade = { ...IDLE.hollow, lean: 0.12 };
+IDLE.king2 = { ...IDLE.boss, lfree: 1, lx: 0.3, ly: 0.28, lz: 0.4, odx: -0.12, ody: 0.2, odz: 1, twist: 0.05 };
+const DUAL_HOLD = { lfree: 1, lx: 0.3, ly: 0.28, lz: 0.4, odx: -0.12, ody: 0.2, odz: 1 }; // linke Hand haelt die zweite Klinge locker (Angriffe ohne eigene Doppel-Pose)
 const REACT = { // Torso-Reaktionen
   stagger: (b) => compile([{ t: 0 }, { t: 0.12, lean: -0.5, shift: -0.2, hx: b.hx - 0.1, hy: b.hy + 0.2, head: 0.4, e: 2 }, { t: 0.55, ...b, e: 0 }], b),
   // Benommen (Parry / Ansturm gegen die Wand): taumelt, sinkt auf die Knie und bleibt gebeugt hocken (wie Elden Ring), steht am Ende wieder auf
@@ -51,7 +53,8 @@ function strikeOffset(a, w) {
   const [hs, he] = (a.windows || [[a.hs, a.he]])[w]; let best = 0, bm = 9;
   for (let k = 0; k <= 10; k++) {
     const pp = sample(a.f, Math.min(lerp(hs - 0.14, he, k / 10), a.dur), {});
-    const beta = wrapPi(pp.twist + (Math.hypot(pp.dx, pp.dz) > 0.35 ? Math.atan2(pp.dx, pp.dz) : 0));
+    const L = a.hands && a.hands[w] === 'L', ddx = L ? pp.odx : pp.dx, ddz = L ? pp.odz : pp.dz;
+    const beta = wrapPi(pp.twist + (Math.hypot(ddx, ddz) > 0.35 ? Math.atan2(ddx, ddz) : 0));
     if (Math.abs(beta) < bm) { bm = Math.abs(beta); best = beta; }
   }
   return (a._off[w] = best);
@@ -147,6 +150,34 @@ const ATTACKS = {
       { t: 5.45, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
       { t: 5.85, e: 3 },
       { t: 6.65, ...IDLE.boss, glow: 0, e: 0 }]) },
+  // ---- Phase 2 des Aschenkoenigs: zwei Klingen (dual: Klingen beider Haende zaehlen, hands = schlagende Hand je Trefferfenster) ----
+  kDual: { name: 'Zwillingshiebe', dur: 3.0, windows: [[0.62, 0.74], [1.08, 1.2], [1.54, 1.66], [2.08, 2.2]], hands: ['R', 'L', 'R', 'L'], parryW: [true, true, true, false], dmgW: [80, 80, 85, 145], hs: 0.62, he: 2.2, range: 5.4, arc: 170, dmg: 80, track: 1.4, dual: true, lunge: [0.5, 0.7, 4.5],
+    f: A(IDLE.king2, [{ t: 0 },
+      { t: 0.42, hx: -0.3, hy: 0.9, hz: 0.0, dx: -0.4, dy: 0.9, dz: -0.2, twist: -0.7, e: 2 },
+      { t: 0.68, hx: 0.15, hy: 0.3, hz: 0.55, dx: 0.7, dy: -0.1, dz: 0.7, twist: 0.8, lean: 0.25, shift: 0.2, e: 1 },
+      { t: 0.92, lx: 0.3, ly: 0.9, lz: 0.0, odx: 0.4, ody: 0.9, odz: -0.2, twist: 0.7, lean: 0, shift: 0, e: 2 },
+      { t: 1.14, lx: -0.15, ly: 0.3, lz: 0.55, odx: -0.7, ody: -0.1, odz: 0.7, twist: -0.8, lean: 0.25, shift: 0.2, e: 1 },
+      { t: 1.36, hx: -0.3, hy: 0.9, hz: 0.0, dx: -0.4, dy: 0.9, dz: -0.2, twist: -0.7, lean: 0, shift: 0, e: 2 },
+      { t: 1.6, hx: 0.15, hy: 0.3, hz: 0.55, dx: 0.7, dy: -0.1, dz: 0.7, twist: 0.8, lean: 0.25, shift: 0.2, e: 1 },
+      { t: 1.84, lx: 0.3, ly: 1.0, lz: -0.05, odx: 0.3, ody: 1, odz: -0.4, twist: 0.7, lean: -0.3, shift: 0, glow: 1, e: 2 },
+      { t: 2.14, lx: -0.1, ly: 0.28, lz: 0.6, odx: -0.4, ody: -0.5, odz: 1, twist: -0.4, lean: 0.55, shift: 0.3, crouch: 0.15, e: 1 },
+      { t: 2.6, e: 3 }, { t: 3.0, ...IDLE.king2, glow: 0, e: 0 }]) },
+  kCross: { name: 'Kreuzhieb der Zwillingsklingen', dur: 3.1, hs: 1.5, he: 1.62, range: 5.5, arc: 120, dmg: 195, parryable: false, danger: true, track: 1.1, dual: true, noV: true, lunge: [1.35, 1.55, 4],
+    f: A(IDLE.king2, [{ t: 0 },
+      { t: 1.15, hx: -0.12, hy: 1.05, hz: 0.1, dx: 0.6, dy: 1, dz: 0.1, lx: 0.12, ly: 1.05, lz: 0.1, odx: -0.6, ody: 1, odz: 0.1, lean: -0.35, glow: 1, e: 2 },
+      { t: 1.52, hx: -0.06, hy: 0.35, hz: 0.6, dx: 0.5, dy: -0.5, dz: 1, lx: 0.06, ly: 0.35, lz: 0.6, odx: -0.5, ody: -0.5, odz: 1, lean: 0.55, crouch: 0.15, shift: 0.3, e: 1 },
+      { t: 2.1, e: 3 }, { t: 3.1, ...IDLE.king2, glow: 0, e: 0 }]) },
+  kSpinD: { name: 'Klingenwirbel', dur: 3.3, windows: [[1.0, 1.12], [1.36, 1.48], [1.72, 1.84]], hs: 1.0, he: 1.84, range: 5.2, arc: 360, dmg: 80, parryable: false, danger: true, track: 0.8, dual: true,
+    f: A(IDLE.king2, [{ t: 0 },
+      { t: 0.85, hx: -0.4, hy: 0.55, hz: 0.2, dx: -1, dy: 0.0, dz: 0.3, lx: 0.4, ly: 0.55, lz: 0.2, odx: 1, ody: 0, odz: 0.3, crouch: 0.3, twist: 0, glow: 1, e: 2 },
+      { t: 1.0, e: 3 }, { t: 2.0, twist: -12.5, e: 3 }, { t: 2.4, twist: -12.5, crouch: 0.2, e: 2 },
+      { t: 3.3, ...IDLE.king2, twist: IDLE.king2.twist - 12.566, glow: 0, e: 0 }]) },
+  kDualThrust: { name: 'Doppelstoß', dur: 2.3, windows: [[0.95, 1.05], [1.12, 1.22]], hands: ['R', 'L'], parryW: [true, false], dmgW: [95, 130], hs: 0.95, he: 1.22, range: 5.5, arc: 60, dmg: 95, track: 0.8, dual: true, lunge: [0.85, 1.15, 9],
+    f: A(IDLE.king2, [{ t: 0 },
+      { t: 0.8, hx: -0.2, hy: 0.5, hz: -0.05, dx: 0, dy: 0.05, dz: 1, lx: 0.2, ly: 0.5, lz: -0.05, odx: 0, ody: 0.05, odz: 1, twist: -0.5, shift: -0.1, e: 2 },
+      { t: 1.0, hx: -0.05, hy: 0.55, hz: 0.62, dx: 0, dy: 0, dz: 1, twist: 0.3, shift: 0.4, lean: 0.3, e: 1 },
+      { t: 1.16, lx: 0.05, ly: 0.55, lz: 0.62, odx: 0, ody: 0, odz: 1, twist: -0.3, e: 1 },
+      { t: 1.5, e: 3 }, { t: 2.3, ...IDLE.king2, e: 0 }]) },
   kBow: { name: 'Königlicher Pfeilhagel', dur: 2.9, hs: 99, he: 99, track: 1.9, bow: true, ev: [[1.0, 'kingArrow'], [1.5, 'kingArrow'], [2.0, 'kingArrow']],
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.45, hx: -0.1, hy: 0.58, hz: 0.6, dx: 0, dy: 1, dz: 0.12, lg: 0, twist: 0.35, lean: 0, draw: 0, e: 2 },
       { t: 0.95, draw: 1, e: 0 }, { t: 1.0, draw: 0, e: 1 }, { t: 1.28, draw: 1, e: 0 }, { t: 1.48, draw: 1, e: 3 }, { t: 1.5, draw: 0, e: 1 }, { t: 1.78, draw: 1, e: 0 }, { t: 1.98, draw: 1, e: 3 }, { t: 2.0, draw: 0, e: 1 },
@@ -209,18 +240,24 @@ const TYPES = {
     look: { head: 'reaper', skin: 0x222222, cloth: 0x0e0c12, armor: 0x1c1a22, trim: 0xa8a8b8, accent: 0x6a0a0a, capeColor: 0x180a10, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 },
   },
   king: {
-    hp: 5500, radius: 1.6, speed: 3.7, aggro: 99, souls: 60000, scale: 2.1, idle: IDLE.boss, isBoss: true, strafe: true, reach: 6, p2At: 0.66, p3At: 0.33, p2speed: 1.12, p2time: 1.1,
-    phaseMsg: 'Aldrar erhebt sich zum wahren König', phase3Msg: 'Die Krone brennt – Aldrars Zorn kennt kein Maß',
-    onPhase3: (e) => { EV.stompRing(e); },
+    hp: 5500, radius: 1.6, speed: 3.7, aggro: 99, souls: 60000, scale: 2.1, idle: IDLE.boss, isBoss: true, strafe: true, reach: 6, p2At: 0.5, p2speed: 1.18, p2time: 1.15, dualCine: true,
     choose: (e, d) => {
       const o = [];
-      if (d > 11) { o.push('kLunge', 'kWave', 'kStomp'); if (e.phase2) o.push('kLeap', 'kPillars'); if (e.phase3) o.push('kMeteors', 'kBlink'); }
-      else { if (d < 3.8) o.push('kSweep', 'kSweep'); o.push('kCombo', 'kSlam', 'kStomp'); if (e.phase2) o.push('kStomp'); if (d > 5) o.push('kLunge'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors'); }
+      if (!e.phase2) { // Phase 1: ein Schwert, zweihaendig
+        if (d > 11) o.push('kLunge', 'kWave', 'kStomp');
+        else { if (d < 3.8) o.push('kSweep', 'kSweep'); o.push('kCombo', 'kSlam', 'kStomp'); if (d > 5) o.push('kLunge'); }
+      } else { // Phase 2: zwei Klingen, Kombos
+        if (d > 11) o.push('kDualThrust', 'kWave', 'kStomp', 'kLeap', 'kPillars', 'kMeteors', 'kBlink');
+        else {
+          o.push('kDual', 'kDual', 'kCross', 'kStomp'); if (d < 5.6) o.push('kSpinD', 'kDual'); if (d > 3.5) o.push('kDualThrust');
+          o.push('kWave', 'kPillars', 'kLeap'); if (d > 6) o.push('kMeteors', 'kBlink');
+        }
+      }
       // Bogen-Angriffe nur auf mittlere bis weite Distanz (nie im Nahkampf)
-      if (d >= 10 && d <= 24) { o.push('kBow', 'kBow'); if (e.phase2) o.push('kBowRain'); if (e.phase3) o.push('kBowRain'); }
+      if (d >= 10 && d <= 24) { o.push('kBow', 'kBow'); if (e.phase2) o.push('kBowRain'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
-    look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', weapons: ['kingsword', 'kingbow'], bulk: 1.38, eye: 0xffd060 },
+    look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', weapons: ['kingsword', 'kingbow'], offhand: 'kingsword2', bulk: 1.38, eye: 0xffd060 },
   },
   shade: {
     hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
@@ -271,6 +308,14 @@ export const CINE = {
     { t: 7.1, hx: -0.1, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: -0.2, lean: -0.4, glow: 1, e: 2 },
     { t: 7.5, hx: -0.1, hy: 0.28, hz: 0.6, dx: 0, dy: -0.6, dz: 1, lean: 0.5, crouch: 0.15, shift: 0.3, e: 1 },
     { t: 8.9, ...IDLE.boss, glow: 0, e: 2 }]),
+  king2: A(IDLE.boss, [
+    { t: 0 }, { t: 1.0, e: 3 },
+    { t: 1.7, hx: -0.2, hy: 0.6, hz: 0.3, dx: 0.1, dy: 0.7, dz: 0.8, lfree: 1, lx: 0.3, ly: 0.2, lz: 0.3, odx: -0.1, ody: 0.1, odz: 1, lean: -0.1, head: -0.25, e: 2 },
+    { t: 2.3, lx: 0.4, ly: 1.0, lz: -0.5, odx: 0.1, ody: 0.9, odz: -0.5, lean: -0.25, head: -0.3, twist: 0.4, glow: 1, e: 2 },
+    { t: 2.9, lx: 0.55, ly: 0.7, lz: 0.4, odx: -1, ody: 0.15, odz: 0.4, lean: 0.1, head: 0, twist: -0.3, e: 1 },
+    { t: 3.7, hx: -0.12, hy: 1.05, hz: 0.1, dx: 0.6, dy: 1, dz: 0.1, lx: 0.12, ly: 1.05, lz: 0.1, odx: -0.6, ody: 1, odz: 0.1, lean: -0.35, twist: 0, e: 2 },
+    { t: 4.5, hx: -0.45, hy: 0.5, hz: 0.3, dx: -1, dy: 0.1, dz: 0.3, lx: 0.5, ly: 0.5, lz: 0.3, odx: 1, ody: 0.1, odz: 0.3, lean: 0.25, crouch: 0.2, e: 1 },
+    { t: 5.4, e: 3 }, { t: 6.6, ...IDLE.king2, glow: 0, e: 2 }]),
   witch: A(IDLE.witch, [
     { t: 0, hx: -0.3, hy: 0.9, hz: 0.1, dx: 0, dy: 1, dz: 0.15, lfree: 1, lx: 0.6, ly: 0.55, lz: 0.15, lean: -0.15, head: -0.15, glow: 1 },
     { t: 7.2 }, { t: 8.4, ...IDLE.witch, glow: 0, e: 2 }]),
@@ -298,12 +343,14 @@ export class Enemy {
     this.state = this.isBoss ? 'dormant' : 'idle'; this.t = 0; this.cd = rand(0.5, 1.5); this.dead = false; this.deathT = 0;
     this.pose = { ...T.idle }; this.prev = { ...T.idle }; this.blendT = 1; this.blendDur = 0.12;
     this.barT = 0; this.strafeDir = Math.random() < 0.5 ? 1 : -1; this.strafeT = 0; this.atk = null; this.timeScale = 1;
-    this.phase2 = false; this.phase3 = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
+    this.phase2 = false; this.phase3 = false; this.dual = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
     this.moving = false; this.speedN = 0; this.name = opts.name || (this.isBoss ? 'Boss' : type === 'knight' ? 'Wachritter' : type === 'shade' ? 'Schatten' : 'Hohler Soldat');
     const st0 = this.h.weapon.userData.steel; if ((this.isBoss || opts.mini) && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
   }
-  useBow(v) { if (!!v === !!this._bow || !this.h.weapons.kingbow) return; this._bow = !!v; this.h.setWeapon(v ? 'kingbow' : 'kingsword'); }
+  useBow(v) { if (!!v === !!this._bow || !this.h.weapons.kingbow) return; this._bow = !!v; this.h.setWeapon(v ? 'kingbow' : 'kingsword'); this.refreshOff(); }
+  setDual(v) { this.dual = !!v; this.refreshOff(); }
+  refreshOff() { if (this.h.offhand) this.h.offhand.visible = !!this.dual && !this._bow; }
   setState(s, blend = 0.1) { if (s !== 'attack') this.useBow(false); this.prev = { ...this.pose }; this.state = s; this.t = 0; if (s === 'parried') this.flags = {}; this.blendT = 0; this.blendDur = blend; }
   dispose() { this.G.scene.remove(this.h.root); this.h.root.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
 
@@ -362,17 +409,21 @@ export class Enemy {
   // Klinge = Strecke zwischen den Trail-Markern der Waffe (Welt-Koordinaten); mit dem Weg seit dem letzten Bild,
   // damit schnelle Schwuenge nicht durch den Spieler "tunneln"
   trackBlade() {
-    const ud = this.h.weapon.userData; if (!ud || !ud.trailBase || !ud.trailTip) return null;
+    const ws = [this.h.weapon]; if (this.dual && this.h.offhand && this.h.offhand.visible) ws.push(this.h.offhand);
     this.h.root.updateMatrixWorld(true);
-    const cur = { b: new THREE.Vector3(), t: new THREE.Vector3() };
-    ud.trailBase.getWorldPosition(cur.b); ud.trailTip.getWorldPosition(cur.t);
-    const out = { cur, prev: this.prevBlade || cur }; this.prevBlade = cur; return out;
+    const prevAll = this.prevBlade || [], cur = [], out = [];
+    ws.forEach((w, i) => {
+      const ud = w.userData; if (!ud || !ud.trailBase || !ud.trailTip) return;
+      const c = { b: new THREE.Vector3(), t: new THREE.Vector3() }; ud.trailBase.getWorldPosition(c.b); ud.trailTip.getWorldPosition(c.t);
+      cur[i] = c; out.push({ cur: c, prev: prevAll[i] || c });
+    });
+    this.prevBlade = cur; return out.length ? out : null;
   }
   bladeReach() { const ud = this.h.weapon.userData; return (ud && ud.length ? ud.length : 0.8) * this.T.scale * 0.85 + 0.3 * this.T.scale; }
-  bladeHits(P, blade) {
-    // Waagerecht grosszuegig, nach oben so hoch wie die Schwuenge grosser Gegner reichen (Schlag ueber Kopfhoehe trifft trotzdem)
-    const sc = this.T.scale, rad = P.radius + 0.3 + 0.18 * sc, y0 = P.pos.y - 0.3, y1 = P.pos.y + 2.4, { cur, prev } = blade, p = _bp;
-    for (let s = 1; s <= 4; s++) {
+  bladeHits(P, blades) {
+    // Waagerecht grosszuegig, in der Hoehe Koerpergroesse des Spielers (Schlaege werden auf seine Hoehe heruntergezogen)
+    const sc = this.T.scale, rad = P.radius + 0.3 + 0.18 * sc, y0 = P.pos.y - 0.3, y1 = P.pos.y + 2.4, p = _bp;
+    for (const { cur, prev } of blades) for (let s = 1; s <= 4; s++) {
       const u = s / 4;
       for (let i = 0; i <= 8; i++) {
         const k = i / 8;
@@ -447,11 +498,11 @@ export class Enemy {
     if (a.hops) { this.yOff = 0; for (const th of a.hops) if (t >= th - 0.42 && t <= th) this.yOff = Math.sin(((t - (th - 0.42)) / 0.42) * Math.PI) * 1.3; }
     // Klingenposition dieses Bildes (fuer die Waffen-Hitbox) mit Weg seit dem letzten Bild
     const blade = aim && a.arc < 360 && !a.slam && !a.leap && !a.charge ? this.trackBlade() : null;
-    if (blade) { // Hoehe: Schlag auf Koerperhoehe des Spielers herunterziehen (statt ueber den Kopf hinweg)
+    if (blade && !a.noV) { // Hoehe: Schlag auf Koerperhoehe des Spielers herunterziehen (statt ueber den Kopf hinweg)
       let w = 0;
       for (const [hs, he] of wins0) w = Math.max(w, smoothstep(hs - 0.45, hs - 0.1, t) * (1 - smoothstep(he + 0.02, he + 0.3, t)));
       if (w > 0.3) {
-        const midY = (blade.cur.b.y + blade.cur.t.y) / 2, want = P.pos.y - P.jumpH + 1.05;
+        const midY = blade.reduce((m, x) => m + (x.cur.b.y + x.cur.t.y) / 2, 0) / blade.length, want = P.pos.y - P.jumpH + 1.05;
         this.vAdj = clamp((this.vAdj || 0) + ((midY - want) / this.T.scale) * 6 * dt * ts, 0, 1.6);
       }
       this.vAdjW = w;
@@ -610,7 +661,7 @@ export class Enemy {
       }
       case 'phase': {
         this.yaw = turnToward(this.yaw, toP, 2 * dt);
-        if (this.t >= 2.2) { this.setState('chase', 0.3); this.cd = 0.5; }
+        if (this.t >= 2.2 && !(G.cutscene && G.cutscene.boss === this)) { this.setState('chase', 0.3); this.cd = 0.5; }
         break;
       }
     }
@@ -621,11 +672,17 @@ export class Enemy {
       G.fx.ring(this.pos.clone(), { color: 0xffd060, r: 14, dur: 1.2 }); G.ui.toast(T.phase3Msg || 'Der Boss rast vor Wut'); if (T.onPhase3) T.onPhase3(this);
     }
     if (this.isBoss && !this.phase2 && this.hp < this.maxHp * (T.p2At ?? 0.5) && canPhase) {
-      this.phase2 = true; this.setState('phase', 0.2); this.atk = null; this.yOff = 0; Sound.play('roar'); G.shake(0.8);
-      this.untouchable = false; this.h.root.visible = true;
+      this.phase2 = true; this.setState('phase', 0.2); this.atk = null; this.yOff = 0; this.untouchable = false; this.h.root.visible = true;
+      if (T.dualCine) { // Aschenkoenig: Cutscene, in der er die zweite Klinge zieht
+        G.hazards.clear(); G.spells.clear(); this.vel.set(0, 0, 0);
+        if (!P.dead) G.cutscenes.playPhase(this); else this.setDual(true);
+        if (T.onPhase2) T.onPhase2(this);
+      } else {
+      Sound.play('roar'); G.shake(0.8);
       G.fx.ring(this.pos.clone(), { color: 0xff6a20, r: 12, dur: 1.0 }); G.ui.toast(T.phaseMsg || 'Der Boss wird wütend');
       if (T.glowSword) this.h.weapon.userData.glowMats.forEach((m) => { m.emissiveIntensity = 1.6; });
       if (T.onPhase2) T.onPhase2(this);
+      }
     }
     // Bewegung
     this.moving = false;
@@ -667,6 +724,7 @@ export class Enemy {
         else if (this.stBase) { st.emissive.copy(this.stBase.c); st.emissiveIntensity = this.stBase.i; }
       }
     }
+    if (G.cutscene && G.cutscene.boss === this && CINE[this.type + '2'] && G.cutscene.kind === 'phase') target = { ...sample(CINE[this.type + '2'], G.cutscene.t, {}) };
     if (G.cutscene && G.cutscene.boss === this && CINE[this.type] && G.cutscene.kind === 'intro') target = { ...sample(CINE[this.type], G.cutscene.t, {}) };
     if (!target) {
       if (this.state === 'attack') target = sample(this.atk.f, Math.min(this.t * this.timeScale, this.atk.dur), {});
@@ -677,6 +735,7 @@ export class Enemy {
       }
       else { target = { ...T.idle }; const b = Math.sin(performance.now() / 800 + this.idlePh); target.hy += b * 0.01; target.lean += b * 0.012; if (this.type === 'hollow' && this.state === 'chase') { target.lean = 0.3; target.hx = -0.25; target.hy = 0.3; } }
     }
+    if (this.dual && target && !this._bow && !(this.state === 'attack' && this.atk && this.atk.dual) && !(G.cutscene && G.cutscene.boss === this && G.cutscene.kind === 'phase')) Object.assign(target, DUAL_HOLD);
     if (this.state === 'attack' && this.vAdj > 0.001 && this.vAdjW > 0.001 && target) { // tiefer schwingen: Hocke + Vorbeuge + Hand tiefer
       const v = this.vAdj * this.vAdjW;
       target.crouch += Math.min(0.8, 0.5 * v); target.lean += Math.min(0.4, 0.25 * v); target.hy -= Math.min(0.45, 0.3 * v); target.shift += Math.min(0.12, 0.08 * v);
