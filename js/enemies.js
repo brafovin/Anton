@@ -182,7 +182,7 @@ const TYPES = {
     look: { head: 'reaper', skin: 0x222222, cloth: 0x0e0c12, armor: 0x1c1a22, trim: 0xa8a8b8, accent: 0x6a0a0a, capeColor: 0x180a10, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 },
   },
   king: {
-    hp: 7500, radius: 1.6, speed: 3.7, aggro: 99, souls: 60000, scale: 2.1, idle: IDLE.boss, isBoss: true, strafe: true, reach: 6, p2At: 0.66, p3At: 0.33, p2speed: 1.12, p2time: 1.1,
+    hp: 5500, radius: 1.6, speed: 3.7, aggro: 99, souls: 60000, scale: 2.1, idle: IDLE.boss, isBoss: true, strafe: true, reach: 6, p2At: 0.66, p3At: 0.33, p2speed: 1.12, p2time: 1.1,
     phaseMsg: 'Aldrar erhebt sich zum wahren König', phase3Msg: 'Die Krone brennt – Aldrars Zorn kennt kein Maß',
     onPhase3: (e) => { EV.stompRing(e); },
     choose: (e, d) => {
