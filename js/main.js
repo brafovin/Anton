@@ -40,7 +40,7 @@ const MOON_DIR = new THREE.Vector3(-0.5, 0.8, 0.35).normalize();
 
 // ------------------------------------------------------------------
 const G = { scene, camera, renderer, enemies: [], boss: null, fights: [], activeFight: null, stain: null, menuOpen: false, running: false, paused: true, time: 0, hitT: 0, shakeAmt: 0 };
-window.G = G; G.moon = moon;
+window.G = G; G.moon = moon; G.groundHeight = groundHeight;
 G.world = buildWorld(scene);
 G.fights = G.world.arenas.map((A) => ({ id: A.id, arena: A, dead: false, enemy: null }));
 G.fx = makeFX(scene);

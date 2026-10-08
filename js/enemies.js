@@ -164,7 +164,7 @@ const SHADE_COOLDOWN = 35;
 const TYPES = {
   hollow: {
     hp: 75, radius: 0.45, speed: 2.7, aggro: 13, souls: 60, scale: 1.0, attacks: ['hSlash', 'hSwipe'], idle: IDLE.hollow, strafe: false,
-    look: { head: 'hollow', skin: 0x9a9c8c, cloth: 0x3c342a, armor: 0x4a4038, trim: 0x5a4a30, accent: 0x3a2a22, plates: false, pauldrons: false, hunch: 0.28, weapon: 'sword', weaponRusty: true, bulk: 0.95 },
+    look: { head: 'hollow', skin: 0x9a9c8c, cloth: 0x3c342a, armor: 0x4a4038, trim: 0x5a4a30, accent: 0x3a2a22, plates: false, pauldrons: false, hunch: 0.28, tatters: true, weapon: 'sword', weaponRusty: true, bulk: 0.95 },
   },
   knight: {
     hp: 210, radius: 0.52, speed: 2.4, aggro: 15, souls: 280, scale: 1.1, attacks: ['kSlash', 'kThrust'], idle: IDLE.knight, blocks: true, strafe: true,
@@ -194,7 +194,7 @@ const TYPES = {
       else { o.push('gCharge', 'gCharge', 'gRock'); if (e.phase2) o.push('gRock', 'gStomp'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
-    look: { head: 'hollow', hunch: 0.2, skin: 0x8a8478, cloth: 0x6a5a48, armor: 0x4a4038, trim: 0x6a5a40, accent: 0x5a2a1a, plates: false, pauldrons: false, weapon: 'club', bulk: 1.45 },
+    look: { head: 'hollow', hunch: 0.2, tatters: true, skin: 0x8a8478, cloth: 0x6a5a48, armor: 0x4a4038, trim: 0x6a5a40, accent: 0x5a2a1a, plates: false, pauldrons: false, weapon: 'club', bulk: 1.45 },
   },
   reaper: {
     hp: 1500, radius: 0.6, speed: 4.2, aggro: 99, souls: 7000, scale: 1.2, idle: IDLE.reaper, isBoss: true, strafe: true, reach: 4.4, p2speed: 1.2, p2time: 1.2,
@@ -222,7 +222,7 @@ const TYPES = {
   },
   shade: {
     hp: 45, radius: 0.45, speed: 4.4, aggro: 99, souls: 0, scale: 1.0, attacks: ['hSwipe'], idle: IDLE.shade, strafe: false,
-    look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
+    look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, tatters: true, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
   },
 };
 Object.assign(TYPES, (() => {
@@ -240,7 +240,7 @@ Object.assign(TYPES, (() => {
   mKnight: { hp: 1500, radius: 0.8, speed: 3.0, aggro: 20, souls: 3500, scale: 1.55, attacks: ['kSlash', 'kSlash', 'kThrust', 'bSweep', 'bThrust'], idle: IDLE.knight, blocks: true, strafe: true, mini: true, reach: 3.8,
     look: { head: 'knight', skin: 0x888888, cloth: 0x161a26, armor: 0x8a94a8, trim: 0x8ab0ff, accent: 0x2a3a7a, plates: true, pauldrons: true, plume: true, tabard: true, cape: true, capeColor: 0x1a2a5a, weapon: 'sword', weaponColor: 0xb4ccf4, weaponRusty: false, shield: true, shieldColor: 0x5a6a88, bulk: 1.2, eye: 0x6a98ff } },
   mHollow: { hp: 1200, radius: 0.9, speed: 3.1, aggro: 20, souls: 3200, scale: 1.65, attacks: ['hSlash', 'hSwipe', 'bSlam', 'bSweep'], idle: IDLE.hollow, strafe: false, mini: true, reach: 3.6,
-    look: { head: 'hollow', skin: 0x7a3a28, cloth: 0x2a1410, armor: 0x3a1c14, trim: 0xff7a30, accent: 0xff5a10, plates: false, pauldrons: false, hunch: 0.25, weapon: 'club', bulk: 1.3, eye: 0xff6a20 } }
+    look: { head: 'hollow', skin: 0x7a3a28, cloth: 0x2a1410, armor: 0x3a1c14, trim: 0xff7a30, accent: 0xff5a10, plates: false, pauldrons: false, hunch: 0.25, tatters: true, weapon: 'club', bulk: 1.3, eye: 0xff6a20 } }
   };
 })());
 // Minibosse: Reihenfolge = Erkundungsreihenfolge; reward: weapon (w) / spell (s)

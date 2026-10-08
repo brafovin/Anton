@@ -157,6 +157,26 @@ function boxGeo(w, h, d, tile = 3) {
   return g;
 }
 
+// Felsbrocken: verformtes Ikosaeder mit flacher Unterseite (Flat-Shading), drei Varianten
+function rockGeo(seed) {
+  const g = new THREE.IcosahedronGeometry(1, 1), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = noise2(x * 1.9 + seed * 7.3, z * 1.9 + y * 1.6 + seed) - 0.5, k = 1 + n * 0.6 + (noise2(x * 5 + seed, z * 5 - y * 3) - 0.5) * 0.18;
+    x *= k; y *= k * 0.9; z *= k;
+    if (y < -0.35) y = -0.35 + (y + 0.35) * 0.25; // Boden abflachen
+    p.setXYZ(i, x, y, z);
+  }
+  g.computeVertexNormals(); return g;
+}
+const ROCK_GEOS = [rockGeo(3), rockGeo(8), rockGeo(14)];
+// Grabstein mit Rundbogen (Breite 1, Hoehe 1, Tiefe 0.2; Fuss bei y = 0)
+const ARCH_GEO = (() => {
+  const sh = new THREE.Shape(); sh.moveTo(-0.5, 0); sh.lineTo(0.5, 0); sh.lineTo(0.5, 0.62); sh.absarc(0, 0.62, 0.5, 0, Math.PI, false); sh.lineTo(-0.5, 0);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 1, curveSegments: 10 });
+  g.translate(0, 0, -0.08); g.scale(0.95, 1 / 1.14, 1); return g;
+})();
+
 // ------------------------------------------------------------------
 export function buildWorld(scene) {
   const W = { colliders: [], bonfires: [], dynamicColliders: [], updaters: [] };
@@ -327,7 +347,7 @@ export function buildWorld(scene) {
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2 + 0.4, rr = A.r * R(0.72, 0.85), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr, sz = R(1.4, 2.4);
         if (Math.hypot(x - g.x, z - g.z) < 8) continue;
-        const b = new THREE.Mesh(new THREE.DodecahedronGeometry(sz, 0), rockM2); b.position.set(x, groundHeight(x, z) + sz * 0.4, z); b.scale.set(1, R(0.7, 1.1), R(0.8, 1.2)); b.rotation.set(R(3), R(3), R(3)); b.castShadow = true; scene.add(b); circle(x, z, sz * 0.9);
+        const b = new THREE.Mesh(ROCK_GEOS[i % 3], rockM2); b.position.set(x, groundHeight(x, z) + sz * 0.4, z); b.scale.set(sz, sz * R(0.7, 1.1), sz * R(0.8, 1.2)); b.rotation.set(R(3), R(3), R(3)); b.castShadow = true; scene.add(b); circle(x, z, sz * 0.9);
       }
       for (let i = 0; i < 40; i++) { const a = R(6.28), rr = A.r * Math.sqrt(R(0.05, 0.85)), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const bn = new THREE.Mesh(i % 5 ? new THREE.CylinderGeometry(0.05, 0.06, R(0.3, 0.7), 5) : new THREE.SphereGeometry(0.18, 6, 5), boneM); bn.position.set(x, groundHeight(x, z) + 0.08, z); bn.rotation.set(R(3), R(3), R(3)); scene.add(bn); }
       for (let i = 0; i < 5; i++) { const a = R(6.28), rr = A.r * R(0.35, 0.6), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; const cr = new THREE.Mesh(new THREE.RingGeometry(R(1, 2), R(2.2, 3), 7, 1), new THREE.MeshBasicMaterial({ color: 0x1a1410, transparent: true, opacity: 0.45, side: THREE.DoubleSide })); cr.rotation.x = -Math.PI / 2; cr.position.set(x, A.h0 + 0.07, z); scene.add(cr); }
@@ -378,7 +398,7 @@ export function buildWorld(scene) {
       for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2 + 0.1, rr = A.r * R(0.62, 0.86), x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr, hgt = R(1, 2);
         if (Math.hypot(x - g.x, z - g.z) < 7) continue;
-        const gr = new THREE.Mesh(boxGeo(0.9, hgt, 0.22, 1.5), graveStone); gr.position.set(x, groundHeight(x, z) + hgt / 2 - 0.1, z); gr.rotation.set(R(-0.12, 0.12), a + R(-0.3, 0.3), R(-0.15, 0.15)); gr.castShadow = true; scene.add(gr); circle(x, z, 0.5);
+        const gr = new THREE.Mesh(ARCH_GEO, graveStone); gr.scale.set(0.95, hgt * 1.15, 1); gr.position.set(x, groundHeight(x, z) - 0.1, z); gr.rotation.set(R(-0.12, 0.12), a + R(-0.3, 0.3), R(-0.15, 0.15)); gr.castShadow = true; scene.add(gr); circle(x, z, 0.5);
       }
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * Math.PI * 2 + 0.9, rr = A.r * 0.82, x = A.x + Math.cos(a) * rr, z = A.z + Math.sin(a) * rr; if (Math.hypot(x - g.x, z - g.z) < 7) continue;
@@ -418,15 +438,25 @@ export function buildWorld(scene) {
   const crates = [[-6, -12], [8, -18], [-10, 4], [12, 12], [-4, -48], [6, -50]];
   crates.filter(([x, z]) => !inArena(x, z, 3)).forEach(([x, z]) => {
     const t = rnd();
-    if (t < 0.5) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 1.1, 10), woodM); b.position.set(x, groundHeight(x, z) + 0.55, z); b.castShadow = true; scene.add(b); circle(x, z, 0.6); }
-    else { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 1.1), woodM); b.position.set(x, groundHeight(x, z) + 0.5, z); b.rotation.y = R(3); b.castShadow = true; scene.add(b); circle(x, z, 0.8); }
+    const ironH = mat(0x2a2a30, { metalness: 0.6, roughness: 0.5 });
+    if (t < 0.5) { // Fass: bauchig, mit Eisenreifen und Deckel
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.52, 1.1, 12), woodM); b.position.set(x, groundHeight(x, z) + 0.55, z); b.castShadow = true; scene.add(b);
+      const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.5, 12), woodM); b.add(belly);
+      for (const hy of [-0.38, -0.13, 0.13, 0.38]) { const hp = new THREE.Mesh(new THREE.TorusGeometry(hy === 0.13 || hy === -0.13 ? 0.565 : 0.52, 0.025, 4, 16), ironH); hp.rotation.x = Math.PI / 2; hp.position.y = hy; b.add(hp); }
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.04, 12), woodM); lid.position.y = 0.56; b.add(lid); circle(x, z, 0.6);
+    } else { // Kiste: Eckbretter + Diagonale
+      const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 1.1), woodM); b.position.set(x, groundHeight(x, z) + 0.5, z); b.rotation.y = R(3); b.castShadow = true; scene.add(b);
+      for (const [cx, cz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const bd = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.04, 0.12), blackWood); bd.position.set(cx * 0.55, 0, cz * 0.55); b.add(bd); }
+      for (const sd of [-1, 1]) { const df = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.3, 0.04), blackWood); df.position.set(0, 0, sd * 0.56); df.rotation.z = 0.78; b.add(df); }
+      circle(x, z, 0.8);
+    }
   });
 
   // Friedhof (links vom Startpunkt)
   for (let i = 0; i < 28; i++) {
     const x = R(-48, -26), z = R(-8, 14), hgt = R(0.7, 1.4);
     if (inArena(x, z, 2)) continue;
-    const g = new THREE.Mesh(boxGeo(0.7, hgt, 0.18, 1.5), stoneDark); g.position.set(x, groundHeight(x, z) + hgt / 2 - 0.1, z); g.rotation.set(R(-0.15, 0.15), R(-0.5, 0.5), R(-0.2, 0.2)); g.castShadow = true; scene.add(g);
+    const g = new THREE.Mesh(ARCH_GEO, stoneDark); g.scale.set(0.8, hgt * 1.15, 1); g.position.set(x, groundHeight(x, z) - 0.1, z); g.rotation.set(R(-0.15, 0.15), R(-0.5, 0.5), R(-0.2, 0.2)); g.castShadow = true; scene.add(g);
     if (rnd() < 0.5) circle(x, z, 0.4);
   }
 
@@ -435,6 +465,7 @@ export function buildWorld(scene) {
   function deadTree(x, z, s = 1) {
     const g = new THREE.Group(); g.position.set(x, groundHeight(x, z) - 0.3, z); g.rotation.y = R(6.28);
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.4 * s, 5.5 * s, 7), barkM); trunk.position.y = 2.6 * s; trunk.rotation.z = R(-0.08, 0.08); trunk.castShadow = true; g.add(trunk);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * 6.28 + R(1), rt = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 1.1 * s, 5), barkM); rt.position.set(Math.cos(a) * 0.22 * s, 0.1 * s, Math.sin(a) * 0.22 * s); rt.geometry.translate(0, 0.55 * s, 0); rt.rotation.set(Math.sin(a) * 1.15, 0, -Math.cos(a) * 1.15); g.add(rt); }
     const nb = 4 + Math.floor(rnd() * 4);
     for (let i = 0; i < nb; i++) {
       const L = R(1.4, 3) * s, br = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * s, 0.13 * s, L, 5), barkM);
@@ -458,7 +489,7 @@ export function buildWorld(scene) {
   for (let i = 0; i < 40; i++) {
     const x = R(-80, 80), z = R(-58, 44), s = R(0.6, 2.2);
     if ((Math.abs(x) < 6 && z > -56) || inArena(x, z, 3)) continue;
-    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockM); r.position.set(x, groundHeight(x, z) + s * 0.2, z); r.scale.set(1, R(0.5, 0.9), R(0.8, 1.2)); r.rotation.set(R(3), R(3), R(3)); r.castShadow = true; scene.add(r); circle(x, z, s * 0.9);
+    const r = new THREE.Mesh(ROCK_GEOS[i % 3], rockM); r.position.set(x, groundHeight(x, z) + s * 0.25, z); r.scale.set(s, s * R(0.5, 0.9), s * R(0.8, 1.2)); r.rotation.set(R(3), R(3), R(3)); r.castShadow = true; scene.add(r); circle(x, z, s * 0.9);
   }
   W.buildArenas();
 
@@ -477,8 +508,17 @@ export function buildWorld(scene) {
   // Innenhof-Dekor: zerbrochene Statuen, Fackelstaender, Waffenstaender
   for (const [x, z] of [[-14, -86], [16, -96], [-18, -104], [14, -74]]) {
     const base = new THREE.Mesh(boxGeo(2, 1.2, 2), stoneM); base.position.set(x, groundHeight(x, z) + 0.6, z); base.castShadow = true; scene.add(base);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 3, 8), stoneDark); body.position.set(x, groundHeight(x, z) + 2.7, z); body.rotation.z = R(-0.06, 0.06); body.castShadow = true; scene.add(body);
-    const hd = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 6), stoneDark); hd.position.set(x, groundHeight(x, z) + 4.5, z); hd.castShadow = true; if (rnd() < 0.5) hd.visible = false; scene.add(hd);
+    const gy = groundHeight(x, z), face = Math.atan2(-x, -80 - z), st = new THREE.Group(); st.position.set(x, gy + 1.2, z); st.rotation.y = face + R(-0.3, 0.3); scene.add(st);
+    const sp = (g, px, py, pz, m = stoneDark) => { const q = new THREE.Mesh(g, m); q.position.set(px, py, pz); q.castShadow = true; st.add(q); return q; };
+    for (const sx of [-1, 1]) sp(new THREE.BoxGeometry(0.34, 1.5, 0.4), sx * 0.24, 0.75, 0);                 // Beine
+    sp(new THREE.BoxGeometry(0.95, 0.2, 0.55), 0, 1.55, 0);                                                   // Guertel
+    sp(new THREE.CylinderGeometry(0.46, 0.38, 1.1, 8), 0, 2.2, 0);                                            // Brustpanzer
+    sp(new THREE.SphereGeometry(0.28, 8, 6), -0.55, 2.7, 0); sp(new THREE.SphereGeometry(0.28, 8, 6), 0.55, 2.7, 0); // Schultern
+    sp(new THREE.BoxGeometry(0.22, 1.0, 0.24), 0.62, 2.0, 0.05).rotation.z = 0.1;                             // linker Arm
+    sp(new THREE.BoxGeometry(0.22, 0.7, 0.24), -0.62, 2.3, 0.3).rotation.x = -1.0;                             // rechter Arm (haelt das Schwert)
+    sp(new THREE.BoxGeometry(0.16, 2.2, 0.06), -0.62, 1.0, 0.65);                                              // Schwertklinge, Spitze am Boden
+    sp(new THREE.BoxGeometry(0.6, 0.1, 0.1), -0.62, 2.1, 0.65);                                                // Parierstange
+    const hd = sp(new THREE.SphereGeometry(0.3, 8, 6), 0, 3.05, 0); if (rnd() < 0.4) hd.visible = false; else sp(new THREE.BoxGeometry(0.34, 0.06, 0.1), 0, 3.08, 0.26, blackWood); // Helm mit Sehschlitz
     circle(x, z, 1.3);
   }
   // Truemmer
@@ -605,6 +645,7 @@ export function buildWorld(scene) {
     put(new THREE.CylinderGeometry(0.16, 0.4, 5.5, 7), new THREE.Vector3(0, 2.6, 0), new THREE.Euler(0, 0, rr(-0.08, 0.08)));
     const nb = 5 + Math.floor(r() * 4);
     for (let i = 0; i < nb; i++) { const L = rr(1.4, 3), br = new THREE.CylinderGeometry(0.03, 0.13, L, 5); br.translate(0, L / 2, 0); put(br, new THREE.Vector3(0, rr(2.2, 5), 0), new THREE.Euler(rr(-1, 1), rr(0, 6.28), rr(0.5, 1.2))); }
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * 6.28 + rr(0, 1), rt = new THREE.ConeGeometry(0.16, 1.1, 5); rt.translate(0, 0.55, 0); put(rt, new THREE.Vector3(Math.cos(a) * 0.22, 0.1, Math.sin(a) * 0.22), new THREE.Euler(Math.sin(a) * 1.15, 0, -Math.cos(a) * 1.15)); }
     return mergeGeos(parts);
   });
   const burntBark = mat(0x120d0a, { roughness: 1 });
@@ -619,9 +660,13 @@ export function buildWorld(scene) {
   }
   function plantRocks(list, material = rockM) {
     if (!list.length) return;
-    const im = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), material, list.length);
-    list.forEach(([x, z, s], i) => { dmO.position.set(x, groundHeight(x, z) + s * 0.2, z); dmO.rotation.set(OR(3), OR(3), OR(3)); dmO.scale.set(s, s * OR(0.5, 0.9), s * OR(0.8, 1.2)); dmO.updateMatrix(); im.setMatrixAt(i, dmO.matrix); if (s > 0.8) circle(x, z, s * 0.85); });
-    im.castShadow = true; scene.add(im);
+    const flat = new THREE.MeshStandardMaterial({ color: material.color, roughness: 1, flatShading: true });
+    for (let v = 0; v < 3; v++) {
+      const g = list.filter((_, i) => i % 3 === v); if (!g.length) continue;
+      const im = new THREE.InstancedMesh(ROCK_GEOS[v], flat, g.length);
+      g.forEach(([x, z, s], i) => { dmO.position.set(x, groundHeight(x, z) + s * 0.25, z); dmO.rotation.set(OR(-0.2, 0.2), OR(6.28), OR(-0.2, 0.2)); dmO.scale.set(s, s * OR(0.5, 0.95), s * OR(0.8, 1.2)); dmO.updateMatrix(); im.setMatrixAt(i, dmO.matrix); if (s > 0.8) circle(x, z, s * 0.85); });
+      im.castShadow = true; scene.add(im);
+    }
   }
   const inVillage = (x, z) => Math.abs(x) < 90 && z < 56 && z > -245;
   const okSpot = (x, z, pad = 5) => !inVillage(x, z) && pathDist(x, z) > pad && !inArena(x, z, 6) && REGIONS.every((Rg) => Math.hypot(x - Rg.x, z - Rg.z) > 7) && Math.abs(x) < 238 && z < 200 && z > -228;
@@ -688,8 +733,8 @@ export function buildWorld(scene) {
       for (let i = 0; i < 5; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(22, 38), 0x587a64); }
     },
     crypt(R) {
-      const stones = new THREE.InstancedMesh(boxGeo(0.8, 1.4, 0.22, 1.5), mat(0x6a6a72, { roughness: 1 }), 110);
-      for (let i = 0; i < 110; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.12, 1.25)), OR(6.28)); const h = OR(0.6, 1.3); dmO.position.set(x, groundHeight(x, z) + h * 0.5 - 0.1, z); dmO.rotation.set(OR(-0.14, 0.14), OR(-0.5, 0.5), OR(-0.15, 0.15)); dmO.scale.set(OR(0.8, 1.2), h, 1); dmO.updateMatrix(); stones.setMatrixAt(i, dmO.matrix); if (i % 4 === 0) circle(x, z, 0.45); }
+      const stones = new THREE.InstancedMesh(ARCH_GEO, mat(0x6a6a72, { roughness: 1 }), 110);
+      for (let i = 0; i < 110; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.12, 1.25)), OR(6.28)); const h = OR(0.6, 1.3); dmO.position.set(x, groundHeight(x, z) - 0.1, z); dmO.rotation.set(OR(-0.14, 0.14), OR(-0.5, 0.5), OR(-0.15, 0.15)); dmO.scale.set(OR(0.7, 1.0), h * 1.15, 1); dmO.updateMatrix(); stones.setMatrixAt(i, dmO.matrix); if (i % 4 === 0) circle(x, z, 0.45); }
       stones.castShadow = true; scene.add(stones);
       // Mausoleum im Hintergrund
       const mx = R.x, mz = R.z - R.r * 0.62, my = groundHeight(mx, mz), mm = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x5a5a64, roughness: 1 });
