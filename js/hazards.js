@@ -14,12 +14,12 @@ export function createHazards(G) {
   const H = { projectiles: [], areas: [] };
 
   // ---------------- Projektile ----------------
-  H.shoot = ({ pos, dir, speed = 14, dmg = 70, life = 5, r = 0.6, homing = 0, color = 0xff7a30, kind = 'fire', size = 1.4 }) => {
+  H.shoot = ({ pos, dir, speed = 14, dmg = 70, life = 5, r = 0.6, homing = 0, color = 0xff7a30, kind = 'fire', size = 1.4, noStagger = false }) => {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     sp.scale.set(size, size, 1); sp.position.copy(pos); scene.add(sp);
     const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     core.scale.set(size * 0.45, size * 0.45, 1); sp.add(core);
-    const p = { sprite: sp, pos: pos.clone(), vel: dir.clone().normalize().multiplyScalar(speed), speed, dmg, life, r, homing, color, kind, dead: false };
+    const p = { sprite: sp, pos: pos.clone(), vel: dir.clone().normalize().multiplyScalar(speed), speed, dmg, life, r, homing, color, kind, noStagger, dead: false };
     H.projectiles.push(p); return p;
   };
   H.killProjectile = (p, hit = false) => {
@@ -29,7 +29,7 @@ export function createHazards(G) {
 
   // ---------------- Bodenflaechen ----------------
   // kind: 'pool' (Dauerschaden), 'blast' (einmalige Explosion), 'ring' (wandernde Schockwelle), 'rock' (fallender Felsen)
-  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false, shape = 'rock', jumpOnly = false }) => {
+  H.area = ({ x, z, r = 3, delay = 1, life = 5, dmg = 40, tick = 0.6, kind = 'pool', color = 0xff3a1a, speed = 10, thick = 1.6, maxR = 16, knock = false, shape = 'rock', jumpOnly = false, noStagger = false }) => {
     const y = groundHeight(x, z) + 0.12;
     const group = new THREE.Group(); group.position.set(x, y, z);
     const disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -49,11 +49,11 @@ export function createHazards(G) {
       rock.position.y = 22; group.add(rock);
     }
     scene.add(group);
-    const a = { x, z, r, delay, life, dmg, tick, kind, color, speed, thick, maxR, knock, jumpOnly, t: 0, tickT: 0, group, disc, edge, rock, done: false, hit: false, active: false };
+    const a = { x, z, r, delay, life, dmg, tick, kind, color, speed, thick, maxR, knock, jumpOnly, noStagger, t: 0, tickT: 0, group, disc, edge, rock, done: false, hit: false, active: false };
     H.areas.push(a); return a;
   };
 
-  const hurtPlayer = (a, dmg, knock, unblockable = false) => G.player.hurt(dmg, { x: a.x, y: 0, z: a.z }, { knock, unblockable });
+  const hurtPlayer = (a, dmg, knock, unblockable = false) => G.player.hurt(dmg, { x: a.x, y: 0, z: a.z }, { knock, unblockable, noStagger: a.noStagger });
 
   H.update = (dt) => {
     const P = G.player;
@@ -73,7 +73,7 @@ export function createHazards(G) {
       if (!P.dead) {
         const dx = P.pos.x - p.pos.x, dz = P.pos.z - p.pos.z, dy = P.pos.y + 1.0 - p.pos.y;
         if (Math.hypot(dx, dz) < p.r + P.radius && Math.abs(dy) < 1.1 + p.r && !P.iframes) {
-          P.hurt(p.dmg, { x: p.pos.x - p.vel.x, y: 0, z: p.pos.z - p.vel.z }, {}); fx.flash(p.pos, p.color, 60, 0.25); Sound.play('hit'); H.killProjectile(p, true);
+          P.hurt(p.dmg, { x: p.pos.x - p.vel.x, y: 0, z: p.pos.z - p.vel.z }, { noStagger: p.noStagger }); fx.flash(p.pos, p.color, 60, 0.25); Sound.play('hit'); H.killProjectile(p, true);
         }
       }
     }
