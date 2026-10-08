@@ -107,19 +107,19 @@ const ATTACKS = {
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.7, hx: 0, hy: 0.95, hz: 0, dx: 0, dy: 1, dz: -0.2, lean: -0.35, glow: 1, e: 2 }, { t: 0.9, hx: -0.1, hy: 0.25, hz: 0.55, dx: 0, dy: -0.7, dz: 1, lean: 0.55, crouch: 0.15, glow: 1, e: 1 }, { t: 1.5, e: 3 }, { t: 2.6, ...IDLE.boss, glow: 0, e: 0 }]) },
   kMeteors: { name: 'Sternenfall', dur: 3.2, hs: 99, he: 99, track: 0.6, danger: true, ev: [[1.2, 'meteors']],
     f: A(IDLE.boss, [{ t: 0 }, { t: 1.0, hx: 0, hy: 1.05, hz: 0.05, dx: 0, dy: 1, dz: 0, lean: -0.5, glow: 1, e: 2 }, { t: 1.2, e: 3 }, { t: 2.0, e: 3 }, { t: 3.2, ...IDLE.boss, glow: 0, e: 0 }]) },
-  kStomp: { name: 'Erdbeben des Königs', dur: 5.85, hs: 99, he: 99, track: 0.6, danger: true, hops: [1.20, 2.35, 3.50, 4.65], ev: [[1.20, 'kingStomp'], [2.35, 'kingStomp'], [3.50, 'kingStomp'], [4.65, 'kingStomp']],
+  kStomp: { name: 'Erdbeben des Königs', dur: 6.65, hs: 99, he: 99, track: 1.4, danger: true, hops: [2.0, 3.15, 4.3, 5.45], ev: [[0.55, 'stompWarn'], [2.0, 'kingStomp'], [3.15, 'kingStomp'], [4.3, 'kingStomp'], [5.45, 'kingStomp']],
     f: A(IDLE.boss, [{ t: 0 },
       { t: 0.5, crouch: 0.45, lean: 0.3, hx: -0.1, hy: 0.4, hz: 0.2, dx: 0, dy: 1, dz: 0, glow: 1, e: 2 },
-      { t: 0.78, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
-      { t: 1.20, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
-      { t: 1.93, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
-      { t: 2.35, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
-      { t: 3.08, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
-      { t: 3.50, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
-      { t: 4.23, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
-      { t: 4.65, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
-      { t: 5.05, e: 3 },
-      { t: 5.85, ...IDLE.boss, glow: 0, e: 0 }]) },
+      { t: 1.2, e: 3 }, { t: 1.58, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
+      { t: 2.0, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
+      { t: 2.73, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
+      { t: 3.15, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
+      { t: 3.88, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
+      { t: 4.3, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
+      { t: 5.03, crouch: -0.1, lean: -0.35, hx: -0.1, hy: 1.0, hz: 0.05, dx: 0, dy: 1, dz: -0.2, e: 2 },
+      { t: 5.45, crouch: 0.4, lean: 0.55, hx: -0.1, hy: 0.3, hz: 0.5, dx: 0, dy: -0.7, dz: 1, e: 1 },
+      { t: 5.85, e: 3 },
+      { t: 6.65, ...IDLE.boss, glow: 0, e: 0 }]) },
   kBow: { name: 'Königlicher Pfeilhagel', dur: 2.9, hs: 99, he: 99, track: 1.9, bow: true, ev: [[1.0, 'kingArrow'], [1.5, 'kingArrow'], [2.0, 'kingArrow']],
     f: A(IDLE.boss, [{ t: 0 }, { t: 0.45, hx: -0.1, hy: 0.58, hz: 0.6, dx: 0, dy: 1, dz: 0.12, lg: 0, twist: 0.35, lean: 0, draw: 0, e: 2 },
       { t: 0.95, draw: 1, e: 0 }, { t: 1.0, draw: 0, e: 1 }, { t: 1.28, draw: 1, e: 0 }, { t: 1.48, draw: 1, e: 3 }, { t: 1.5, draw: 0, e: 1 }, { t: 1.78, draw: 1, e: 0 }, { t: 1.98, draw: 1, e: 3 }, { t: 2.0, draw: 0, e: 1 },
@@ -716,7 +716,7 @@ const EV = {
   },
   kingWave(e) { // Fächer aus Flammenwellen
     const G = e.G, m = muzzle(e), n = e.phase3 ? 7 : e.phase2 ? 5 : 3;
-    for (let i = 0; i < n; i++) { G.hazards.shoot({ pos: m.clone().setY(m.y - 0.4), dir: aimAt(e, m.clone().setY(m.y - 0.4), (i - (n - 1) / 2) * 0.22), speed: 14, dmg: 85 * e.dmgMul, r: 0.95, color: 0xffb030, kind: 'fire', life: 4.5, size: 2.2 }); }
+    for (let i = 0; i < n; i++) { G.hazards.shoot({ pos: m.clone().setY(m.y - 0.4), dir: aimAt(e, m.clone().setY(m.y - 0.4), (i - (n - 1) / 2) * 0.22), speed: 14, dmg: 85 * e.dmgMul, r: 0.95, color: 0xffb030, kind: 'fire', life: 4.5, size: 2.2, noStagger: true }); }
     G.fx.flash(m, 0xffb030, 90, 0.3); G.shake(0.3); Sound.play('ash');
   },
   kingPools(e) { // Flammensäulen rund um den Spieler
@@ -724,7 +724,7 @@ const EV = {
     for (let i = 0; i < n; i++) {
       let x = P.pos.x, z = P.pos.z; if (i) { const a = (i / n) * Math.PI * 2 + rand(0.5), rr = rand(3, 7.5); x += Math.cos(a) * rr; z += Math.sin(a) * rr; }
       [x, z] = clampArena(e, x, z, 2);
-      G.hazards.area({ x, z, r: 3.1, delay: 1.0 + (i % 3) * 0.15, life: 5, dmg: 45 * e.dmgMul, tick: 0.55, kind: 'pool', color: 0xffb030 });
+      G.hazards.area({ x, z, r: 3.1, delay: 1.0 + (i % 3) * 0.15, life: 5, dmg: 45 * e.dmgMul, tick: 0.55, kind: 'pool', color: 0xffb030, noStagger: true });
     }
     Sound.play('bossSlam');
   },
@@ -734,7 +734,11 @@ const EV = {
     const c = e.pos.clone(); c.y = groundHeight(c.x, c.z);
     G.hazards.area({ x: c.x, z: c.z, kind: 'ring', speed: e.phase3 ? 13 : 11, thick: 1.9, maxR: 32, dmg: 130 * e.dmgMul, color: 0xffd060, jumpOnly: true });
     G.fx.ring(c, { color: 0xffd060, r: 8, dur: 0.5 }); G.fx.dust(c, 30); G.shake(0.8); Sound.play('bossSlam');
-    if (n === 1) G.ui.toast('Springen!');
+  },
+  stompWarn(e) { // Anlauf des Erdbebens: gut sichtbar, auch im Nahkampf
+    const G = e.G, c = e.pos.clone(); c.y = groundHeight(c.x, c.z);
+    G.fx.ring(c, { color: 0xffd060, r: 5, dur: 0.9 }); G.fx.add.emit(c.clone().setY(c.y + 0.3), 30, { vel: 3, up: 1, life: 0.7, size: 0.2, color: [1, 0.85, 0.4], gravity: -1 });
+    G.shake(0.25); Sound.play('ashCharge'); if (!e.flags.warned) { e.flags.warned = true; G.ui.toast('Springen!'); }
   },
   kingArrow(e) { // Pfeile direkt auf den Spieler
     const G = e.G, m = muzzle(e), n = e.phase3 ? 3 : e.phase2 ? 2 : 1;

@@ -500,11 +500,12 @@ export function createPlayer(G, clsId = 'ninja') {
     if (P.iframes && !opts.unblockable) return 'dodged';
     if (P.ward > 0) dmg *= 0.5;
     P.hp -= dmg; P.hurtTime = 0.3;
-    G.ui.hurt(); G.shake(0.5); G.hitstop(0.08);
+    G.ui.hurt(); G.shake(opts.noStagger ? 0.2 : 0.5); if (!opts.noStagger) G.hitstop(0.08);
     const p = P.pos.clone(); p.y += 1.2;
     fx.blood(p, 18, new THREE.Vector3(P.pos.x - from.x, 0.2, P.pos.z - from.z).normalize());
     Sound.play('hurt');
     if (P.hp <= 0) { P.hp = 0; die(); return 'hit'; }
+    if (opts.noStagger) return 'hit'; // reiner Schaden: kein Taumeln, kein Rueckstoss
     const heavy = dmg > 90 || opts.knock;
     const push = new THREE.Vector3(P.pos.x - from.x, 0, P.pos.z - from.z).normalize().multiplyScalar(heavy ? 7 : 3.5);
     P.vel.copy(push);
