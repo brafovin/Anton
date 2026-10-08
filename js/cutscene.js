@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { clamp, lerp, smoothstep, rand } from './util.js';
 import { Sound } from './audio.js';
-import { groundHeight } from './world.js';
+import { groundHeight, ARENAS } from './world.js';
+import { DEF } from './models.js';
 
 // ---------------------------------------------------------------------------
 //  Cutscenes in der Spiel-Engine: Kamerafahrten, Untertitel, Titelkarte,
@@ -116,6 +117,19 @@ const SCRIPTS = {
       outro: { lines: [[1.2, 5.4, 'Aldrar', '„Die Krone … ist nur … Asche …“']], R: 17, h: 3.6, lookH: 0.5 },
     };
   },
+  king2: () => { // Phase 2: Aldrar zieht die zweite Klinge
+    const s = [{ dur: 3.0, cam: close({ d0: 9.5, d1: 6.2, side: 0.2, h: 1.5, lookH: 1.45, fov: 44 }) }, { dur: 3.6, cam: orbit({ a0: 0.4, a1: -1.0, R: 13, h0: 2.2, h1: 5.0, lookH: 1.3, lookH1: 1.6 }) },
+      { dur: 3.0, cam: close({ d0: 11, d1: 8, side: -0.25, h: 1.4, lookH: 1.5, fov: 44 }) }, { dur: 1.2 }];
+    return {
+      shots: s,
+      subs: [[0.5, 3.1, 'Aldrar', '„Du bist weiter gekommen, als ich je erlaubte …“'], [3.3, 6.9, 'Aldrar', '„Doch eine Klinge war nie genug. Zeig mir, ob du zwei Flammen löschen kannst!“']],
+      title: { t: 6.6, text: 'ALDRAR', sub: 'Die zweite Klinge' },
+      events: [[0.1, (c, G) => { G.shake(0.2); Sound.play('roar'); }],
+        [2.7, (c, G) => { c.boss.setDual(true); const p = c.B.clone(); p.y += 2.4; embers(G, p, 80, true); G.fx.flash(p, 0xa050ff, 160, 0.6); G.fx.ring(c.B.clone(), { color: 0xa050ff, r: 9, dur: 0.9 }); Sound.play('ash'); Sound.play('swingHeavy'); G.shake(0.4); }],
+        [4.5, (c, G) => { shockwave(G, c); G.fx.ring(c.B.clone(), { color: 0xa050ff, r: 18, dur: 1.2 }); }]],
+      end: (c) => { c.boss.setDual(true); c.boss.setState('chase', 0.3); c.boss.cd = 1.0; c.boss.untouchable = false; },
+    };
+  },
   vael: () => {
     const first = (c, u, out) => { // Nahaufnahme des Spielers, Kamera schiebt sich heran
       const e = ease(u), d = lerp(3.2, 1.9, e);
@@ -167,6 +181,59 @@ export function createCutscenes(G) {
       subs: o.lines, events: [[0.0, (c, G) => { G.cutscene.slow = 0.3; }], [3.2, (c, G) => { G.cutscene.slow = 1; }]], outro: true,
     };
     begin(def, boss, 'outro', onEnd);
+  };
+  C.playPhase = (boss, onEnd) => {
+    const def = SCRIPTS[boss.fight.id + '2']();
+    begin(def, boss, 'phase', onEnd);
+  };
+  // Sieg ueber den Koenig: der Spieler steigt die Stufen hinauf und setzt sich auf den Thron
+  C.playThrone = (onEnd) => {
+    const P = G.player, A = ARENAS.find((a) => a.id === 'king'), H = A.h0;
+    const tx = A.x + A.nx * (-A.r + 5), tz = A.z + A.nz * (-A.r + 5);       // Thronmitte
+    const seatZ = tz + 0.2, seatTop = H + 3.1, standZ = tz + 8.5, climbZ0 = tz + 6.2;
+    const sitPose = { ...DEF, hx: -0.3, hy: 0.08, hz: 0.32, dx: 0, dy: -0.35, dz: 1, lfree: 1, lx: 0.3, ly: 0.08, lz: 0.32, lean: -0.1, head: -0.12, crouch: 0.5, sit: 1 };
+    const standPose = { ...DEF, hx: -0.12, hy: 0.35, hz: 0.45, dx: 0.1, dy: 0.55, dz: 0.85, lg: -0.2 };
+    const prm = (u) => ease(clamp(u, 0, 1));
+    const s = [
+      { dur: 6.4, cam: (c, u, out) => { out.pos.set(P.pos.x + 5.5 - u * 2, P.pos.y + 2.4 + u * 1.2, P.pos.z + 7 - u * 1.5); out.look.set(P.pos.x, P.pos.y + 1.6, P.pos.z - 1); }, fov: 52 },
+      { dur: 3.2, cam: (c, u, out) => { out.pos.set(tx + 5 - u * 4, seatTop + 1.0 + u * 0.4, tz + 11 - u * 2); out.look.set(tx, seatTop + 1.0, seatZ); }, fov: 50 },
+      { dur: 7.4, cam: (c, u, out) => { const e = ease(u), a = lerp(-0.45, 0.5, e), R = lerp(9, 17, e); out.pos.set(tx + Math.sin(a) * R, seatTop + lerp(0.8, 4.5, e), tz + Math.cos(a) * R); out.look.set(tx, seatTop + lerp(1.3, 3.2, e), seatZ); }, fov: 48 },
+    ];
+    const def = {
+      shots: s,
+      start: (c) => {
+        P.noClip = true; P.cutWalk = true; P.cutPose = standPose; P.liftY = 0; P.lock = null;
+        P.pos.set(tx, H, tz + 15); P.yaw = Math.PI; P.camYaw = Math.PI;
+        Sound.bossMusic(false);
+      },
+      subs: [[0.8, 4.2, '', 'Stille. Der Aschenkönig ist gefallen – und mit ihm die Krone, die die Flamme band …'], [4.6, 8.8, '', 'Die Stufen zum Thron liegen vor dir, grau und kalt.'],
+        [10.4, 14.2, '', 'Du setzt dich. Die letzte Glut erlischt – und aus ihr erhebt sich ein neues, warmes Licht.']],
+      title: { t: 12.5, text: 'DER THRON IST DEIN', sub: 'Das Feuer gehorcht' },
+      events: [[9.7, (c, G) => { Sound.play('victory'); G.shake(0.3); const p = new THREE.Vector3(tx, seatTop + 1, seatZ); G.fx.add.emit(p, 90, { vel: 3, up: 2, life: 2.2, size: 0.2, color: [1, 0.75, 0.35], gravity: -1.2 }); G.fx.ring(p.clone().setY(seatTop), { color: 0xffd060, r: 9, dur: 1.4 }); G.fx.flash(p, 0xffc060, 160, 1.2); }],
+        [15.0, (c, G) => { G.ui.fade(1, 1800, '#fff'); }]],
+      update: (c, G, t, dt) => {
+        P.vel.set(0, 0, 0); P.camYaw = P.yaw;
+        if (t < 3.2) { // Weg durch den Saal bis zum Fuss der Stufen
+          const u = t / 3.2; P.cutWalk = true; P.cutPose = null; P.pos.x = tx; P.pos.z = lerp(tz + 15, standZ, prm(u) * 0.35 + u * 0.65); P.yaw = Math.PI; P.liftY = 0;
+        } else if (t < 6.4) { // Stufen hinauf: Hoehe folgt den echten Stufenkanten des Throns
+          const u = clamp((t - 3.2) / 3.2, 0, 1), d = lerp(standZ, seatZ + 0.3, u) - tz;
+          let h = 0; for (const [edge, top] of [[3.5, 0.7], [2.75, 1.4], [2.1, 2.1], [1.7, 3.1]]) h = lerp(h, top, smoothstep(edge + 0.3, edge - 0.1, d));
+          P.cutWalk = true; P.cutPose = null; P.pos.x = tx; P.pos.z = tz + d; P.yaw = Math.PI; P.liftY = h;
+        } else if (t < 7.6) { // oben angekommen: umdrehen
+          P.cutWalk = false; P.cutPose = standPose; P.pos.z = seatZ + 0.3; P.liftY = 3.1; P.yaw = Math.PI - Math.PI * prm((t - 6.4) / 1.2);
+        } else if (t < 9.6) { // hinsetzen
+          const u = prm((t - 7.6) / 2.0);
+          P.cutWalk = false; P.pos.z = seatZ + 0.3 - u * 0.1; P.liftY = 3.1 - 0.35 * u; P.yaw = 0;
+          const pp = {}; for (const k of Object.keys(DEF)) pp[k] = lerp(standPose[k], sitPose[k], u); P.cutPose = pp;
+        } else { P.cutWalk = false; P.cutPose = sitPose; P.pos.z = seatZ + 0.2; P.liftY = 3.1 - 0.35; P.yaw = 0; }
+        if (t > 10 && Math.random() < 0.5) { const q = new THREE.Vector3(tx + (Math.random() - 0.5) * 6, seatTop + 0.5, seatZ + 1 + Math.random() * 4); G.fx.add.emit(q, 1, { vel: 0.4, up: 1, life: 2.2, size: 0.16, color: [1, 0.7, 0.3], gravity: -0.9 }); }
+      },
+      end: () => {
+        P.noClip = false; P.cutWalk = false; P.cutPose = null; P.liftY = 0;
+        P.pos.set(tx, H, tz + 12); P.yaw = 0; P.camYaw = 0; P.vel.set(0, 0, 0);
+      },
+    };
+    begin(def, G.fights.find((f) => f.id === 'king').enemy, 'throne', onEnd);
   };
   C.skip = () => { if (G.cutscene) C.end(true); };
 

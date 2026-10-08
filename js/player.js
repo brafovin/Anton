@@ -799,9 +799,9 @@ export function createPlayer(G, clsId = 'ninja') {
       P.vel.x = damp(P.vel.x, 0, 16, dt); P.vel.z = damp(P.vel.z, 0, 16, dt);
     }
     if (P.state !== 'hit') P.pos.addScaledVector(P.vel, dt);
-    world.resolve(P.pos, P.radius);
+    if (!P.noClip) world.resolve(P.pos, P.radius);
     // Boss-Gegner schieben
-    for (const e of G.enemies) {
+    if (!P.noClip) for (const e of G.enemies) {
       if (e.dead) continue;
       const dx = P.pos.x - e.pos.x, dz = P.pos.z - e.pos.z, d = Math.hypot(dx, dz), rr = P.radius + e.radius;
       if (d < rr && d > 0.001) { const push = (rr - d) * (P.state === 'roll' ? 0.2 : 0.65); P.pos.x += (dx / d) * push; P.pos.z += (dz / d) * push; }
@@ -811,6 +811,7 @@ export function createPlayer(G, clsId = 'ninja') {
     const sp = Math.hypot(P.vel.x, P.vel.z);
     P.moving = sp > 0.4 && (P.state === 'free' || P.state === 'drink' || P.state === 'kindle' || P.state === 'rest');
     P.speedN = clamp(sp / 6.4, 0, 1);
+    if (P.state === 'cutscene' && P.cutWalk) { P.moving = true; P.speedN = 0.4; } // Laufanimation in Cutscenes (Position setzt das Skript)
 
     // Seelen einsammeln
     if (G.stain && P.pos.distanceTo(G.stain.pos) < 1.8 && !P.dead) G.pickStain();
@@ -830,6 +831,7 @@ export function createPlayer(G, clsId = 'ninja') {
       case 'rest': target = sample(FR.rest, P.t, {}); break;
       case 'dead': target = sample(FR.dead, P.deathT, {}); break;
       case 'cast': { const c = P.cast.spell, tt = P.t < c.cast ? (P.t / c.cast) * 0.45 : 0.45 + (P.t - c.cast); target = sample(c.self ? FRS.castUp : FRS.cast, tt, {}); break; }
+      case 'cutscene': target = P.cutPose ? { ...P.cutPose } : { ...readyPose() }; if (P.cutWalk && !P.cutPose) target.lean = 0.1; break;
       case 'jump': target = { ...readyPose(), tuck: 0.7, lean: 0.15, hx: -0.2, hy: 0.5, hz: 0.3, dx: 0, dy: 0.3, dz: 1 }; break;
       default: {
         target = { ...readyPose() };

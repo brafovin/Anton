@@ -238,7 +238,7 @@ G.startBoss = (f) => {
 };
 // Folgen eines besiegten Bosses: nach dem vierten Boss Teleport zum Thron, nach dem König das Ende
 G.afterBoss = (f) => {
-  if (f.id === 'king') G.showEnding();
+  if (f.id === 'king') G.cutscenes.playThrone(() => G.showEnding());
   else if (f.id === 'vael' && G.allFourDead()) {
     ensurePlazaBonfire(); G.ui.banner('DER FAHRSTUHL ERWACHT', 'gold', 5.5); Sound.play('victory');
     setTimeout(() => G.ui.toast('Im Burghof wartet ein Fahrstuhl zum Thronsaal des Königs'), 3200);
