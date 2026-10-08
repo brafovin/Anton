@@ -51,7 +51,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 
 **Benommen:** Wer geparried wird (oder als Boss gegen eine Wand rennt), taumelt zurück und sinkt wie in Elden Ring auf die Knie – gebeugt und wehrlos, bis er sich nach ein paar Sekunden wieder aufrichtet. Die Riposte trifft den knienden Gegner; danach steht er langsam auf.
 | Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: **M2-Zauber wechseln** |
-| Mausrad / 1–5 | M1-Zauber wählen (nur mit Magierstab) |
+| Mausrad / 1–8 | M1-Zauber wählen (nur mit Zauberstab) |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
 | T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |
 | F (am Leuchtfeuer) | Flaschen zwischen HP und FP verteilen |
@@ -66,7 +66,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 - **Leuchtfeuer** (3 + eines nach dem Boss): entfachen, rasten (heilt, füllt Estus, setzt Gegner zurück), Teleport zwischen entfachten Leuchtfeuern.
 - **Aufleveln:** Am Leuchtfeuer (`U`) tauscht du Seelen gegen Level: Vitalität (HP), Geist (FP), Ausdauer, Stärke (Schaden). Die Kosten steigen mit jedem Level.
 - **Boss-Rüstung & Beute:** *Sir Hadrian* trägt eine schwarz-goldene Stachelrüstung mit glühendem Emblem – ganz anders als dein stählernes Outfit. Besiegst du ihn, kannst du seine **Hadrians Ascheklinge** (Großschwert: langsamer, härter, größere Reichweite, eigene Kombo, Heavy und Ash of War) aufnehmen und mit `C` zwischen den Waffen wechseln.
-- **Endboss & Teleport:** Hast du alle vier Wächter besiegt, wirst du automatisch zum **Thronsaal** teleportiert (Leuchtfeuer „Thronsaal-Vorhof“, später auch per Teleport-Menü erreichbar). Dort wartet der mächtige Aschenkönig Aldrar mit eigener Cutscene. Nach seinem Sturz folgt der Abspann – danach kannst du weiterspielen.
+- **Endboss & Fahrstuhl:** Hast du alle vier Wächter besiegt, erwacht im **Burghof** (Ostseite) ein goldener **Fahrstuhl**. Er trägt dich in einer langen Fahrt hinauf zum schwebenden **Thronsaal** (Leuchtfeuer „Thronsaal-Vorhof“, später auch per Teleport-Menü erreichbar). Dort wartet der mächtige Aschenkönig Aldrar mit eigener Cutscene; ein zweiter Fahrstuhl im Vorhof bringt dich jederzeit zurück nach unten. Nach seinem Sturz folgt der Abspann – danach kannst du weiterspielen.
 - **Cutscenes:** Jeder Boss hat ein eigenes Intro (nach dem Nebeltor) mit Kamerafahrt, Untertiteln und Titelkarte – Hadrian steht kniend am Schwert auf, Morwen erscheint schwebend im Violett der Kristalle, Gorm bricht mit Erdbeben aus dem Geröll, Vael tritt aus der Dunkelheit. Beim Tod des Bosses folgt ein kurzes Zeitlupen-Outro mit letzten Worten. Das Intro läuft nur beim ersten Mal pro Boss (wird mitgespeichert); bei weiteren Versuchen erscheint nur der Bossname. Überspringen mit `Leertaste`, `Enter`, `E` oder `Esc`.
 - **Tod:** „YOU DIED“, Seelen bleiben als Fleck zurück und können wieder eingesammelt werden.
 - **Gegner:** Hohle Soldaten und Wachritter (blocken mit dem Schild – schwere Angriffe brechen die Deckung).
@@ -80,6 +80,21 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | 4 | **Vael**, der Henker | Henkersplatz (Süden) | Schattenstoß, 3-fache Sensenkombo, Todeswirbel (rot), verschwindet und greift von hinten an, beschwört Schatten (Phase 2, höchstens alle 35 s, max. 2 gleichzeitig) | +1 Estus & +1 Aschen-Flasche |
 | 5 | **Aldrar**, der Aschenkönig (Endboss) | Thronsaal hoch über der Welt | **3 Phasen:** Königlicher Hieb, Zorn der Krone (rot), Thronstoß, dreifache Klinge, **Erdbeben des Königs** (mehrere Stampf-Wellen hintereinander – nur **Springen** hilft, Rollen nicht) · **Bogen:** Pfeilhagel (Salven direkt auf dich) und ab Phase 2 Pfeilregen · Phase 2: Flammenschwingen (Fächer, zielt auf dich), Flammensäulen, Sturz des Königs · Phase 3: Sternenfall (Meteore), Thronsprung (Teleport + Schlag), noch schneller | +1 Estus & +1 Aschen-Flasche, das Ende |
 - **Rot glühende Boss-Angriffe sind nicht parierbar** – rollen oder springen!
+
+## Offene Welt, Minibosse & Beute
+
+Hinter dem Dorf öffnet sich die Welt: Von den Dorfausgängen führen **Wege** (mit Wegweisern) durch die Berge in sechs **Gebiete** – jedes mit eigenem Leuchtfeuer, Wegelagerern und einem **Miniboss**. Beim Betreten erscheint der Gebietsname. Minibosse sind optional, haben eine große Lebensleiste und lassen **Waffen oder Zauber** fallen (aufnehmen mit `E`, bleiben erhalten, bis sie eingesammelt sind). Besiegte Minibosse kehren nicht zurück.
+
+| Gebiet | Miniboss | Beute |
+|---|---|---|
+| Nebelmoor (Westen) | **Sellith**, die Moorhexe – Feuer, Seelenorbs, Flammenfelder, Teleport | **Zauberstab** (für Ninja/Ritter; so können alle Zauber wirken) + Zauber **Frostsplitter** (Fächer aus Eissplittern) |
+| Verlassene Mine (Osten) | **Brogg**, der Minenaufseher (Riese) – Hiebe, Erdstoß, Ansturm | **Gorms Knochenkeule** (schwer, zweihändig, Ash of War: Erdbeben) |
+| Aschenwald (Süden) | **Kaela**, die Schnitterin – Sprints, Kombos, Wirbel, Schattenschritt | **Henkersichel** (weite Bögen, Ash of War: Seelenschnitt) |
+| Gruft der Gefallenen (Nordwesten) | **Ritter Aldwin** – Schildritter mit schweren Hieben und Sturmstoß | **Mondlichtklinge** (flink, Ash of War: Mondschnitt mit großer Reichweite) |
+| Sturmwarte (Nordosten) | **Ysolde**, die Sturmruferin – schnelle Orbs und Flammenfelder | Zauber **Blitzlanze** (durchbohrt alles in einer Linie) |
+| Brandmoor (Südwesten) | **Embra**, der Aschenbrenner – Hiebe und Zerschmettern (rot) | Zauber **Glutnova** (Flammenring um dich herum) |
+
+Neue Zauber lassen sich mit dem Zauberstab wirken (M1/M2 wie gehabt, Mausrad / `1`–`8` wählt). Fortschritt der Minibosse, Waffen und Zauber werden mit gespeichert.
 
 ## Code
 

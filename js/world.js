@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp, rand, smoothstep, fbm, noise2, mulberry } from './util.js';
 import { mat } from './models.js';
 
-export const BOUNDS = { x0: -85, x1: 85, z0: -400, z1: 48 };
+export const BOUNDS = { x0: -250, x1: 250, z0: -400, z1: 212 };
 // Boss-Arenen: a = Richtung des Nebeltors (x=cos a, z=sin a), zeigt zur Spielwelt
 export const ARENAS = [
   { id: 'hadrian', tier: 0, hp: 1700, souls: 8000, dmgMul: 1.0, speedMul: 1.0, cdMul: 1.0, x: 0, z: -152, r: 24, a: Math.PI / 2, style: 'castle', wallH: 10, boss: 'boss', bossName: 'Sir Hadrian, Wächter der Asche', bonfire: { id: 3, name: 'Arena des Wächters' }, reward: 'greatsword', camDist: 6.6, floor: 0x5a5852, gateColor: 0xd8e4ff },
@@ -24,7 +24,7 @@ export const inArena = (x, z, pad = 0) => ARENAS.some((A) => Math.hypot(x - A.x,
 //  Gelaendehoehe (analytisch -> Kollision + Platzierung ohne Raycasts)
 // ------------------------------------------------------------------
 function baseProfile(z) { return 2.6 * smoothstep(-46, -64, z); }
-function rawHeight(x, z) {
+function innerHeight(x, z) {
   const open = 1 - smoothstep(30, 62, Math.abs(x));
   const castle = smoothstep(-58, -66, z) * (1 - smoothstep(34, 62, Math.abs(x)));
   const rollK = 0.4 + 0.6 * (1 - castle);
@@ -32,17 +32,70 @@ function rawHeight(x, z) {
   const hill = (1 - open) * (7 + fbm(x * 0.05 + 9, z * 0.05, 3) * 9) + smoothstep(34, 58, z) * 9 + smoothstep(-186, -205, z) * 12;
   return baseProfile(z) + rolling + hill;
 }
+
+// ---------------- Offene Welt: Gebiete, Wege, Fahrstuehle ----------------
+// Jedes Gebiet hat einen Miniboss (siehe enemies.js MINIS), ein Leuchtfeuer am Eingang und einen Weg aus dem Dorf.
+export const REGIONS = [
+  { id: 'moor', name: 'Nebelmoor', x: -178, z: 2, r: 34, style: 'moor', color: 0x2c3d38, bonfire: { id: 9, name: 'Nebelmoor', x: -143, z: 5 } },
+  { id: 'mine', name: 'Verlassene Mine', x: 178, z: -8, r: 34, style: 'mine', color: 0x4e4438, bonfire: { id: 10, name: 'Verlassene Mine', x: 143, z: -3 } },
+  { id: 'forest', name: 'Aschenwald', x: 0, z: 154, r: 34, style: 'forest', color: 0x1f2a1c, bonfire: { id: 11, name: 'Aschenwald', x: 1, z: 121 } },
+  { id: 'crypt', name: 'Gruft der Gefallenen', x: -152, z: -130, r: 30, style: 'crypt', color: 0x34343c, bonfire: { id: 12, name: 'Gruft der Gefallenen', x: -140, z: -102 } },
+  { id: 'watch', name: 'Sturmwarte', x: 152, z: -130, r: 30, style: 'watch', color: 0x3a3848, bonfire: { id: 13, name: 'Sturmwarte', x: 140, z: -102 } },
+  { id: 'burnt', name: 'Brandmoor', x: -112, z: 120, r: 30, style: 'burnt', color: 0x2a2220, bonfire: { id: 14, name: 'Brandmoor', x: -86, z: 108 } },
+];
+export const PATHS = [
+  [[-26, 6], [-60, 8], [-100, 10], [-140, 5], [-165, 2]],
+  [[26, 6], [60, 8], [100, 8], [140, -4], [165, -8]],
+  [[24, 8], [34, 26], [32, 52], [18, 86], [4, 118], [0, 140]],
+  [[-100, 10], [-112, -30], [-126, -70], [-140, -104], [-150, -118]],
+  [[100, 8], [112, -30], [126, -70], [140, -104], [150, -118]],
+  [[18, 86], [-30, 100], [-70, 106], [-98, 114]],
+];
+const PSEG = [];
+for (const pl of PATHS) for (let i = 0; i < pl.length - 1; i++) PSEG.push([pl[i][0], pl[i][1], pl[i + 1][0], pl[i + 1][1]]);
+export function pathDist(x, z) {
+  let best = 1e9;
+  for (const [x1, z1, x2, z2] of PSEG) {
+    const dx = x2 - x1, dz = z2 - z1, t = clamp(((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz), 0, 1);
+    const d = Math.hypot(x - (x1 + dx * t), z - (z1 + dz * t)); if (d < best) best = d;
+  }
+  return best;
+}
+const lowH = (x, z) => 1 + fbm(x * 0.03, z * 0.03, 3) * 2;
+function rawHeight(x, z) {
+  let h = innerHeight(x, z);
+  const ax = Math.abs(x);
+  const k = Math.max(smoothstep(86, 128, ax), smoothstep(52, 96, z));
+  if (k > 0) { // Aussenland: sanfte Huegel statt Talwaenden
+    const outer = Math.max(0.6, 3 + fbm(x * 0.021 + 31, z * 0.021 - 17, 3) * 8 + fbm(x * 0.09, z * 0.09, 2) * 0.8);
+    h = lerp(h, outer, k);
+  }
+  // Randgebirge der Welt
+  h += smoothstep(205, 248, ax) * 45 + smoothstep(192, 224, z) * 45 + smoothstep(-205, -232, z) * 40 * smoothstep(70, 100, ax);
+  // Passwege: Taeler durch die Berge entlang der Wege
+  const lo = lowH(x, z);
+  if (h > lo + 0.3 && h < 70) { const d = pathDist(x, z); if (d < 26) h = lerp(Math.min(h, lo), h, smoothstep(5, 26, d)); }
+  return h;
+}
 for (const A of ARENAS) A.h0 = A.hFix ?? rawHeight(A.x, A.z);
+for (const R of REGIONS) { R.h0 = rawHeight(R.x, R.z); R.col = new THREE.Color(R.color); }
+export const regionAt = (x, z) => REGIONS.find((R) => Math.hypot(x - R.x, z - R.z) < R.r + 4) || null;
 // Vorhof des Thronsaals (Ankunft nach der Teleportation)
 const KING = ARENAS.find((a) => a.id === 'king');
 export const PLAZAS = [{ x: KING.x + Math.cos(KING.a) * (KING.r + 8), z: KING.z + Math.sin(KING.a) * (KING.r + 8), r: 15, h0: KING.h0 }];
 export const PLAZA_BONFIRE = { id: 7, name: 'Thronsaal-Vorhof', x: PLAZAS[0].x, z: PLAZAS[0].z };
+// Fahrstuhl: unten im Burghof, oben im Vorhof des Thronsaals
+export const LIFTS = {
+  low: { id: 'low', x: 25, z: -112, r: 4.3 },
+  high: { id: 'high', x: PLAZAS[0].x + 9, z: PLAZAS[0].z + 5, r: 4.3 },
+};
 export function groundHeight(x, z) {
   let h = rawHeight(x, z);
   for (const A of ARENAS) {   // Arenen sind eben
     const d = Math.hypot(x - A.x, z - A.z);
     if (d < A.r + 9) h = lerp(h, A.h0, 1 - smoothstep(A.r - 1, A.r + 8, d));
   }
+  for (const R of REGIONS) { const d = Math.hypot(x - R.x, z - R.z); if (d < R.r + 14) h = lerp(h, R.h0, 1 - smoothstep(R.r * 0.55, R.r + 14, d)); }
   for (const Z of PLAZAS) { const d = Math.hypot(x - Z.x, z - Z.z); if (d < Z.r + 9) h = lerp(h, Z.h0, 1 - smoothstep(Z.r - 1, Z.r + 8, d)); }
   return h;
 }
@@ -135,8 +188,8 @@ export function buildWorld(scene) {
   moonDisc.position.copy(moon.position).multiplyScalar(0.98); moonDisc.lookAt(0, 0, 0); scene.add(moonDisc);
 
   // ---------------- Terrain ----------------
-  const SZ = 330, SEG = 220, CX = 0, CZ = -74;
-  const geo = new THREE.PlaneGeometry(SZ, SZ, SEG, SEG); geo.rotateX(-Math.PI / 2);
+  const SZX = 540, SZZ = 470, SEGX = 300, SEGZ = 262, CX = 0, CZ = -5;
+  const geo = new THREE.PlaneGeometry(SZX, SZZ, SEGX, SEGZ); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position; const col = new Float32Array(pos.count * 3);
   const grass = new THREE.Color(0x3d4a2a), dirt = new THREE.Color(0x4d4132), rock = new THREE.Color(0x56565a), moss = new THREE.Color(0x2d3a22), path = new THREE.Color(0x6a5d4a);
   const tmp = new THREE.Color();
@@ -149,14 +202,18 @@ export function buildWorld(scene) {
     tmp.copy(grass).lerp(moss, n); tmp.lerp(dirt, smoothstep(0.35, 0.75, noise2(x * 0.05 + 40, z * 0.05)) * 0.6);
     tmp.lerp(rock, smoothstep(0.7, 2.5, s) * 0.9);
     // Weg entlang der Mittelachse
-    const pd = Math.abs(x - Math.sin(z * 0.045) * 4); tmp.lerp(path, (1 - smoothstep(2.5, 5.5, pd)) * 0.9 * (z < 10 ? 1 : 0));
+    const pd = Math.abs(x - Math.sin(z * 0.045) * 4); tmp.lerp(path, (1 - smoothstep(2.5, 5.5, pd)) * 0.9 * (z < 10 && z > -62 && Math.abs(x) < 40 ? 1 : 0));
     // Innenhof gepflastert
     if (z < -62 && Math.abs(x) < 33) tmp.lerp(new THREE.Color(0x5a5852), 0.8);
     for (const A of ARENAS) { const d = Math.hypot(x - A.x, z - A.z); if (d < A.r + 3) tmp.lerp(A.floorColor, 0.92 * (1 - smoothstep(A.r - 3, A.r + 3, d))); }
+    // Gebiete der offenen Welt faerben den Boden
+    for (const R of REGIONS) { const d = Math.hypot(x - R.x, z - R.z); if (d < R.r + 16) tmp.lerp(R.col, 0.85 * (1 - smoothstep(R.r * 0.5, R.r + 16, d))); }
+    // Wege in die Gebiete
+    if (Math.abs(x) > 18 || z > 4) { const wd = pathDist(x, z); if (wd < 5) tmp.lerp(path, (1 - smoothstep(1.6, 4.6, wd)) * 0.9); }
     col[i * 3] = tmp.r; col[i * 3 + 1] = tmp.g; col[i * 3 + 2] = tmp.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const gt = groundTex(); gt.repeat.set(70, 70);
+  const gt = groundTex(); gt.repeat.set(140, 120);
   geo.computeVertexNormals();
   const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: gt, roughness: 1 }));
   terrain.receiveShadow = true; scene.add(terrain);
@@ -531,6 +588,216 @@ export function buildWorld(scene) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(R(30, 60), R(30, 60)), mistMat); m.rotation.x = -Math.PI / 2; const x = R(-70, 70), z = R(-170, 40); m.position.set(x, groundHeight(x, z) + R(0.4, 1.2), z); scene.add(m);
   }
 
+  // =====================================================================
+  //  OFFENE WELT: Aussenland, Gebiete mit Minibossen, Wege, Wegweiser, Fahrstuehle
+  // =====================================================================
+  const owRnd = mulberry(4242), OR = (a, b) => (b === undefined ? owRnd() * a : a + owRnd() * (b - a));
+  const dmO = new THREE.Object3D();
+  function mergeGeos(list) {
+    const gs = list.map((g) => (g.index ? g.toNonIndexed() : g)); let n = 0; gs.forEach((g) => { n += g.attributes.position.count; });
+    const p = new Float32Array(n * 3), nr = new Float32Array(n * 3); let o = 0;
+    for (const g of gs) { p.set(g.attributes.position.array, o * 3); nr.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; }
+    const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(p, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nr, 3)); return out;
+  }
+  const treeGeos = [11, 23, 37, 51].map((seed) => {
+    const r = mulberry(seed), rr = (a, b) => a + r() * (b - a), parts = [];
+    const put = (g, v, e) => { g.applyMatrix4(new THREE.Matrix4().compose(v, new THREE.Quaternion().setFromEuler(e), new THREE.Vector3(1, 1, 1))); parts.push(g); };
+    put(new THREE.CylinderGeometry(0.16, 0.4, 5.5, 7), new THREE.Vector3(0, 2.6, 0), new THREE.Euler(0, 0, rr(-0.08, 0.08)));
+    const nb = 5 + Math.floor(r() * 4);
+    for (let i = 0; i < nb; i++) { const L = rr(1.4, 3), br = new THREE.CylinderGeometry(0.03, 0.13, L, 5); br.translate(0, L / 2, 0); put(br, new THREE.Vector3(0, rr(2.2, 5), 0), new THREE.Euler(rr(-1, 1), rr(0, 6.28), rr(0.5, 1.2))); }
+    return mergeGeos(parts);
+  });
+  const burntBark = mat(0x120d0a, { roughness: 1 });
+  function plantTrees(list, material = barkM) {
+    const groups = [[], [], [], []]; list.forEach((t, i) => groups[i % 4].push(t));
+    groups.forEach((g, vi) => {
+      if (!g.length) return;
+      const im = new THREE.InstancedMesh(treeGeos[vi], material, g.length);
+      g.forEach(([x, z, sc], i) => { dmO.position.set(x, groundHeight(x, z) - 0.3, z); dmO.rotation.set(0, OR(6.28), 0); dmO.scale.setScalar(sc); dmO.updateMatrix(); im.setMatrixAt(i, dmO.matrix); circle(x, z, 0.5 * sc); });
+      im.castShadow = true; scene.add(im);
+    });
+  }
+  function plantRocks(list, material = rockM) {
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), material, list.length);
+    list.forEach(([x, z, s], i) => { dmO.position.set(x, groundHeight(x, z) + s * 0.2, z); dmO.rotation.set(OR(3), OR(3), OR(3)); dmO.scale.set(s, s * OR(0.5, 0.9), s * OR(0.8, 1.2)); dmO.updateMatrix(); im.setMatrixAt(i, dmO.matrix); if (s > 0.8) circle(x, z, s * 0.85); });
+    im.castShadow = true; scene.add(im);
+  }
+  const inVillage = (x, z) => Math.abs(x) < 90 && z < 56 && z > -245;
+  const okSpot = (x, z, pad = 5) => !inVillage(x, z) && pathDist(x, z) > pad && !inArena(x, z, 6) && REGIONS.every((Rg) => Math.hypot(x - Rg.x, z - Rg.z) > 7) && Math.abs(x) < 238 && z < 200 && z > -228;
+  const owMist = new THREE.MeshBasicMaterial({ map: fogT, color: 0x8a96b0, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
+  const mistAt = (x, z, w, color) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * OR(0.7, 1)), color ? new THREE.MeshBasicMaterial({ map: fogT, color, transparent: true, opacity: 0.24, depthWrite: false, side: THREE.DoubleSide }) : owMist); m.rotation.x = -Math.PI / 2; m.position.set(x, groundHeight(x, z) + OR(0.5, 1.4), z); scene.add(m); };
+  const ringPos = (R, rad, a) => [R.x + Math.cos(a) * rad, R.z + Math.sin(a) * rad];
+  function standingStones(R, rad, n, mt, hMin = 2.4, hMax = 4) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + OR(0.2), [x, z] = ringPos(R, rad, a), h = OR(hMin, hMax);
+      const st = new THREE.Mesh(boxGeo(1.2, h, 0.8, 2), mt); st.position.set(x, groundHeight(x, z) + h / 2 - 0.3, z); st.rotation.set(OR(-0.08, 0.08), a, OR(-0.1, 0.1)); st.castShadow = true; scene.add(st); circle(x, z, 0.8);
+    }
+  }
+  const lamp = (x, y, z, color = 0xffa040, size = 3) => glowSprite(x, y, z, color, size);
+
+  // ---- Stil der Gebiete ----
+  const REGION_STYLE = {
+    moor(R) {
+      const trees = []; for (let i = 0; i < 46; i++) { const a = OR(6.28), rr = R.r * Math.sqrt(OR(0.14, 1.5)), [x, z] = ringPos(R, rr, a); if (rr > 9 && okSpot2(x, z)) trees.push([x, z, OR(0.8, 1.5)]); }
+      plantTrees(trees);
+      const reed = new THREE.InstancedMesh(new THREE.ConeGeometry(0.04, 1.3, 3), mat(0x5a6a3a, { roughness: 1 }), 800);
+      for (let i = 0; i < 800; i++) { const a = OR(6.28), rr = R.r * Math.sqrt(OR(0.1, 1.6)), [x, z] = ringPos(R, rr, a); dmO.position.set(x, groundHeight(x, z) + 0.55, z); dmO.rotation.set(OR(-0.15, 0.15), 0, OR(-0.15, 0.15)); dmO.scale.set(1, OR(0.6, 1.4), 1); dmO.updateMatrix(); reed.setMatrixAt(i, dmO.matrix); }
+      scene.add(reed);
+      standingStones(R, 11, 8, mossStone); glowRing(R, 5.8, 6.2, 0x4ad0b0, 0.5); glowRing(R, 2.4, 2.7, 0x4ad0b0, 0.35);
+      for (const [dx, dz, rot] of [[-22, -12, 0.4], [20, 14, 2.2]]) if (okSpot2(R.x + dx, R.z + dz)) ruin(R.x + dx, R.z + dz, 8, 7, rot);
+      for (let i = 0; i < 12; i++) { const [x, z] = ringPos(R, OR(6, R.r), OR(6.28)); lamp(x, groundHeight(x, z) + OR(0.8, 2.4), z, 0x6ae8c8, OR(1, 2)); }
+      for (let i = 0; i < 7; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(26, 44), 0x7aa098); }
+    },
+    mine(R) {
+      const rocks = []; for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, [x, z] = ringPos(R, R.r * 0.98, a); rocks.push([x, z, OR(4, 7)]); }
+      for (let i = 0; i < 40; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.2, 1.3)), OR(6.28)); if (Math.hypot(x - R.x, z - R.z) > 10) rocks.push([x, z, OR(0.6, 2)]); }
+      plantRocks(rocks, mat(0x6a5a4a, { roughness: 1 }));
+      // Stolleneingang
+      const ex = R.x, ez = R.z - R.r * 0.78, ey = groundHeight(ex, ez);
+      for (const sx of [-1, 1]) { const p = new THREE.Mesh(boxGeo(1.6, 6.5, 1.8, 2), woodM); p.position.set(ex + sx * 3.2, ey + 3, ez); p.castShadow = true; scene.add(p); circle(ex + sx * 3.2, ez, 1); }
+      const lin = new THREE.Mesh(boxGeo(9, 1.2, 1.8, 2), woodM); lin.position.set(ex, ey + 6.4, ez); scene.add(lin);
+      const dark = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 6), new THREE.MeshBasicMaterial({ color: 0x050403 })); dark.position.set(ex, ey + 3, ez - 0.8); scene.add(dark);
+      // Gerüste, Schienen, Loren
+      for (let i = 0; i < 3; i++) {
+        const a = OR(6.28), [x, z] = ringPos(R, OR(12, 24), a), gy = groundHeight(x, z);
+        for (const [ox, oz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 6, 6), woodM); post.position.set(x + ox, gy + 3, z + oz); post.castShadow = true; scene.add(post); }
+        for (const yy of [2.2, 4.4, 6]) { const pl = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.18, 4.4), woodM); pl.position.set(x, gy + yy, z); pl.rotation.y = OR(-0.1, 0.1); pl.castShadow = true; scene.add(pl); }
+        circle(x, z, 3);
+      }
+      const railM = mat(0x3a3028, { metalness: 0.5, roughness: 0.7 });
+      for (let d = 0; d < 20; d += 1.2) { const x = ex, z = ez + 2 + d, gy = groundHeight(x, z); const tie = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.3), woodM); tie.position.set(x, gy + 0.06, z); scene.add(tie); }
+      for (const sx of [-0.7, 0.7]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 22), railM); rail.position.set(ex + sx, groundHeight(ex, ez + 12) + 0.14, ez + 13); scene.add(rail); }
+      for (let i = 0; i < 3; i++) { const x = ex + OR(-1, 1), z = ez + 6 + i * 6, gy = groundHeight(x, z); const cart = new THREE.Mesh(boxGeo(1.8, 1, 1.3, 1.5), woodM); cart.position.set(x, gy + 0.7, z); cart.rotation.y = OR(-0.3, 0.3); cart.castShadow = true; scene.add(cart); circle(x, z, 1.1); }
+      glowRing(R, 9, 9.4, 0xd08a3a, 0.35);
+      for (let i = 0; i < 8; i++) { const [x, z] = ringPos(R, OR(8, 26), OR(6.28)); const gy = groundHeight(x, z); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.6, 6), blackWood); post.position.set(x, gy + 1.3, z); scene.add(post); lamp(x, gy + 2.8, z, 0xffa040, 3); }
+      plantTrees((() => { const t = []; for (let i = 0; i < 14; i++) { const [x, z] = ringPos(R, R.r * OR(1.0, 1.4), OR(6.28)); if (okSpot2(x, z)) t.push([x, z, OR(0.8, 1.3)]); } return t; })());
+    },
+    forest(R) {
+      const trees = []; for (let i = 0; i < 190; i++) { const a = OR(6.28), rr = R.r * Math.sqrt(OR(0.1, 2.2)), [x, z] = ringPos(R, rr, a); if (rr > 10 && okSpot2(x, z)) trees.push([x, z, OR(1.0, 1.9)]); }
+      plantTrees(trees);
+      const shroomA = mat(0x40ffb0, { emissive: 0x20ff90, emissiveIntensity: 2.2 }), shroomB = mat(0xb070ff, { emissive: 0x8040ff, emissiveIntensity: 2.2 }), stalk = mat(0xd8d0c0, { roughness: 1 });
+      for (let i = 0; i < 34; i++) {
+        const [x, z] = ringPos(R, OR(7, R.r + 8), OR(6.28)); if (!okSpot2(x, z)) continue; const gy = groundHeight(x, z), s = OR(0.5, 1.4), m = i % 2 ? shroomA : shroomB;
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.1 * s, 0.5 * s, 6), stalk); st.position.set(x, gy + 0.25 * s, z); scene.add(st);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26 * s, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), m); cap.position.set(x, gy + 0.5 * s, z); scene.add(cap);
+        lamp(x, gy + 0.6 * s, z, i % 2 ? 0x40ffb0 : 0xb070ff, 1.6 * s);
+      }
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4, 2.4, 14), barkM); stump.position.set(R.x, R.h0 + 1.0, R.z - 9); stump.castShadow = true; scene.add(stump); circle(R.x, R.z - 9, 3.6);
+      glowRing(R, 7, 7.4, 0x70ff90, 0.45); glowRing(R, 3.4, 3.7, 0x70ff90, 0.3);
+      for (let i = 0; i < 5; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(22, 38), 0x587a64); }
+    },
+    crypt(R) {
+      const stones = new THREE.InstancedMesh(boxGeo(0.8, 1.4, 0.22, 1.5), mat(0x6a6a72, { roughness: 1 }), 110);
+      for (let i = 0; i < 110; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.12, 1.25)), OR(6.28)); const h = OR(0.6, 1.3); dmO.position.set(x, groundHeight(x, z) + h * 0.5 - 0.1, z); dmO.rotation.set(OR(-0.14, 0.14), OR(-0.5, 0.5), OR(-0.15, 0.15)); dmO.scale.set(OR(0.8, 1.2), h, 1); dmO.updateMatrix(); stones.setMatrixAt(i, dmO.matrix); if (i % 4 === 0) circle(x, z, 0.45); }
+      stones.castShadow = true; scene.add(stones);
+      // Mausoleum im Hintergrund
+      const mx = R.x, mz = R.z - R.r * 0.62, my = groundHeight(mx, mz), mm = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x5a5a64, roughness: 1 });
+      const body = new THREE.Mesh(boxGeo(13, 7, 9, 3), mm); body.position.set(mx, my + 3.2, mz); body.castShadow = true; scene.add(body); solid(mx, mz, 6.5, 4.5, 0);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(9.6, 4, 4), stoneDark); roof.position.set(mx, my + 8.6, mz); roof.rotation.y = Math.PI / 4; roof.scale.z = 0.7; roof.castShadow = true; scene.add(roof);
+      for (const sx of [-1, 1]) { const col = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 7, 10), stoneM); col.position.set(mx + sx * 3, my + 3.4, mz + 5.2); col.castShadow = true; scene.add(col); circle(mx + sx * 3, mz + 5.2, 0.8); }
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 5), new THREE.MeshBasicMaterial({ color: 0x040405 })); door.position.set(mx, my + 2.5, mz + 4.55); scene.add(door);
+      glowRing(R, 8, 8.4, 0x6ad89a, 0.4);
+      for (let i = 0; i < 14; i++) { const [x, z] = ringPos(R, OR(4, R.r), OR(6.28)); lamp(x, groundHeight(x, z) + OR(0.6, 2.2), z, 0x7affb0, OR(1, 2)); }
+      plantTrees((() => { const t = []; for (let i = 0; i < 20; i++) { const [x, z] = ringPos(R, R.r * OR(1.0, 1.5), OR(6.28)); if (okSpot2(x, z)) t.push([x, z, OR(1, 1.5)]); } return t; })());
+      for (let i = 0; i < 5; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(22, 36), 0x7a8a90); }
+    },
+    watch(R) {
+      tower(R.x - 2, R.z - R.r * 0.6, 6.4, 24);
+      wall(R.x - 14, R.z - R.r * 0.6 + 6, R.x - 14, R.z - R.r * 0.6 - 10, { h: 5, t: 2 }); wall(R.x + 12, R.z - R.r * 0.6 + 4, R.x + 12, R.z - R.r * 0.6 - 8, { h: 3.4, t: 2 });
+      const cm = new THREE.MeshStandardMaterial({ color: 0x9ab0ff, emissive: 0x5a78ff, emissiveIntensity: 2.2, roughness: 0.3 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3, [x, z] = ringPos(R, 14, a), gy = groundHeight(x, z), h = OR(3.4, 5);
+        const pil = new THREE.Mesh(boxGeo(1.1, h, 0.9), stoneDark); pil.position.set(x, gy + h / 2 - 0.2, z); pil.rotation.y = a; pil.castShadow = true; scene.add(pil); circle(x, z, 0.9);
+        const cr = new THREE.Mesh(new THREE.OctahedronGeometry(0.5), cm); cr.scale.y = 1.9; cr.position.set(x, gy + h + 0.7, z); scene.add(cr); lamp(x, gy + h + 0.7, z, 0x7a98ff, 3.4);
+      }
+      glowRing(R, 9, 9.4, 0x8aa0ff, 0.5); glowRing(R, 4.4, 4.7, 0x8aa0ff, 0.4);
+      for (let i = 0; i < 8; i++) { const [x, z] = ringPos(R, OR(4, R.r), OR(6.28)); const cr = new THREE.Mesh(new THREE.RingGeometry(OR(0.6, 1.2), OR(1.4, 2.2), 7, 1), new THREE.MeshBasicMaterial({ color: 0x8aa0ff, transparent: true, opacity: 0.25, side: THREE.DoubleSide })); cr.rotation.x = -Math.PI / 2; cr.position.set(x, groundHeight(x, z) + 0.1, z); scene.add(cr); }
+      const rks = []; for (let i = 0; i < 26; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.3, 1.5)), OR(6.28)); rks.push([x, z, OR(0.8, 2.6)]); } plantRocks(rks);
+      for (let i = 0; i < 4; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(24, 38), 0x8a8ab0); }
+    },
+    burnt(R) {
+      const t = []; for (let i = 0; i < 38; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.15, 1.7)), OR(6.28)); if (okSpot2(x, z)) t.push([x, z, OR(0.8, 1.4)]); } plantTrees(t, burntBark);
+      const crackM = new THREE.MeshBasicMaterial({ color: 0xff5a10, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+      for (let i = 0; i < 12; i++) { const [x, z] = ringPos(R, OR(3, R.r), OR(6.28)); const cr = new THREE.Mesh(new THREE.RingGeometry(OR(0.8, 1.6), OR(1.8, 3), 6, 1), crackM); cr.rotation.x = -Math.PI / 2; cr.position.set(x, groundHeight(x, z) + 0.1, z); scene.add(cr); }
+      for (let i = 0; i < 9; i++) {
+        const [x, z] = ringPos(R, OR(8, R.r), OR(6.28)), gy = groundHeight(x, z);
+        for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35, 0), rockM2); const a = k * 1.57; b.position.set(x + Math.cos(a) * 0.9, gy + 0.2, z + Math.sin(a) * 0.9); scene.add(b); }
+        lamp(x, gy + 0.9, z, 0xff7a20, 3.2); lamp(x, gy + 1.5, z, 0xffc060, 2); circle(x, z, 1);
+      }
+      glowRing(R, 8, 8.5, 0xff5a1a, 0.55); glowRing(R, 4, 4.3, 0xff5a1a, 0.45);
+      for (const [dx, dz, rot] of [[-20, 12, 0.7], [18, -16, -0.4]]) if (okSpot2(R.x + dx, R.z + dz)) ruin(R.x + dx, R.z + dz, 9, 8, rot);
+      plantRocks((() => { const l = []; for (let i = 0; i < 22; i++) { const [x, z] = ringPos(R, R.r * Math.sqrt(OR(0.2, 1.6)), OR(6.28)); l.push([x, z, OR(0.6, 2)]); } return l; })(), mat(0x2a2624, { roughness: 1 }));
+      for (let i = 0; i < 5; i++) { const [x, z] = ringPos(R, OR(0, R.r), OR(6.28)); mistAt(x, z, OR(22, 36), 0x6a4a40); }
+    },
+  };
+  function okSpot2(x, z) { return !inVillage(x, z) && Math.abs(x) < 238 && z < 200 && z > -228 && pathDist(x, z) > 3.5; }
+  for (const Rg of REGIONS) { REGION_STYLE[Rg.style](Rg); makeBonfire(Rg.bonfire.id, Rg.bonfire.name, Rg.bonfire.x, Rg.bonfire.z); }
+  W.regions = REGIONS;
+
+  // Verstreute Baeume / Felsen im Aussenland
+  { const t = [], r = [];
+    for (let i = 0; i < 260; i++) { const x = OR(-238, 238), z = OR(-228, 200); if (okSpot(x, z, 6)) t.push([x, z, OR(0.8, 1.6)]); }
+    for (let i = 0; i < 260; i++) { const x = OR(-238, 238), z = OR(-228, 200); if (okSpot(x, z, 4)) r.push([x, z, OR(0.6, 2.4)]); }
+    plantTrees(t); plantRocks(r); }
+  // Gras im Aussenland
+  { const NT2 = 9000, gi = new THREE.InstancedMesh(tuft, new THREE.MeshStandardMaterial({ color: 0x4f6034, roughness: 1 }), NT2), c2 = new THREE.Color();
+    for (let i = 0; i < NT2; i++) {
+      let x = OR(-245, 245), z = OR(-230, 205); const bad = inVillage(x, z) || pathDist(x, z) < 2 || inArena(x, z, 0);
+      dmO.position.set(x, bad ? -50 : groundHeight(x, z), z); dmO.rotation.set(OR(-0.2, 0.2), OR(6.28), OR(-0.2, 0.2)); dmO.scale.set(OR(0.7, 1.4), OR(0.6, 1.5), OR(0.7, 1.4)); dmO.updateMatrix();
+      gi.setMatrixAt(i, dmO.matrix); c2.setHSL(OR(0.2, 0.28), 0.35, OR(0.16, 0.3)); gi.setColorAt(i, c2);
+    }
+    gi.receiveShadow = true; scene.add(gi); }
+
+  // Wegweiser
+  function signpost(x, z, lines, rot = 0) {
+    const gy = groundHeight(x, z), g = new THREE.Group(); g.position.set(x, gy, z); g.rotation.y = rot;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 3.2, 7), woodM); post.position.y = 1.6; post.castShadow = true; g.add(post);
+    lines.forEach((ln, i) => {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 96; const cg = c.getContext('2d');
+      cg.fillStyle = '#6a5038'; cg.fillRect(0, 0, 512, 96); cg.strokeStyle = '#2a1c10'; cg.lineWidth = 6; cg.strokeRect(3, 3, 506, 90);
+      cg.font = 'bold 44px Georgia, serif'; cg.textAlign = 'center'; cg.textBaseline = 'middle'; cg.fillStyle = '#f0dcb0'; cg.fillText(ln, 256, 50);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.46, 0.08), [woodM, woodM, woodM, woodM, new THREE.MeshStandardMaterial({ map: t, roughness: 1 }), new THREE.MeshStandardMaterial({ map: t, roughness: 1 })]);
+      pl.position.set(0, 2.9 - i * 0.55, 0); pl.rotation.y = i % 2 ? 0.1 : -0.08; g.add(pl);
+    });
+    scene.add(g); circle(x, z, 0.3);
+  }
+  signpost(-17, 12, ['← Nebelmoor', '↓ Brandmoor']); signpost(17, 12, ['Verlassene Mine →', '↓ Aschenwald']);
+  signpost(-96, 14, ['↑ Gruft der Gefallenen', '← Nebelmoor']); signpost(96, 12, ['↑ Sturmwarte', 'Verlassene Mine →']);
+  signpost(20, 82, ['↓ Aschenwald', '← Brandmoor']);
+
+  // ---- Fahrstuehle ----
+  W.lifts = {};
+  function buildLift(Lf, y0, shaftH) {
+    const grp = new THREE.Group(); grp.position.set(Lf.x, y0, Lf.z); scene.add(grp);
+    const gold = mat(0xe0b848, { metalness: 0.85, roughness: 0.3, emissive: 0x6a4a10, emissiveIntensity: 0.5 }), iron = mat(0x24222a, { metalness: 0.6, roughness: 0.5 });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 6.0, 0.7, 28), stoneDark); base.position.y = -0.55; base.receiveShadow = true; base.castShadow = true; grp.add(base);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(5.6, 0.12, 6, 40), gold); rim.rotation.x = Math.PI / 2; rim.position.y = 0.12; grp.add(rim);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const px = sx * 4.7, pz = sz * 4.7;
+      const pil = new THREE.Mesh(boxGeo(0.8, shaftH, 0.8, 3), iron); pil.position.set(px, shaftH / 2, pz); pil.castShadow = true; grp.add(pil);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), gold); cap.position.set(px, shaftH + 0.5, pz); grp.add(cap);
+      const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xffc050, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.set(6, 6, 1); gl.position.set(px, shaftH + 0.8, pz); grp.add(gl);
+      circle(Lf.x + px, Lf.z + pz, 0.7);
+    }
+    for (let y = 12; y < shaftH; y += 14) { const ring = new THREE.Mesh(new THREE.TorusGeometry(6.65, 0.14, 6, 4), gold); ring.rotation.set(Math.PI / 2, 0, Math.PI / 4); ring.position.y = y; grp.add(ring); }
+    // Kabine (beweglich)
+    const cab = new THREE.Group(); cab.position.y = -0.18; grp.add(cab);
+    const plat = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 4.3, 0.4, 32), new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x3a3544, roughness: 0.45, metalness: 0.25 })); plat.receiveShadow = true; plat.castShadow = true; cab.add(plat);
+    const prim = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.1, 6, 40), gold); prim.rotation.x = Math.PI / 2; prim.position.y = 0.2; cab.add(prim);
+    const sigil = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.6, 40), new THREE.MeshBasicMaterial({ color: 0xffc050, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false })); sigil.rotation.x = -Math.PI / 2; sigil.position.y = 0.23; cab.add(sigil);
+    const chainM = mat(0x3a3a40, { metalness: 0.7, roughness: 0.5 });
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), chainM); bar.position.set(sx * 4.1, 0.9, sz * 0.4 * 0 + sz * 1.2 * 0); cab.add(bar); bar.visible = false; }
+    const light = new THREE.PointLight(0xffc050, 0, 22, 2); light.position.y = 3; cab.add(light);
+    const lf = { ...Lf, grp, cab, y0, shaftH, sigil, light, y: y0 + 0.02 };
+    W.lifts[Lf.id] = lf; return lf;
+  }
+  const lowY = groundHeight(LIFTS.low.x, LIFTS.low.z), highY = PLAZAS[0].h0;
+  buildLift(LIFTS.low, lowY, highY - lowY + 10); buildLift(LIFTS.high, highY, 12);
+  W.liftTopY = highY;
+  W.updateLifts = (t, open) => { for (const k in W.lifts) { const l = W.lifts[k]; l.sigil.material.color.set(open ? 0xffc050 : 0x883030); l.sigil.material.opacity = 0.55 + Math.sin(t * 2.4) * 0.2; l.light.intensity = open ? 28 + Math.sin(t * 3) * 4 : 6; } };
+
   // ---------------- Kollisionsaufloesung ----------------
   W.resolve = (p, r) => {
     for (const c of W.colliders) {
@@ -556,6 +823,7 @@ export function buildWorld(scene) {
       for (const Zn of zones) { const d = Math.hypot(p.x - Zn.x, p.z - Zn.z) - Zn.r; if (d < bd) { bd = d; best = Zn; } }
       if (bd > -0.3) { const dd = Math.hypot(p.x - best.x, p.z - best.z) || 1, k = (best.r - 0.3) / dd; p.x = best.x + (p.x - best.x) * k; p.z = best.z + (p.z - best.z) * k; }
     }
+    if (p.z >= -240) p.z = Math.max(p.z, -232);
     p.x = clamp(p.x, BOUNDS.x0, BOUNDS.x1); p.z = clamp(p.z, BOUNDS.z0, BOUNDS.z1);
     // Arena: ausserhalb des Rings nicht hinein/heraus (Kollision uebernimmt Ringwand)
   };
