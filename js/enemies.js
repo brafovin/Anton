@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clamp, lerp, damp, dampAngle, angleDiff, turnToward, rand, pick } from './util.js';
+import { clamp, lerp, damp, dampAngle, angleDiff, turnToward, rand, pick, smoothstep } from './util.js';
 import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Sound } from './audio.js';
 import { groundHeight, REGIONS } from './world.js';
@@ -214,8 +214,10 @@ const TYPES = {
     onPhase3: (e) => { EV.stompRing(e); },
     choose: (e, d) => {
       const o = [];
-      if (d > 11) { o.push('kLunge', 'kWave', 'kBow', 'kBow', 'kStomp'); if (e.phase2) o.push('kLeap', 'kPillars', 'kBowRain'); if (e.phase3) o.push('kMeteors', 'kBlink', 'kBowRain'); }
-      else { if (d < 3.8) o.push('kSweep', 'kSweep'); o.push('kCombo', 'kSlam', 'kStomp'); if (e.phase2) o.push('kStomp'); if (d > 5) o.push('kLunge', 'kBow'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap', 'kBowRain'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors', 'kBow'); }
+      if (d > 11) { o.push('kLunge', 'kWave', 'kStomp'); if (e.phase2) o.push('kLeap', 'kPillars'); if (e.phase3) o.push('kMeteors', 'kBlink'); }
+      else { if (d < 3.8) o.push('kSweep', 'kSweep'); o.push('kCombo', 'kSlam', 'kStomp'); if (e.phase2) o.push('kStomp'); if (d > 5) o.push('kLunge'); if (e.phase2) o.push('kWave', 'kPillars', 'kLeap'); if (e.phase3) o.push('kCombo', 'kBlink', 'kMeteors'); }
+      // Bogen-Angriffe nur auf mittlere bis weite Distanz (nie im Nahkampf)
+      if (d >= 10 && d <= 24) { o.push('kBow', 'kBow'); if (e.phase2) o.push('kBowRain'); if (e.phase3) o.push('kBowRain'); }
       let n = pick(o); if (n === e.lastAtk && Math.random() < 0.7) n = pick(o); e.lastAtk = n; return n;
     },
     look: { head: 'crown', ornate: true, skin: 0x888888, cloth: 0x1a1222, armor: 0x2a2234, trim: 0xf0c850, accent: 0x6a1a9a, capeColor: 0x5a1a8a, cape: true, plates: true, weapon: 'kingsword', weapons: ['kingsword', 'kingbow'], bulk: 1.38, eye: 0xffd060 },
@@ -369,7 +371,7 @@ export class Enemy {
   bladeReach() { const ud = this.h.weapon.userData; return (ud && ud.length ? ud.length : 0.8) * this.T.scale * 0.85 + 0.3 * this.T.scale; }
   bladeHits(P, blade) {
     // Waagerecht grosszuegig, nach oben so hoch wie die Schwuenge grosser Gegner reichen (Schlag ueber Kopfhoehe trifft trotzdem)
-    const sc = this.T.scale, rad = P.radius + 0.3 + 0.18 * sc, y0 = P.pos.y - 0.3, y1 = P.pos.y + 1.9 + 1.1 * sc, { cur, prev } = blade, p = _bp;
+    const sc = this.T.scale, rad = P.radius + 0.3 + 0.18 * sc, y0 = P.pos.y - 0.3, y1 = P.pos.y + 2.4, { cur, prev } = blade, p = _bp;
     for (let s = 1; s <= 4; s++) {
       const u = s / 4;
       for (let i = 0; i <= 8; i++) {
@@ -384,7 +386,7 @@ export class Enemy {
   // ---------------- Angriff ----------------
   startAttack(name) {
     const a = ATTACKS[name]; this.atk = a; this.atkName = name; this.setState('attack', 0.1); this.useBow(a.bow);
-    this.hitDone = false; this.sfx = false; this.flags = {}; this.prevBlade = null;
+    this.hitDone = false; this.sfx = false; this.flags = {}; this.prevBlade = null; this.vAdj = 0; this.vAdjW = 0;
     if (a.leap) { this.leapFrom.copy(this.pos); }
   }
   attackUpdate(dt) {
@@ -445,6 +447,15 @@ export class Enemy {
     if (a.hops) { this.yOff = 0; for (const th of a.hops) if (t >= th - 0.42 && t <= th) this.yOff = Math.sin(((t - (th - 0.42)) / 0.42) * Math.PI) * 1.3; }
     // Klingenposition dieses Bildes (fuer die Waffen-Hitbox) mit Weg seit dem letzten Bild
     const blade = aim && a.arc < 360 && !a.slam && !a.leap && !a.charge ? this.trackBlade() : null;
+    if (blade) { // Hoehe: Schlag auf Koerperhoehe des Spielers herunterziehen (statt ueber den Kopf hinweg)
+      let w = 0;
+      for (const [hs, he] of wins0) w = Math.max(w, smoothstep(hs - 0.45, hs - 0.1, t) * (1 - smoothstep(he + 0.02, he + 0.3, t)));
+      if (w > 0.3) {
+        const midY = (blade.cur.b.y + blade.cur.t.y) / 2, want = P.pos.y - P.jumpH + 1.05;
+        this.vAdj = clamp((this.vAdj || 0) + ((midY - want) / this.T.scale) * 6 * dt * ts, 0, 1.6);
+      }
+      this.vAdjW = w;
+    }
     // Trefferfenster (ein Angriff kann mehrere haben)
     const wins = a.windows || [[a.hs, a.he]];
     for (let i = 0; i < wins.length; i++) {
@@ -665,6 +676,10 @@ export class Enemy {
         if (this.isBoss) target.hx = -0.1;
       }
       else { target = { ...T.idle }; const b = Math.sin(performance.now() / 800 + this.idlePh); target.hy += b * 0.01; target.lean += b * 0.012; if (this.type === 'hollow' && this.state === 'chase') { target.lean = 0.3; target.hx = -0.25; target.hy = 0.3; } }
+    }
+    if (this.state === 'attack' && this.vAdj > 0.001 && this.vAdjW > 0.001 && target) { // tiefer schwingen: Hocke + Vorbeuge + Hand tiefer
+      const v = this.vAdj * this.vAdjW;
+      target.crouch += Math.min(0.8, 0.5 * v); target.lean += Math.min(0.4, 0.25 * v); target.hy -= Math.min(0.45, 0.3 * v); target.shift += Math.min(0.12, 0.08 * v);
     }
     this.animate(dt, target);
   }
