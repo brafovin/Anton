@@ -49,6 +49,8 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | Rechte Maustaste | Schwerer Angriff (Ash of War = etwa das Doppelte) · Magier: M2-Zauber |
 | F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
 
+**Boss-Treffer:** Bosse und Minibosse treffen mit ihrer **echten Klinge** (Waffen-Hitbox mit Schwungweg, großzügig nach oben bei großen Gegnern) statt mit einem unsichtbaren Kegel. Sie zielen bis kurz vor dem Schlag nach (mit Vorhalt, der Körper dreht sich so, dass die Klinge – nicht die Brust – auf dich zeigt), rücken mit dem Ausfallschritt bis in Reichweite vor und wählen ihre Angriffe nach Abstand: Seitenhiebe nur auf kurze Distanz, Stöße und Zerschmettern auch weiter weg.
+
 **Benommen:** Wer geparried wird (oder als Boss gegen eine Wand rennt), taumelt zurück und sinkt wie in Elden Ring auf die Knie – gebeugt und wehrlos, bis er sich nach ein paar Sekunden wieder aufrichtet. Die Riposte trifft den knienden Gegner; danach steht er langsam auf.
 | Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Zauberstab: **M2-Zauber weiter** (`X` = zurück). Am Leuchtfeuer stellt `Z` die Zauber ein: Zahl = M1, Umschalt + Zahl = M2 |
 | Mausrad / 1–8 | M1-Zauber wählen (nur mit Zauberstab) |

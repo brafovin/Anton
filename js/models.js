@@ -135,11 +135,21 @@ export function makeSword({ len = 0.8, width = 0.06, color = 0x8a7a6a, rusty = t
   const steel = mat(color, { metalness: 0.7, roughness: rusty ? 0.7 : 0.3, emissive: glow ? glowColor : 0x000000, emissiveIntensity: glow });
   const dark = mat(0x2a2018, { roughness: 0.9 });
   const gold = mat(0x8a7030, { metalness: 0.7, roughness: 0.4 });
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 8), dark); grip.position.y = -0.12; g.add(grip);
-  const pom = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), gold); pom.position.y = -0.27; g.add(pom);
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(width * 3.2, 0.04, 0.05), gold); guard.position.y = 0.03; g.add(guard);
-  const bl = new THREE.Mesh(new THREE.BoxGeometry(width, len, 0.016), steel); bl.position.y = 0.05 + len / 2; g.add(bl);
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(width * 0.72, 0.14, 4), steel); tip.rotation.y = Math.PI / 4; tip.scale.z = 0.25; tip.position.y = 0.05 + len + 0.06; g.add(tip);
+  const fuller = mat(0x14141a, { metalness: 0.5, roughness: 0.6 });
+  // Griff mit Lederwicklung
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.027, 0.28, 8), dark); grip.position.y = -0.12; g.add(grip);
+  for (let i = 0; i < 6; i++) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 4, 10), gold); w.rotation.x = Math.PI / 2; w.position.y = -0.24 + i * 0.04; g.add(w); }
+  const pom = new THREE.Mesh(new THREE.OctahedronGeometry(0.045, 0), gold); pom.position.y = -0.28; pom.scale.y = 1.15; g.add(pom);
+  // Parierstange mit nach unten gebogenen Enden
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(width * 3.4, 0.035, 0.05), gold); guard.position.y = 0.03; g.add(guard);
+  for (const sx of [-1, 1]) { const q = new THREE.Mesh(new THREE.ConeGeometry(0.022, width * 0.9, 5), gold); q.rotation.z = sx * (Math.PI / 2 + 0.35); q.position.set(sx * width * 1.8, 0.012, 0); g.add(q); }
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.02, 0), mat(0xa01818, { emissive: 0x500808, emissiveIntensity: 0.8 })); gem.position.set(0, 0.03, 0.03); g.add(gem);
+  // Klinge: verjuengt, mit Spitze, Mittelgrat (Hohlkehle) und Schneide
+  const sh = new THREE.Shape(); const hw = width / 2;
+  sh.moveTo(-hw, 0); sh.lineTo(hw, 0); sh.lineTo(hw * 0.86, len * 0.88); sh.lineTo(0, len + 0.14); sh.lineTo(-hw * 0.86, len * 0.88); sh.closePath();
+  const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.014, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 }); bg.translate(0, 0.05, -0.007);
+  const bl = new THREE.Mesh(bg, steel); g.add(bl);
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(width * 0.2, len * 0.78, 0.022), fuller); fl.position.set(0, 0.07 + len * 0.4, 0); g.add(fl);
   const mBase = new THREE.Object3D(); mBase.position.set(0, 0.25, 0); g.add(mBase);
   const mTip = new THREE.Object3D(); mTip.position.set(0, 0.05 + len + 0.1, 0); g.add(mTip);
   g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [steel], steel, length: len };
@@ -154,6 +164,10 @@ export function makeStaff() {
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.0, 7), wood); shaft.position.y = 0.5; g.add(shaft);
   for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; const pr = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.4, 5), wood); pr.position.set(Math.cos(a) * 0.1, 1.62, Math.sin(a) * 0.1); pr.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); g.add(pr); }
   const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), orbM); orb.position.y = 1.58; g.add(orb);
+  const goldS = mat(0xb8962e, { metalness: 0.8, roughness: 0.35 });
+  for (const y of [0.0, 0.45, 1.3]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.012, 5, 10), goldS); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
+  const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.04, 0.12, 8), goldS); sock.position.y = 1.46; g.add(sock);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4, ch = new THREE.Mesh(new THREE.OctahedronGeometry(0.035, 0), orbM); ch.scale.y = 1.8; ch.position.set(Math.cos(a) * 0.17, 1.5, Math.sin(a) * 0.17); g.add(ch); }
   const mBase = new THREE.Object3D(); mBase.position.set(0, 0.8, 0); g.add(mBase);
   const mTip = new THREE.Object3D(); mTip.position.set(0, 1.6, 0); g.add(mTip);
   g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel: orbM, length: 1.6, orb };
@@ -167,6 +181,10 @@ export function makeClub() {
   const head = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.07, 1.9, 9), wood); head.position.y = 0.8; g.add(head);
   for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2 * 2.3, y = 0.9 + (i % 7) * 0.2; const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.22, 5), iron); sp.position.set(Math.cos(a) * 0.27, y, Math.sin(a) * 0.27); sp.rotation.set(Math.sin(a) * 1.4, 0, -Math.cos(a) * 1.4); g.add(sp); }
   for (const y of [0.4, 1.0, 1.6]) { const b = new THREE.Mesh(new THREE.TorusGeometry(0.2 - y * 0.03 + 0.05, 0.03, 5, 12), iron); b.rotation.x = Math.PI / 2; b.position.y = y; g.add(b); }
+  const rope = mat(0x8a7a5a, { roughness: 1 }), bone = mat(0xd8d0b8, { roughness: 0.8 });
+  for (let i = 0; i < 7; i++) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 4, 10), rope); w.rotation.x = Math.PI / 2; w.position.y = -0.1 + i * 0.07; g.add(w); }
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2, t = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.28, 5), bone); t.position.set(Math.cos(a) * 0.2, 1.72, Math.sin(a) * 0.2); t.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); g.add(t); }
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), wood); cap.position.y = 1.78; cap.scale.y = 0.6; g.add(cap);
   const mBase = new THREE.Object3D(); mBase.position.set(0, 0.8, 0); g.add(mBase);
   const mTip = new THREE.Object3D(); mTip.position.set(0, 1.75, 0); g.add(mTip);
   g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel: wood, length: 1.8 };
@@ -181,6 +199,10 @@ export function makeScythe() {
   const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.quadraticCurveTo(0.55, 0.34, 1.05, -0.28); sh.quadraticCurveTo(0.6, 0.1, 0, -0.16); sh.closePath();
   const blade = new THREE.Mesh(new THREE.ShapeGeometry(sh, 10), steel); blade.rotation.y = -Math.PI / 2; blade.position.y = 1.45; g.add(blade);
   const mount = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.14), wood); mount.position.y = 1.45; g.add(mount);
+  const ironS = mat(0x6a6a74, { metalness: 0.7, roughness: 0.4 });
+  for (const y of [-0.3, 0.3, 1.3]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.01, 4, 8), ironS); r.rotation.x = Math.PI / 2; r.position.y = y; g.add(r); }
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 5), ironS); spike.position.y = 1.62; g.add(spike);
+  const foot = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.18, 5), ironS); foot.rotation.x = Math.PI; foot.position.y = -0.48; g.add(foot);
   const mBase = new THREE.Object3D(); mBase.position.set(0, 1.4, 0.2); g.add(mBase);
   const mTip = new THREE.Object3D(); mTip.position.set(0, 1.2, 1.05); g.add(mTip);
   g.userData = { trailBase: mBase, trailTip: mTip, glowMats: [], steel, length: 1.5 };
@@ -281,6 +303,16 @@ export function makeHumanoid(o) {
   if (O.tabard) {
     const tf = new THREE.Mesh(new THREE.BoxGeometry(0.26 * bulk, 0.62, 0.018), accent); tf.position.set(0, -0.02, 0.135 * bulk); tf.rotation.x = -0.05; torso.add(tf);
     const tb = tf.clone(); tb.position.z = -0.135 * bulk; tb.rotation.x = 0.05; torso.add(tb);
+    const cv = new THREE.Mesh(new THREE.BoxGeometry(0.035 * bulk, 0.3, 0.008), trim), ch = new THREE.Mesh(new THREE.BoxGeometry(0.16 * bulk, 0.035, 0.008), trim);
+    cv.position.set(0, 0.04, 0.147 * bulk); ch.position.set(0, 0.1, 0.147 * bulk); torso.add(cv, ch);
+  }
+  if (O.tatters) { // zerschlissene Stofffetzen am Guertel + Schulterlumpen
+    const rag = M(O.cloth, { roughness: 1, side: THREE.DoubleSide });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2, L = 0.28 + (i % 3) * 0.1, st = new THREE.Mesh(new THREE.BoxGeometry(0.075 * bulk, L, 0.012), rag);
+      st.geometry.translate(0, -L / 2, 0); st.position.set(Math.sin(a) * 0.19 * bulk, 0.04, Math.cos(a) * 0.14 * bulk); st.rotation.set(Math.cos(a) * 0.18, a, Math.sin(a) * 0.18 + (i % 2 ? 0.1 : -0.1)); torso.add(st);
+    }
+    const sash = new THREE.Mesh(new THREE.BoxGeometry(0.1 * bulk, 0.6, 0.012), rag); sash.geometry.translate(0, -0.3, 0); sash.position.set(0.12, 0.68, 0.14 * bulk); sash.rotation.set(0, 0, -0.62); torso.add(sash);
   }
   // Kopf
   const head = new THREE.Group(); head.position.y = 0.73; torso.add(head); h.head = head;
@@ -356,7 +388,11 @@ export function makeHumanoid(o) {
   const sph = (r, m) => { const me = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), m); me.castShadow = true; return me; };
   h.arm = [0, 1].map((i) => {
     const up = mk(0.055 * bulk, 0.045 * bulk, armMat), fo = mk(0.05 * bulk, 0.04 * bulk, O.plates ? armor : skin);
-    const el = sph(0.05 * bulk, armMat), hd = sph(0.055 * bulk, i ? armor : armor);
+    const el = sph(0.05 * bulk, armMat), hd = sph(0.055 * bulk, O.plates ? armor : skin);
+    // Daumen + Handschuh-Stulpe, damit die Hand nicht wie eine Kugel wirkt
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.028 * bulk, 0.05, 0.035 * bulk), O.plates ? trim : skin); thumb.position.set(i ? -0.04 : 0.04, 0.025, 0.045); thumb.rotation.z = i ? 0.5 : -0.5; hd.add(thumb);
+    const knuck = new THREE.Mesh(new THREE.BoxGeometry(0.085 * bulk, 0.03, 0.05 * bulk), O.plates ? armor : cloth); knuck.position.set(0, -0.005, 0.045); hd.add(knuck);
+    if (O.tatters) { const wr = new THREE.Mesh(new THREE.TorusGeometry(0.052 * bulk, 0.012, 4, 8), cloth); wr.rotation.x = Math.PI / 2; wr.position.y = 0.045; hd.add(wr); }
     torso.add(up, fo, el, hd);
     return { up, fo, el, hd, S: V(i ? SH_X : -SH_X, SH_Y, 0), E: V(), H: V(), pole: V(i ? 0.6 : -0.6, -1, -0.35) };
   });
@@ -364,6 +400,12 @@ export function makeHumanoid(o) {
   h.leg = [0, 1].map((i) => {
     const th = mk(0.085 * bulk, 0.06 * bulk, cloth), sh = mk(0.06 * bulk, 0.05 * bulk, legMat);
     const kn = sph(0.065 * bulk, legMat), ft = new THREE.Mesh(new THREE.BoxGeometry(0.115 * bulk, 0.09, 0.3 * bulk), M(0x1e1612, { roughness: 0.9 })); ft.castShadow = true;
+    // Stiefel: Schaft, Spitze, Absatz
+    const bootM = M(0x2a1e16, { roughness: 0.85 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.066 * bulk, 0.074 * bulk, 0.2, 8), O.plates ? armor : bootM); shaft.position.set(0, 0.12, -0.05 * bulk); ft.add(shaft);
+    const toe = new THREE.Mesh(new THREE.SphereGeometry(0.058 * bulk, 8, 6), bootM); toe.scale.set(1, 0.7, 1.2); toe.position.set(0, 0, 0.14 * bulk); ft.add(toe);
+    const heel = new THREE.Mesh(new THREE.BoxGeometry(0.1 * bulk, 0.03, 0.07), M(0x120c08, { roughness: 1 })); heel.position.set(0, -0.05, -0.1 * bulk); ft.add(heel);
+    if (O.plates) { const kp = new THREE.Mesh(new THREE.SphereGeometry(0.075 * bulk, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), trim); kp.rotation.x = Math.PI / 2; kp.scale.set(1, 1, 0.6); kn.add(kp); kp.position.z = 0.04; }
     pivot.add(th, sh, kn, ft);
     return { th, sh, kn, ft, S: V(i ? 0.13 : -0.13, -0.02, 0), K: V(), A: V(), T: V() };
   });
@@ -387,6 +429,8 @@ function buildHead(head, O, { skin, cloth, armor, trim, accent, M }) {
     for (const x of [-0.04, 0.04]) { const e = add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 6), dark)); e.position.set(x, 0.02, 0.1); }
     const m = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.02), dark)); m.position.set(0, -0.05, 0.105);
     if (O.hunch) head.rotation.x = 0.35;
+    const wrapB = add(new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.016, 4, 12), cloth)); wrapB.rotation.x = Math.PI / 2 - 0.25; wrapB.position.y = 0.045; wrapB.scale.set(1, 1.05, 1);
+    const jaw = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.035, 0.05), skin)); jaw.position.set(0, -0.09, 0.07);
   } else if (O.head === 'helm' || O.head === 'knight') {
     const s = add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), armor)); s.scale.set(0.95, 1.08, 1.05); s.position.y = 0.02;
     const b = add(new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.115, 0.14, 12), armor)); b.position.y = -0.06;
