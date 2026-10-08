@@ -384,6 +384,10 @@ addEventListener('keydown', (e) => {
       const m = /^Digit([1-4])$/.exec(e.code);
       if (m) { if (P.levelUp(['vit', 'mnd', 'end', 'str'][+m[1] - 1])) G.save(); G.ui.showLevel(); }
       else if (['KeyE', 'KeyU', 'Enter', 'Escape', 'Space'].includes(e.code)) back();
+    } else if (mode === 'spells') {
+      const m = /^Digit([1-8])$/.exec(e.code);
+      if (m && +m[1] <= P.spells.length) { const i = +m[1] - 1; if (e.shiftKey) P.spellIdx2 = i; else P.spellIdx = i; G.ui.setSpells(P); G.save(); Sound.play('ui'); G.ui.showSpells(); }
+      else if (['KeyE', 'KeyZ', 'Enter', 'Escape', 'Space'].includes(e.code)) back();
     } else if (mode === 'flask') {
       if (e.code === 'Digit1' || e.code === 'ArrowRight') { if (P.allocFlask(+1)) G.save(); G.ui.showFlask(); }
       else if (e.code === 'Digit2' || e.code === 'ArrowLeft') { if (P.allocFlask(-1)) G.save(); G.ui.showFlask(); }
@@ -391,6 +395,7 @@ addEventListener('keydown', (e) => {
     } else {
       if (e.code === 'KeyU') { G.ui.showLevel(); }
       else if (e.code === 'KeyF') { G.ui.showFlask(); }
+      else if (e.code === 'KeyZ' && P.spells.length) { G.ui.showSpells(); }
       else if (['KeyE', 'Enter', 'Space', 'Escape'].includes(e.code)) { P.getUp(); I.pressed.delete(e.code); P.buf = null; }
       const m = /^Digit(\d)$/.exec(e.code);
       if (m) { const b = G.ui.restMap[+m[1] - 1]; if (b) warp(b); }

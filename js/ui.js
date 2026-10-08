@@ -49,6 +49,7 @@ export function createUI(G) {
     ui.restMap = lit.filter((b) => b !== current);
     el.restTitle.textContent = current.name;
     let html = `<div class="opt"><b>E</b> Aufstehen</div><div class="opt"><b>U</b> Aufleveln <span class="dim">(Level ${G.player.level()})</span></div><div class="opt"><b>F</b> Flaschen verteilen <span class="dim">(${G.player.maxEstus} HP · ${G.player.maxMana} FP)</span></div>`;
+    if (G.player.spells.length) html += `<div class="opt"><b>Z</b> Zauber einstellen <span class="dim">(${G.player.spells.length} Zauber)</span></div>`;
     if (ui.restMap.length) html += '<div class="sep">Teleportieren</div>' + ui.restMap.map((b, i) => `<div class="opt"><b>${i + 1}</b> ${b.name}</div>`).join('');
     el.restList.innerHTML = html;
     el.rest.classList.add('show');
@@ -71,6 +72,15 @@ export function createUI(G) {
       <div class="opt"><b>1</b> HP-Flaschen (Estus) <span class="val">${P.maxEstus}</span><span class="dim">je +150 HP</span></div><div class="flrow">${dots(P.maxEstus, 'hp') || '–'}</div>
       <div class="opt"><b>2</b> FP-Flaschen (Asche) <span class="val">${P.maxMana}</span><span class="dim">je +${40 + (P.stats.mnd - 10) * 2} FP</span></div><div class="flrow">${dots(P.maxMana, 'fp') || '–'}</div>
       <div class="sep">1 / → mehr HP  ·  2 / ← mehr FP</div><div class="opt"><b>E</b> Zurück</div>`;
+    el.rest.classList.add('show');
+  };
+  ui.showSpells = () => {
+    const P = G.player; ui.menuMode = 'spells';
+    el.restTitle.textContent = 'Zauber einstellen';
+    const hex = (c) => '#' + c.toString(16).padStart(6, '0');
+    el.restList.innerHTML = '<div class="sep">Zahl: M1 &nbsp;·&nbsp; Umschalt + Zahl: M2</div>' +
+      P.spells.map((id, i) => { const sp = SPELLS[id]; return `<div class="opt" style="--c:${hex(sp.color)}"><b>${i + 1}</b> ${sp.name} <span class="val">${sp.fp} FP</span>${i === P.spellIdx ? ' <u class="t1">M1</u>' : ''}${i === P.spellIdx2 ? ' <u class="t2">M2</u>' : ''}</div>`; }).join('') +
+      '<div class="sep"></div><div class="opt"><b>E</b> Zurück</div>';
     el.rest.classList.add('show');
   };
   ui.hideRest = () => { G.menuOpen = false; el.rest.classList.remove('show'); };

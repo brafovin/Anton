@@ -20,7 +20,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | **Magier** | Magierstab, Robe & Spitzhut, **5 Zauber** | sehr viel FP, Zauber skalieren mit Geist, wenig HP/Nahkampf |
 | **Ritter** | Eisen-Großschwert (Aschenschlag), schwere Plattenrüstung | viel HP & Stärke, langsamer, Rolle teurer |
 
-**Zauber (Magier mit Stab):** Die Zauber liegen auf den Maustasten: **M1** und **M2** wirken je einen gewählten Zauber (kein Nahkampf mit dem Stab). **Mausrad oder 1–5** wählt den M1-Zauber, **Q** wechselt den M2-Zauber (die Leiste links zeigt die Belegung). Standard: M1 Seelenpfeil, M2 Flammenkugel.
+**Zauber (Magier mit Stab):** Die Zauber liegen auf den Maustasten: **M1** und **M2** wirken je einen gewählten Zauber (kein Nahkampf mit dem Stab). **Mausrad oder 1–8** wählt den M1-Zauber, **Q** wechselt den M2-Zauber (die Leiste links zeigt die Belegung). Standard: M1 Seelenpfeil, M2 Flammenkugel.
 
 | # | Zauber | FP | Wirkung |
 |---|---|---|---|
@@ -50,7 +50,7 @@ Beim Start gibt es **Neues Spiel**, **Spiel laden** und **Steuerung**. Bei einem
 | F | Parry (1,5 s Abklingzeit, nach gelungenem Parry fast sofort wieder bereit) – bei Erfolg Riposte mit Angriff |
 
 **Benommen:** Wer geparried wird (oder als Boss gegen eine Wand rennt), taumelt zurück und sinkt wie in Elden Ring auf die Knie – gebeugt und wehrlos, bis er sich nach ein paar Sekunden wieder aufrichtet. Die Riposte trifft den knienden Gegner; danach steht er langsam auf.
-| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Magierstab: **M2-Zauber wechseln** |
+| Q | Ash of War der Waffe: Katana „Unsheathe“ (25 FP) / Großschwert „Aschenschlag“ (30 FP); FP füllen sich durch Treffer. Mit dem Zauberstab: **M2-Zauber weiter** (`X` = zurück). Am Leuchtfeuer stellt `Z` die Zauber ein: Zahl = M1, Umschalt + Zahl = M2 |
 | Mausrad / 1–8 | M1-Zauber wählen (nur mit Zauberstab) |
 | R | Estus-Flasche trinken (HP, am Leuchtfeuer aufgefüllt) |
 | T | Aschen-Flasche trinken (stellt FP wieder her, am Leuchtfeuer aufgefüllt) |

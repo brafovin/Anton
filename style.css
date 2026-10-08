@@ -178,3 +178,5 @@ body.inmenu #hud,body.inmenu #spellbar,body.inmenu #prompt{opacity:0!important}
 .ico.sichel{background:radial-gradient(circle at 70% 18%,transparent 0 30%,#c8b8e8 32% 42%,transparent 44%),linear-gradient(135deg,transparent 46%,#2a2028 48% 56%,transparent 58%);transform:scale(1.5);filter:drop-shadow(0 0 4px #b090ff)}
 .ico.mondklinge{background:linear-gradient(135deg,transparent 42%,#bcd4ff 45% 55%,transparent 58%),linear-gradient(135deg,transparent 0 76%,#2a3a6a 76% 92%,transparent 92%);transform:scale(1.6);filter:drop-shadow(0 0 6px #6a98ff)}
 .ico.keule{background:linear-gradient(135deg,transparent 40%,#6a5238 43% 57%,transparent 60%),radial-gradient(circle at 74% 26%,#8a6a48 0 20%,transparent 23%);transform:scale(1.5);filter:drop-shadow(0 0 4px #ff9a50)}
+#rest .opt u{text-decoration:none;font-size:10px;padding:1px 5px;border:1px solid;margin-left:8px;letter-spacing:.05em}
+#rest .opt u.t1{color:#ffb060;border-color:#a8682a}#rest .opt u.t2{color:#7aa8ff;border-color:#3a60b8}
