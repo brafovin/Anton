@@ -173,3 +173,8 @@ body.inmenu #hud,body.inmenu #spellbar,body.inmenu #prompt{opacity:0!important}
 .svslot-txt small{font-size:12px;color:#8d8570;letter-spacing:.1em}
 .svslot.empty .svslot-txt b{color:#8d8570;font-weight:400}
 .svslot-del{padding:6px 16px;font-size:13px}
+
+/* Waffen aus der offenen Welt */
+.ico.sichel{background:radial-gradient(circle at 70% 18%,transparent 0 30%,#c8b8e8 32% 42%,transparent 44%),linear-gradient(135deg,transparent 46%,#2a2028 48% 56%,transparent 58%);transform:scale(1.5);filter:drop-shadow(0 0 4px #b090ff)}
+.ico.mondklinge{background:linear-gradient(135deg,transparent 42%,#bcd4ff 45% 55%,transparent 58%),linear-gradient(135deg,transparent 0 76%,#2a3a6a 76% 92%,transparent 92%);transform:scale(1.6);filter:drop-shadow(0 0 6px #6a98ff)}
+.ico.keule{background:linear-gradient(135deg,transparent 40%,#6a5238 43% 57%,transparent 60%),radial-gradient(circle at 74% 26%,#8a6a48 0 20%,transparent 23%);transform:scale(1.5);filter:drop-shadow(0 0 4px #ff9a50)}

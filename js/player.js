@@ -152,13 +152,22 @@ const ATKS = {
   heavy: { f: FRS.heavy, dur: 1.25, hs: 0.64, he: 0.78, st: 26, dmg: 66, range: 3.1, arc: 130, cancel: 1.0, roll: 0.95, next: null, lunge: [0.5, 0.7, 3], sfx: 'swingHeavy', sfxAt: 0.48, poise: true, trail: [0.5, 0.86] },
   riposte: { f: FRS.s3, dur: 1.2, hs: 0.3, he: 0.32, st: 0, dmg: 85, range: 3.2, arc: 90, cancel: 0.9, roll: 0.85, next: null, sfx: 'swing', trail: [0.2, 0.45] },
 };
-const TABLES = { katana: ATK, greatsword: ATKG, ironblade: ATKI, staff: ATKS };
+// Waffen aus der offenen Welt (Minibosse): gleiche Bewegungen wie Katana bzw. Großschwert, aber eigene Werte
+const variant = (T, f) => Object.fromEntries(Object.entries(T).map(([k, v]) => [k, f(v, k)]));
+const ATKV = variant(ATK, (v, k) => ({ ...v, dmg: Math.round(v.dmg * 1.12), range: v.range + 0.5, arc: Math.min(200, Math.round(v.arc * 1.1)) }));   // Henkersichel: weite Bögen
+const ATKM = variant(ATK, (v, k) => ({ ...v, dmg: Math.round(v.dmg * (k === 'ash' ? 1.18 : 1.06)), range: k === 'ash' ? 11.5 : v.range, st: Math.max(0, v.st - 1) })); // Mondlichtklinge: flink, Mondschnitt reicht weit
+const ATKK = variant(ATKG, (v) => ({ ...v, dmg: Math.round(v.dmg * 1.15), st: v.st + 4 }));                                                              // Knochenkeule: schwer
+const TABLES = { katana: ATK, greatsword: ATKG, ironblade: ATKI, staff: ATKS, sichel: ATKV, mondklinge: ATKM, keule: ATKK };
 export const WEAPON_INFO = {
   staff: { name: 'Magierstab', short: 'Magierstab', ash: 'Zauber', fp: 0 },
   ironblade: { name: 'Eisen-Großschwert', short: 'Großschwert', ash: 'Aschenschlag', fp: 30 },
   katana: { name: 'Katana', short: 'Katana', ash: 'Unsheathe', fp: 25 },
   greatsword: { name: 'Hadrians Ascheklinge', short: 'Ascheklinge', ash: 'Aschenschlag', fp: 30 },
+  sichel: { name: 'Henkersichel', short: 'Sichel', ash: 'Seelenschnitt', fp: 25 },
+  mondklinge: { name: 'Mondlichtklinge', short: 'Mondklinge', ash: 'Mondschnitt', fp: 28 },
+  keule: { name: 'Gorms Knochenkeule', short: 'Keule', ash: 'Erdbeben', fp: 30 },
 };
+export const blankOwned = () => ({ katana: false, greatsword: false, ironblade: false, staff: false, sichel: false, mondklinge: false, keule: false });
 
 
 // ---------------- Startklassen ----------------
@@ -185,7 +194,7 @@ export const CLASSES = {
     look: { head: 'knight', plume: true, skin: 0xb8a088, cloth: 0x2a2e36, armor: 0x70767f, trim: 0xb08a30, accent: 0x7a1a1a, plates: true, pauldrons: true, tabard: true, cape: true, capeColor: 0x5a1a1a, bulk: 1.2 },
   },
 };
-const ALL_WEAPONS = ['katana', 'greatsword', 'ironblade', 'staff'];
+const ALL_WEAPONS = ['katana', 'greatsword', 'ironblade', 'staff', 'sichel', 'mondklinge', 'keule'];
 
 export function createPlayer(G, clsId = 'ninja') {
   const { scene, world, fx } = G;
@@ -196,7 +205,7 @@ export function createPlayer(G, clsId = 'ninja') {
 
   const P = {
     h, pos: new THREE.Vector3(0, 0, 0), vel: new THREE.Vector3(), yaw: Math.PI, // schaut nach -Z? (yaw=PI => forward = (0,0,-1))
-    cls: clsId, weapon: CLASSES[clsId].weapon, owned: { katana: false, greatsword: false, ironblade: false, staff: false, [CLASSES[clsId].weapon]: true }, stats: { ...CLASSES[clsId].stats }, dmgMul: 1, spells: CLASSES[clsId].spells || [], spellIdx: 0, spellIdx2: Math.min(1, Math.max(0, (CLASSES[clsId].spells || []).length - 1)), ward: 0, moveMul: CLASSES[clsId].moveMul, rollCost: CLASSES[clsId].rollCost,
+    cls: clsId, weapon: CLASSES[clsId].weapon, owned: { ...blankOwned(), [CLASSES[clsId].weapon]: true }, stats: { ...CLASSES[clsId].stats }, dmgMul: 1, spells: [...(CLASSES[clsId].spells || [])], spellIdx: 0, spellIdx2: Math.min(1, Math.max(0, (CLASSES[clsId].spells || []).length - 1)), ward: 0, moveMul: CLASSES[clsId].moveMul, rollCost: CLASSES[clsId].rollCost,
     maxHp: 300, hp: 300, maxFp: 60, fp: 60, maxSt: 100, st: 100, estus: 5, maxEstus: 5, mana: 3, maxMana: 3, drinkKind: 'estus', souls: 0,
     state: 'free', t: 0, act: null, actName: '', hitSet: new Set(), buf: null, stRegenDelay: 0, exhausted: false,
     parryActive: false, iframes: false, sprinting: false, moving: false, speedN: 0,
@@ -209,7 +218,7 @@ export function createPlayer(G, clsId = 'ninja') {
   P.camYaw = P.yaw;
 
   const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
-  const isGS = () => P.weapon === 'greatsword' || P.weapon === 'ironblade';
+  const isGS = () => P.weapon === 'greatsword' || P.weapon === 'ironblade' || P.weapon === 'keule';
   const readyPose = () => (isGS() ? READY_GS : P.weapon === 'staff' ? READY_ST : READY);
   P.setState = (s, opts = {}) => {
     P.prev = { ...P.pose };
@@ -232,7 +241,7 @@ export function createPlayer(G, clsId = 'ninja') {
     if (I.pressed.has('KeyT')) P.queue('mana');
     if (I.pressed.has('KeyE')) P.queue('interact');
     if (I.pressed.has('KeyC')) P.queue('swap');
-    if (P.weapon === 'staff' && !G.menuOpen && !G.cutscene) for (let i = 0; i < 5; i++) if (I.pressed.has('Digit' + (i + 1))) P.selectSpell(i);
+    if (P.weapon === 'staff' && !G.menuOpen && !G.cutscene) for (let i = 0; i < 8; i++) if (I.pressed.has('Digit' + (i + 1))) P.selectSpell(i);
     if (I.pressed.has('Tab') || I.pressedMouse[1]) toggleLock();
   }
 
@@ -379,7 +388,8 @@ export function createPlayer(G, clsId = 'ninja') {
       if (b.lit) restBegin(b);
       return true;
     }
-    if (it.type === 'item') { G.pickupWeapon(); return true; }
+    if (it.type === 'item') { G.pickup(it.ref); return true; }
+    if (it.type === 'lift') { G.useLift(it.lift); return true; }
     if (it.type === 'locked') { Sound.play('error'); G.ui.toast(it.text); return false; }
     if (it.type === 'fog') {
       const g = it.fight.arena.gate;
@@ -554,10 +564,10 @@ export function createPlayer(G, clsId = 'ninja') {
   P.applyClass = (id) => {
     const C = CLASSES[id]; P.cls = id;
     scene.remove(h.root); h = buildBody(id); scene.add(h.root); P.h = h;
-    P.stats = { ...C.stats }; P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, [C.weapon]: true };
+    P.stats = { ...C.stats }; P.owned = { ...blankOwned(), [C.weapon]: true };
     P.weapon = C.weapon; h.setWeapon(P.weapon);
     P.maxEstus = C.flasks[0]; P.maxMana = C.flasks[1]; P.estus = P.maxEstus; P.mana = P.maxMana;
-    P.spells = C.spells || []; P.spellIdx = 0; P.spellIdx2 = Math.min(1, Math.max(0, P.spells.length - 1)); P.moveMul = C.moveMul; P.rollCost = C.rollCost; P.ward = 0;
+    P.spells = [...(C.spells || [])]; P.spellIdx = 0; P.spellIdx2 = Math.min(1, Math.max(0, P.spells.length - 1)); P.moveMul = C.moveMul; P.rollCost = C.rollCost; P.ward = 0;
     P.applyStats(false); P.fp = P.maxFp; P.st = P.maxSt; trail.clear();
     G.ui.setWeapon(P.weapon); G.ui.setSpells(P);
   };
@@ -641,7 +651,8 @@ export function createPlayer(G, clsId = 'ninja') {
       for (const b of world.bonfires) {
         if (b.pos.distanceTo(P.pos) < 2.9) { P.interact = { type: 'bonfire', ref: b, text: b.lit ? 'E  Am Leuchtfeuer rasten' : 'E  Leuchtfeuer entfachen' }; break; }
       }
-      if (!P.interact && G.drop && P.pos.distanceTo(G.drop.pos) < 2.8) P.interact = { type: 'item', text: 'E  ' + WEAPON_INFO.greatsword.name + ' aufnehmen' };
+      if (!P.interact && G.pickups) for (const pk of G.pickups) if (P.pos.distanceTo(pk.pos) < 2.8) { P.interact = { type: 'item', ref: pk, text: 'E  ' + pk.label + ' aufnehmen' }; break; }
+      if (!P.interact && G.world.lifts) for (const k in G.world.lifts) { const l = G.world.lifts[k]; if (Math.hypot(P.pos.x - l.x, P.pos.z - l.z) < l.r - 0.4 && Math.abs(P.pos.y - (l.y0 + 0.02)) < 1.5) { P.interact = G.liftOpen(l) ? { type: 'lift', lift: l, text: 'E  Fahrstuhl benutzen' } : { type: 'locked', text: 'Der Fahrstuhl ist verriegelt – besiege die vier Wächter der Asche' }; break; } }
       if (!P.interact && !G.activeFight) {
         for (const f of G.fights) {
           if (f.dead || !f.enemy) continue;
@@ -794,7 +805,7 @@ export function createPlayer(G, clsId = 'ninja') {
       if (d < rr && d > 0.001) { const push = (rr - d) * (P.state === 'roll' ? 0.2 : 0.65); P.pos.x += (dx / d) * push; P.pos.z += (dz / d) * push; }
     }
     if (P.state !== 'jump') P.jumpH = 0;
-    P.pos.y = groundHeight(P.pos.x, P.pos.z) + P.jumpH;
+    P.pos.y = groundHeight(P.pos.x, P.pos.z) + P.jumpH + (P.liftY || 0);
     const sp = Math.hypot(P.vel.x, P.vel.z);
     P.moving = sp > 0.4 && (P.state === 'free' || P.state === 'drink' || P.state === 'kindle' || P.state === 'rest');
     P.speedN = clamp(sp / 6.4, 0, 1);
@@ -842,7 +853,7 @@ export function createPlayer(G, clsId = 'ninja') {
     if (P.state === 'attack' && a.trail && P.t >= a.trail[0] && P.t <= a.trail[1]) {
       h.root.updateMatrixWorld(true);
       const ud = h.weapon.userData; ud.trailBase.getWorldPosition(_tmpA); ud.trailTip.getWorldPosition(_tmpB);
-      trail.setColor(P.weapon === 'greatsword' ? 0xff9a45 : P.weapon === 'ironblade' ? 0xe8eef6 : P.weapon === 'staff' ? 0x9ab8ff : P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
+      trail.setColor(P.weapon === 'greatsword' ? 0xff9a45 : P.weapon === 'keule' ? 0xffb070 : P.weapon === 'sichel' ? 0xd0a0ff : P.weapon === 'mondklinge' ? 0x9ac8ff : P.weapon === 'ironblade' ? 0xe8eef6 : P.weapon === 'staff' ? 0x9ab8ff : P.actName === 'ash' ? 0x88ccff : 0xcfe6ff);
       trail.push(_tmpA, _tmpB);
     }
     trail.update(dt, isGS() ? 0.3 : P.actName === 'ash' ? 0.35 : 0.2);

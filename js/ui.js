@@ -77,9 +77,9 @@ export function createUI(G) {
   ui.setWeapon = (name) => {
     const info = WEAPON_INFO[name];
     $('weapon-lbl').textContent = info.short; $('ash-lbl').textContent = info.ash;
-    const ico = { katana: 'katana', greatsword: 'gsword', ironblade: 'isword', staff: 'staff' }[name] || 'katana';
+    const ico = { katana: 'katana', greatsword: 'gsword', ironblade: 'isword', staff: 'staff', sichel: 'sichel', mondklinge: 'mondklinge', keule: 'keule' }[name] || 'katana';
     $('weapon-ico').className = 'ico ' + ico;
-    $('ash-ico').className = 'ico ash' + (name === 'greatsword' || name === 'ironblade' ? ' fire' : name === 'staff' ? ' spell' : '');
+    $('ash-ico').className = 'ico ash' + (name === 'greatsword' || name === 'ironblade' || name === 'keule' ? ' fire' : name === 'staff' ? ' spell' : '');
   };
   // Zauberleiste (nur mit Stab): Mausrad / 1-5 waehlt, Q wirkt
   ui.setSpells = (P) => {
@@ -133,11 +133,18 @@ export function createUI(G) {
       const f = clamp(b.hp / b.maxHp, 0, 1); el.bossFill.style.width = f * 100 + '%';
       ghostBoss = f < ghostBoss ? lerp(ghostBoss, f, 1 - Math.exp(-1.6 * dt)) : f; el.bossGhost.style.width = ghostBoss * 100 + '%';
     }
+    // Miniboss-Leiste (grosse Leiste unten, wie bei Bossen)
+    { let mb = null, md = 1e9;
+      if (!G.activeFight) for (const e of G.enemies) { if (!e.mini || e.dead || e.state === 'idle' || e.state === 'return') continue; const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (d < 42 && d < md) { mb = e; md = d; } }
+      if (mb) {
+        if (ui._mini !== mb) { ui._mini = mb; el.bossName.textContent = mb.name; ghostBoss = 1; el.boss.classList.add('show'); }
+        const f = clamp(mb.hp / mb.maxHp, 0, 1); el.bossFill.style.width = f * 100 + '%'; ghostBoss = f < ghostBoss ? lerp(ghostBoss, f, 1 - Math.exp(-1.6 * dt)) : f; el.bossGhost.style.width = ghostBoss * 100 + '%';
+      } else if (ui._mini) { ui._mini = null; if (!G.activeFight) el.boss.classList.remove('show'); } }
     // Gegner-Balken + Lock-On
     let used = 0;
     const cam = G.camera, W = innerWidth, H = innerHeight;
     for (const e of G.enemies) {
-      if (e.dead || e.isBoss || (e.barT <= 0 && P.lock !== e)) continue;
+      if (e.dead || e.isBoss || e.mini || (e.barT <= 0 && P.lock !== e)) continue;
       v.set(e.pos.x, e.pos.y + 2.3 * e.T.scale, e.pos.z).project(cam);
       if (v.z > 1 || v.z < -1) continue;
       let bar = barPool[used]; if (!bar) { bar = document.createElement('div'); bar.className = 'ebar'; bar.innerHTML = '<i></i>'; el.bars.appendChild(bar); barPool[used] = bar; }

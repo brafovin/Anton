@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff } from './util.js';
-import { buildWorld, groundHeight, GLOW, PLAZA_BONFIRE } from './world.js';
+import { buildWorld, groundHeight, GLOW, PLAZA_BONFIRE, regionAt } from './world.js';
 import { createHazards } from './hazards.js';
 import { createCutscenes } from './cutscene.js';
-import { makeSword } from './models.js';
-import { WEAPON_INFO, CLASSES } from './player.js';
-import { createSpells } from './spells.js';
+import { makeSword, makeClub, makeScythe, makeStaff } from './models.js';
+import { WEAPON_INFO, CLASSES, blankOwned } from './player.js';
+import { createSpells, SPELLS } from './spells.js';
 import { makeFX } from './fx.js';
 import { createUI } from './ui.js';
 import { createPlayer } from './player.js';
-import { Enemy, spawnAll, spawnBoss } from './enemies.js';
+import { Enemy, spawnAll, spawnBoss, spawnMinis, MINIS } from './enemies.js';
 import { Sound } from './audio.js';
 import { createGfx, QUALITY } from './gfx.js';
 
@@ -48,7 +48,7 @@ G.gfx = createGfx(G); G.gfx.buildEnvironment();
 { let q = 'high'; try { q = localStorage.getItem('aschenfeuer-gfx') || 'high'; } catch (e) { /* ignore */ } G.gfx.setQuality(QUALITY[q] ? q : 'high', false); }
 G.hazards = createHazards(G);
 G.spells = createSpells(G);
-G.cutscene = null; G.timeScale = 1;
+G.cutscene = null; G.timeScale = 1; G.minis = {}; G.pickups = []; G.ride = null; G.region = null;
 G.input = { keys: new Set(), pressed: new Set(), mouse: [false, false, false], pressedMouse: [false, false, false], shiftDown: 0, dx: 0, dy: 0 };
 G.ui = createUI(G);
 G.cutscenes = createCutscenes(G);
@@ -73,8 +73,15 @@ function populate() {
     f.enemy = null;
     if (!f.dead) { f.enemy = spawnBoss(G, f); G.enemies.push(f.enemy); }
   }
+  G.enemies.push(...spawnMinis(G));
   G.refreshGates();
   if (G.fights[0].dead && !P.owned.greatsword) G.spawnDrop(G.fights[0].arena.x, G.fights[0].arena.z - 2);
+  // Beute besiegter Minibosse, die noch nicht eingesammelt wurde
+  for (const M of MINIS) {
+    if (!(G.minis[M.id] && G.minis[M.id].dead)) continue;
+    const Rg = G.world.regions.find((r) => r.id === M.region);
+    M.reward.forEach((it, i) => { if (!(it.w ? P.owned[it.w] : P.spells.includes(it.s))) G.spawnPickup(Rg.x + (i - (M.reward.length - 1) / 2) * 2.6, Rg.z + 3, it); });
+  }
 }
 G.player = null;
 createPlayer(G);
@@ -107,7 +114,7 @@ G.lastSlot = () => {
 G.save = () => {
   try {
     localStorage.setItem(slotKey(G.slot), JSON.stringify({
-      ts: Date.now(), finished: !!G.ended, cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
+      ts: Date.now(), finished: !!G.ended, cls: P.cls, spellIdx: P.spellIdx, spellIdx2: P.spellIdx2, stats: P.stats, souls: P.souls, owned: P.owned, spells: P.spells, minis: Object.keys(G.minis).filter((k) => G.minis[k].dead), weapon: P.weapon, maxEstus: P.maxEstus, maxMana: P.maxMana,
       dead: G.fights.filter((f) => f.dead).map((f) => f.id), seen: G.fights.filter((f) => f.introSeen || f.dead).map((f) => f.id), lit: G.world.bonfires.filter((b) => b.lit).map((b) => b.id), last: P.lastBonfire ? P.lastBonfire.id : null,
     }));
     localStorage.setItem(LAST_SLOT_KEY, String(G.slot));
@@ -139,13 +146,15 @@ G.loadGame = (slot = G.lastSlot()) => {
   G.slot = slot;
   P.applyClass(saved.cls || 'ninja');
   Object.assign(P.stats, saved.stats || {}); P.souls = saved.souls || 0;
-  P.owned = { katana: false, greatsword: false, ironblade: false, staff: false, ...(saved.owned || {}) };
+  P.owned = { ...blankOwned(), ...(saved.owned || {}) };
+  if (Array.isArray(saved.spells)) P.spells = saved.spells.filter((id) => SPELLS[id]);
+  G.minis = {}; for (const id of saved.minis || []) G.minis[id] = { dead: true };
   if (saved.maxEstus !== undefined) { P.maxEstus = saved.maxEstus; P.maxMana = saved.maxMana ?? P.maxMana; }
   P.estus = P.maxEstus; P.mana = P.maxMana;
   const dead = new Set(saved.dead || (saved.bossDead ? ['hadrian'] : []));
   for (const f of G.fights) { if (dead.has(f.id)) { f.dead = true; ensureArenaBonfire(f); } if ((saved.seen || []).includes(f.id) || dead.has(f.id)) f.introSeen = true; }
   G.ended = !!saved.finished;
-  if (G.allFourDead()) { ensurePlazaBonfire(); if (!(saved.lit || []).includes(PLAZA_BONFIRE.id) && !G.fights.find((f) => f.id === 'king').dead) G.pendingTeleport = true; }
+  if (G.allFourDead()) ensurePlazaBonfire();
   for (const b of G.world.bonfires) if ((saved.lit || []).includes(b.id)) { b.lit = true; b.blend = 1; }
   if (saved.last !== null && saved.last !== undefined) P.lastBonfire = G.world.bonfires.find((b) => b.id === saved.last) || null;
   if (P.owned[saved.weapon]) P.setWeapon(saved.weapon);
@@ -159,22 +168,48 @@ G.newGame = (clsId, slot = G.slot) => {
 };
 
 // ------------------------------------------------------------------ Boss-Waffe (Beute)
-G.drop = null;
-G.spawnDrop = (x, z) => {
-  if (G.drop) return;
-  const g = new THREE.Group(); const y = groundHeight(x, z); g.position.set(x, y, z);
-  const l = new THREE.PointLight(0xff8a30, 40, 14, 2); l.position.y = 1.2; g.add(l);
-  const sw = makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.9 }); sw.scale.setScalar(0.55); sw.rotation.z = Math.PI; sw.position.y = 1.4; g.add(sw);
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: 0xff9a40, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); halo.scale.set(3.2, 3.2, 1); halo.position.y = 1.2; g.add(halo);
-  const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.5, 4, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xff9a40, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); pil.position.y = 2; g.add(pil);
-  scene.add(g); G.drop = { pos: g.position.clone(), mesh: g, sword: sw };
+// Beute: Waffen und Zauber liegen als leuchtende Gegenstaende am Boden (Boss- und Miniboss-Belohnungen)
+const pickupMesh = (item) => {
+  const g = new THREE.Group(), col = item.s ? SPELLS[item.s].color : item.w === 'mondklinge' ? 0x6a98ff : item.w === 'staff' ? 0xa070ff : item.w === 'sichel' ? 0xc090ff : 0xff9a40;
+  const l = new THREE.PointLight(col, 40, 14, 2); l.position.y = 1.2; g.add(l);
+  let obj;
+  if (item.s) obj = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 2.6, roughness: 0.3 }));
+  else {
+    obj = item.w === 'staff' ? makeStaff() : item.w === 'keule' ? makeClub() : item.w === 'sichel' ? makeScythe()
+      : item.w === 'mondklinge' ? makeSword({ len: 1.2, width: 0.11, color: 0xb4ccf4, rusty: false, glow: 0.9, glowColor: 0x4a78ff })
+        : makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.9 });
+    obj.scale.setScalar(item.w === 'keule' ? 0.4 : item.w === 'staff' || item.w === 'sichel' ? 0.5 : 0.55); obj.rotation.z = Math.PI;
+  }
+  obj.position.y = 1.4; g.add(obj);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW.fire, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); halo.scale.set(3.2, 3.2, 1); halo.position.y = 1.2; g.add(halo);
+  const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.5, 4, 10, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); pil.position.y = 2; g.add(pil);
+  return { g, obj };
 };
-G.pickupWeapon = () => {
-  if (!G.drop) return;
-  scene.remove(G.drop.mesh); G.drop = null;
-  P.owned.greatsword = true; P.setWeapon('greatsword');
-  Sound.play('victory'); G.ui.banner('KLINGE ERHALTEN', 'gold', 4.5); G.ui.toast(WEAPON_INFO.greatsword.name + ' – mit C Waffe wechseln');
-  G.fx.souls(P.pos.clone().setY(P.pos.y + 1), 40);
+G.spawnPickup = (x, z, item) => {
+  const key = item.w || item.s;
+  if (G.pickups.some((p) => p.key === key)) return;
+  const { g, obj } = pickupMesh(item); g.position.set(x, groundHeight(x, z), z); scene.add(g);
+  G.pickups.push({ key, item, pos: g.position.clone(), mesh: g, obj, label: item.s ? SPELLS[item.s].name + ' (Zauber)' : WEAPON_INFO[item.w].name });
+};
+G.spawnDrop = (x, z) => G.spawnPickup(x, z, { w: 'greatsword' });
+G.pickup = (pk) => {
+  const it = pk.item; scene.remove(pk.mesh); G.pickups = G.pickups.filter((p) => p !== pk);
+  if (it.w) {
+    P.owned[it.w] = true; if (it.w === 'staff' && !P.spells.length) P.spells.push('pfeil');
+    P.setWeapon(it.w); G.ui.banner('WAFFE ERHALTEN', 'gold', 4.5); G.ui.toast(WEAPON_INFO[it.w].name + ' – mit C Waffe wechseln');
+  } else {
+    if (!P.spells.includes(it.s)) P.spells.push(it.s);
+    G.ui.setSpells(P); G.ui.banner('ZAUBER ERHALTEN', 'gold', 4.5);
+    G.ui.toast(SPELLS[it.s].name + (P.owned.staff ? ' – mit dem Zauberstab wirken' : ' – benötigt einen Zauberstab (Beute im Nebelmoor)'));
+  }
+  Sound.play('victory'); G.fx.souls(P.pos.clone().setY(P.pos.y + 1), 40);
+  G.save();
+};
+G.onMiniDefeated = (e) => {
+  const M = e.mini; G.minis[M.id] = { dead: true };
+  G.ui.banner('FEIND GEFALLEN', 'gold', 4.2); Sound.play('victory');
+  G.fx.ring(e.pos.clone(), { color: 0xffe0a0, r: 10, dur: 1.2 }); G.fx.souls(e.pos.clone().setY(2), 60);
+  M.reward.forEach((it, i) => G.spawnPickup(e.pos.x + (i - (M.reward.length - 1) / 2) * 2.6, e.pos.z, it));
   G.save();
 };
 populate();
@@ -204,20 +239,42 @@ G.startBoss = (f) => {
 // Folgen eines besiegten Bosses: nach dem vierten Boss Teleport zum Thron, nach dem König das Ende
 G.afterBoss = (f) => {
   if (f.id === 'king') G.showEnding();
-  else if (f.id === 'vael' && G.allFourDead()) G.teleportToKing();
+  else if (f.id === 'vael' && G.allFourDead()) {
+    ensurePlazaBonfire(); G.ui.banner('DER FAHRSTUHL ERWACHT', 'gold', 5.5); Sound.play('victory');
+    setTimeout(() => G.ui.toast('Im Burghof wartet ein Fahrstuhl zum Thronsaal des Königs'), 3200);
+  }
 };
-G.teleportToKing = () => {
-  const king = G.fights.find((f) => f.id === 'king'); if (!king || king.dead) return;
-  P.setState('cutscene'); P.lock = null;
-  G.ui.banner('DER THRONSAAL RUFT DICH', 'gold', 5.5); Sound.play('victory'); G.ui.fade(1, 1400, '#fff');
-  setTimeout(() => {
+// Fahrstuhl: unten im Burghof (nach den vier Waechtern nutzbar), oben im Vorhof des Thronsaals (Rueckfahrt jederzeit)
+G.liftOpen = (l) => l.id === 'high' || G.allFourDead();
+G.useLift = (l) => {
+  if (G.ride || !G.liftOpen(l)) return;
+  const up = l.id === 'low', dest = G.world.lifts[up ? 'high' : 'low'];
+  P.setState('cutscene'); P.lock = null; P.vel.set(0, 0, 0); P.pos.x = l.x; P.pos.z = l.z;
+  G.ride = { l, dest, up, t: 0, dur: up ? 9 : 3.4, faded: false };
+  Sound.play('fog'); G.ui.toast(up ? 'Der Fahrstuhl setzt sich in Bewegung …' : 'Der Fahrstuhl senkt sich …');
+};
+function updateRide(dt) {
+  const r = G.ride, l = r.l; r.t += dt;
+  const k = clamp(r.t / r.dur, 0, 1), e = k * k * (3 - 2 * k), W = G.world;
+  const rise = r.up ? (W.liftTopY - l.y0) * e : -3.2 * e;
+  l.cab.position.y = -0.18 + rise;
+  P.liftY = l.y0 + 0.02 + rise - groundHeight(l.x, l.z); P.pos.x = l.x; P.pos.z = l.z;
+  G.shake(r.up ? 0.07 : 0.05);
+  if (!r.faded && k > (r.up ? 0.84 : 0.55)) { r.faded = true; G.ui.fade(1, r.up ? 1400 : 900, r.up ? '#fff' : '#000'); }
+  if (k < 1) return;
+  l.cab.position.y = -0.18; P.liftY = 0; G.ride = null;
+  const d = r.dest; P.pos.set(d.x, groundHeight(d.x, d.z), d.z); P.vel.set(0, 0, 0);
+  P.setState('free'); P.yaw = r.up ? Math.PI : 0; P.camYaw = P.yaw; if (G.snapCamera) G.snapCamera();
+  if (r.up) {
     const b = ensurePlazaBonfire(); b.lit = true; b.blend = 1;
-    P.hp = P.maxHp; P.fp = P.maxFp; P.st = P.maxSt; P.estus = P.maxEstus; P.mana = P.maxMana;
-    P.lastBonfire = b; P.warpTo(b); P.setState('free'); populate(); P.camYaw = Math.PI; if (G.snapCamera) G.snapCamera();
-    G.ui.fade(0, 2400, '#fff'); G.save();
-    setTimeout(() => G.ui.toast('Tritt durch das Nebeltor, wenn du bereit bist'), 2800);
-  }, 1500);
-};
+    P.hp = P.maxHp; P.fp = P.maxFp; P.st = P.maxSt; P.estus = P.maxEstus; P.mana = P.maxMana; P.lastBonfire = b; P.spawn.copy(b.pos).add(new THREE.Vector3(0, 0, 2)); P.spawnYaw = Math.PI;
+    G.ui.banner('THRONSAAL-VORHOF', 'gold', 4.2); populate(); G.save();
+    setTimeout(() => G.ui.toast('Tritt durch das Nebeltor, wenn du bereit bist'), 3200);
+  } else G.ui.toast('Zurück im Burghof');
+  G.ui.fade(0, 1800, r.up ? '#fff' : '#000');
+}
+G.updateRide = updateRide;
+G.teleportToKing = () => { const l = G.world.lifts.low; G.useLift(l); };
 G.showEnding = () => {
   G.ended = true; G.save();
   const C = CLASSES[P.cls];
@@ -454,7 +511,6 @@ function start() {
   try { const p = canvas.requestPointerLock && canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) { /* ignore */ }
   G.ui.fade(0, 1200);
   setTimeout(() => G.ui.toast(P.lastBonfire ? 'Willkommen zurück' : 'Entfache das Leuchtfeuer'), 800);
-  if (G.pendingTeleport) { G.pendingTeleport = false; setTimeout(() => G.teleportToKing(), 2500); }
 }
 {
   const q = new URLSearchParams(location.search);
@@ -501,7 +557,10 @@ function frame(now) {
   G.fx.update(dt);
   G.cutscenes.update(realDt);
   G.ui.update(dt);
-  if (G.drop) { G.drop.sword.rotation.y += dt * 1.2; G.drop.sword.position.y = 1.4 + Math.sin(G.time * 2) * 0.12; }
+  for (const pk of G.pickups) { pk.obj.rotation.y += dt * 1.2; pk.obj.position.y = 1.4 + Math.sin(G.time * 2) * 0.12; }
+  if (G.ride) updateRide(dt);
+  G.world.updateLifts(G.time, G.allFourDead());
+  { const rg = regionAt(P.pos.x, P.pos.z); const id = rg ? rg.id : null; if (id !== G.region) { G.region = id; if (rg && !G.cutscene && !P.dead) G.ui.banner(rg.name.toUpperCase(), 'gold', 3.4); } }
   if (G.stain) { G.stain.dot.position.y = 0.5 + Math.sin(G.time * 2.5) * 0.15; G.stain.pil.rotation.y += dt; }
   // Todes-/Respawn-Ablauf
   if (G.deathTimer > 0) {

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, lerp, damp, dampAngle, angleDiff, turnToward, rand, pick } from './util.js';
 import { makeHumanoid, compile, sample, blendPose, DEF } from './models.js';
 import { Sound } from './audio.js';
-import { groundHeight } from './world.js';
+import { groundHeight, REGIONS } from './world.js';
 
 const wrapPi = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
@@ -198,6 +198,33 @@ const TYPES = {
     look: { head: 'hollow', skin: 0x20202c, cloth: 0x0c0c14, armor: 0x14141c, trim: 0x2a2a3a, accent: 0x14101c, plates: false, pauldrons: false, hunch: 0.3, weapon: 'sword', weaponColor: 0x30303e, weaponRusty: true, bulk: 0.9 },
   },
 };
+Object.assign(TYPES, (() => {
+  const TYPES_BASE_WITCH = TYPES.witch, TYPES_BASE_GIANT = TYPES.giant, TYPES_BASE_REAPER = TYPES.reaper;
+  return {
+  // ---- Minibosse der offenen Welt (nutzen Angriffe der grossen Bosse, aber ohne Phasen / Arena) ----
+  mWitch: { ...TYPES_BASE_WITCH, hp: 900, souls: 2600, scale: 1.15, aggro: 20, mini: true, isBoss: false, cdRange: [1.5, 2.6],
+    look: { head: 'witch', skin: 0xb8c8c0, cloth: 0x12302c, armor: 0x1a4038, trim: 0x6ad8b8, accent: 0x2ac8a0, plates: false, pauldrons: false, cape: true, capeColor: 0x0e2824, robe: true, robeColor: 0x0e2824, weapon: 'staff', bulk: 0.95 } },
+  mWitch2: { ...TYPES_BASE_WITCH, hp: 1050, souls: 3000, scale: 1.15, aggro: 20, mini: true, isBoss: false, cdRange: [1.3, 2.3], speed: 3.3,
+    look: { head: 'witch', skin: 0xd8d4e0, cloth: 0x2a3050, armor: 0x38406a, trim: 0xb8c8ff, accent: 0x6a88ff, plates: false, pauldrons: false, cape: true, capeColor: 0x2a3a70, robe: true, robeColor: 0x242c58, weapon: 'staff', bulk: 0.95 } },
+  mGiant: { ...TYPES_BASE_GIANT, hp: 2000, souls: 3800, scale: 2.1, radius: 1.7, aggro: 22, mini: true, isBoss: false, reach: 6,
+    look: { head: 'hollow', hunch: 0.2, skin: 0x8a8070, cloth: 0x4a4038, armor: 0x5a4a38, trim: 0xa08040, accent: 0x6a3a1a, plates: false, pauldrons: false, weapon: 'club', bulk: 1.4 } },
+  mReaper: { ...TYPES_BASE_REAPER, hp: 1100, souls: 3000, scale: 1.1, aggro: 22, mini: true, isBoss: false, reach: 4.2,
+    look: { head: 'reaper', skin: 0x222222, cloth: 0x2a1020, armor: 0x3a1a2a, trim: 0xd8a8c0, accent: 0xa01048, capeColor: 0x401028, cape: true, plates: true, pauldrons: true, weapon: 'scythe', bulk: 0.95 } },
+  mKnight: { hp: 1500, radius: 0.8, speed: 3.0, aggro: 20, souls: 3500, scale: 1.55, attacks: ['kSlash', 'kSlash', 'kThrust', 'bSweep', 'bThrust'], idle: IDLE.knight, blocks: true, strafe: true, mini: true, reach: 3.8,
+    look: { head: 'knight', skin: 0x888888, cloth: 0x161a26, armor: 0x8a94a8, trim: 0x8ab0ff, accent: 0x2a3a7a, plates: true, pauldrons: true, plume: true, tabard: true, cape: true, capeColor: 0x1a2a5a, weapon: 'sword', weaponColor: 0xb4ccf4, weaponRusty: false, shield: true, shieldColor: 0x5a6a88, bulk: 1.2, eye: 0x6a98ff } },
+  mHollow: { hp: 1200, radius: 0.9, speed: 3.1, aggro: 20, souls: 3200, scale: 1.65, attacks: ['hSlash', 'hSwipe', 'bSlam', 'bSweep'], idle: IDLE.hollow, strafe: false, mini: true, reach: 3.6,
+    look: { head: 'hollow', skin: 0x7a3a28, cloth: 0x2a1410, armor: 0x3a1c14, trim: 0xff7a30, accent: 0xff5a10, plates: false, pauldrons: false, hunch: 0.25, weapon: 'club', bulk: 1.3, eye: 0xff6a20 } }
+  };
+})());
+// Minibosse: Reihenfolge = Erkundungsreihenfolge; reward: weapon (w) / spell (s)
+export const MINIS = [
+  { id: 'sellith', type: 'mWitch', region: 'moor', name: 'Sellith, die Moorhexe', hp: 900, souls: 2600, dmgMul: 0.7, speedMul: 1.0, cdMul: 1.0, reward: [{ w: 'staff' }, { s: 'frost' }] },
+  { id: 'brogg', type: 'mGiant', region: 'mine', name: 'Brogg, der Minenaufseher', hp: 2000, souls: 3800, dmgMul: 0.7, speedMul: 1.0, cdMul: 1.0, reward: [{ w: 'keule' }] },
+  { id: 'kaela', type: 'mReaper', region: 'forest', name: 'Kaela, die Schnitterin', hp: 1100, souls: 3000, dmgMul: 0.8, speedMul: 1.0, cdMul: 1.0, reward: [{ w: 'sichel' }] },
+  { id: 'aldwin', type: 'mKnight', region: 'crypt', name: 'Ritter Aldwin der Gefallene', hp: 1500, souls: 3500, dmgMul: 0.95, speedMul: 1.0, cdMul: 1.0, reward: [{ w: 'mondklinge' }] },
+  { id: 'ysolde', type: 'mWitch2', region: 'watch', name: 'Ysolde, die Sturmruferin', hp: 1050, souls: 3000, dmgMul: 0.75, speedMul: 1.0, cdMul: 1.0, reward: [{ s: 'lanze' }] },
+  { id: 'embra', type: 'mHollow', region: 'burnt', name: 'Embra, der Aschenbrenner', hp: 1200, souls: 3200, dmgMul: 0.7, speedMul: 1.0, cdMul: 1.0, reward: [{ s: 'nova' }] },
+];
 
 // ---- Inszenierte Posen der Boss-Intros (absolute Cutscene-Zeit in Sekunden) ----
 export const CINE = {
@@ -233,7 +260,7 @@ export const CINE = {
 
 export class Enemy {
   constructor(G, type, x, z, yaw = 0, opts = {}) {
-    this.G = G; this.dmgMul = 1; this.speedMul = 1; this.cdMul = 1; this.summonCd = 0; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; const T = TYPES[type]; this.T = T;
+    this.G = G; this.dmgMul = 1; this.speedMul = 1; this.cdMul = 1; this.summonCd = 0; this.minion = !!opts.minion; this.arena = opts.arena || null; this.fight = opts.fight || null; this.untouchable = false; this.type = type; this.mini = opts.mini || null; const T = TYPES[type]; this.T = T;
     this.isBoss = !!T.isBoss; this.radius = T.radius * (this.isBoss ? 1 : 1); this.maxHp = T.hp; this.hp = T.hp;
     this.home = new THREE.Vector3(x, 0, z); this.homeYaw = yaw;
     this.pos = new THREE.Vector3(x, groundHeight(x, z), z); this.yaw = yaw; this.vel = new THREE.Vector3();
@@ -244,7 +271,7 @@ export class Enemy {
     this.barT = 0; this.strafeDir = Math.random() < 0.5 ? 1 : -1; this.strafeT = 0; this.atk = null; this.timeScale = 1;
     this.phase2 = false; this.phase3 = false; this.idlePh = rand(6.28); this.yOff = 0; this.souls = T.souls; this.leapFrom = new THREE.Vector3(); this.leapTo = new THREE.Vector3();
     this.moving = false; this.speedN = 0; this.name = opts.name || (this.isBoss ? 'Boss' : type === 'knight' ? 'Wachritter' : type === 'shade' ? 'Schatten' : 'Hohler Soldat');
-    const st0 = this.h.weapon.userData.steel; if (this.isBoss && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
+    const st0 = this.h.weapon.userData.steel; if ((this.isBoss || opts.mini) && st0 && st0.emissive) this.stBase = { c: st0.emissive.clone(), i: st0.emissiveIntensity };
     this.wanderT = rand(2, 5); this.wanderYaw = yaw; this.fadeT = 0;
   }
   useBow(v) { if (!!v === !!this._bow || !this.h.weapons.kingbow) return; this._bow = !!v; this.h.setWeapon(v ? 'kingbow' : 'kingsword'); }
@@ -299,6 +326,7 @@ export class Enemy {
     this.h.root.visible = true; this.untouchable = false;
     if (G.player.lock === this) G.player.lock = null;
     if (this.isBoss) G.onBossDefeated(this);
+    if (this.mini) G.onMiniDefeated(this);
   }
 
   // ---------------- Angriff ----------------
@@ -397,6 +425,8 @@ export class Enemy {
       return;
     }
     const dx = P.pos.x - this.pos.x, dz = P.pos.z - this.pos.z, dist = Math.hypot(dx, dz), toP = Math.atan2(dx, dz);
+    // Offene Welt: weit entfernte, ruhende Gegner schlafen (spart Rechenzeit)
+    if (!this.isBoss && this.state === 'idle') { if (dist > 85) { h.root.visible = false; return; } if (!h.root.visible) h.root.visible = true; }
     this.cd -= dt; this.summonCd = Math.max(0, this.summonCd - dt);
     let moveDir = null, speed = 0, target = null;
     const spdMul = (this.phase2 ? (T.p2speed || 1.25) : 1) * (this.phase3 ? 1.1 : 1) * this.speedMul;
@@ -534,7 +564,7 @@ export class Enemy {
     }
     this.pos.y = groundHeight(this.pos.x, this.pos.z);
     this.speedN = clamp(Math.hypot(this.vel.x, this.vel.z) / 5, 0, 1);
-    if (this.isBoss) { // Warnleuchten: rot = nicht parierbar
+    if (this.isBoss || this.mini) { // Warnleuchten: rot = nicht parierbar
       const st = this.h.weapon.userData.steel;
       if (st && st.emissive) {
         const warn = this.state === 'attack' && this.atk && this.atk.danger && this.t * this.timeScale < this.atk.hs + 0.05;
@@ -574,9 +604,28 @@ export const SPAWNS = [
   // Dorf
   ['hollow', -11, -24, 0.4], ['hollow', 10, -30, -0.6], ['hollow', -4, -40, 0.2], ['hollow', 18, -44, 1.2], ['hollow', -24, -14, 2.2], ['hollow', 24, -12, -2.0],
   ['knight', -10, -54, 0.3],
+  // Offene Welt: Wegelagerer entlang der Wege und in den Gebieten
+  ['hollow', -62, 12, 0.4], ['hollow', -74, 4, -1], ['hollow', -112, 12, 1.2], ['knight', -122, 6, 0.6], ['hollow', -128, 12, 2], ['hollow', -150, 8, 0.2], ['hollow', -160, -8, 1.4], ['knight', -156, 14, 3],
+  ['hollow', 62, 10, -0.4], ['hollow', 76, 4, 1], ['hollow', 112, 10, -1.2], ['knight', 122, 4, -0.6], ['hollow', 128, 12, -2], ['hollow', 152, 2, 0.2], ['hollow', 160, -18, 1.4], ['knight', 158, 10, 3],
+  ['hollow', 36, 36, 0.5], ['hollow', 30, 58, -0.7], ['hollow', 20, 80, 2], ['knight', 12, 96, 1], ['hollow', 8, 108, 0.3], ['hollow', -8, 132, 1.3], ['hollow', 14, 140, -1.3], ['knight', -10, 146, 2.4], ['hollow', 18, 160, 0.4],
+  ['hollow', -106, -36, 0.8], ['hollow', -118, -60, -0.4], ['knight', -128, -84, 1.6], ['hollow', -140, -96, 2.2], ['hollow', -136, -112, 0.1], ['hollow', -162, -118, 1.1], ['knight', -146, -142, -2.2],
+  ['hollow', 106, -36, -0.8], ['hollow', 118, -60, 0.4], ['knight', 128, -84, -1.6], ['hollow', 140, -96, -2.2], ['hollow', 136, -112, 0.1], ['hollow', 162, -118, -1.1], ['knight', 146, -142, 2.2],
+  ['hollow', -40, 100, 0.2], ['hollow', -66, 108, 1.4], ['knight', -90, 112, -0.6], ['hollow', -104, 130, 2.4], ['hollow', -124, 108, 0.9], ['hollow', -92, 128, 1.9],
+
   // Burghof
   ['hollow', -14, -70, 0], ['hollow', 15, -72, 0], ['knight', -18, -92, 0.2], ['knight', 18, -98, -0.3], ['hollow', 0, -98, 0], ['hollow', -9, -106, 0.5], ['hollow', 10, -108, -0.5],
 ];
+export function spawnMinis(G) {
+  const out = [];
+  for (const M of MINIS) {
+    if (G.minis && G.minis[M.id] && G.minis[M.id].dead) continue;
+    const Rg = REGIONS.find((r) => r.id === M.region), x = Rg.x + (M.dx || 0), z = Rg.z + (M.dz || 0);
+    const e = new Enemy(G, M.type, x, z, Math.atan2(-x, 60 - z) + 0.3, { name: M.name, mini: M, arena: { x: Rg.x, z: Rg.z, r: Rg.r + 4 } });
+    e.maxHp = e.hp = M.hp; e.souls = M.souls; e.dmgMul = M.dmgMul; e.speedMul = M.speedMul; e.cdMul = M.cdMul;
+    out.push(e);
+  }
+  return out;
+}
 export function spawnAll(G) {
   const list = SPAWNS.map(([t, x, z, y]) => new Enemy(G, t, x, z, y));
   return list;

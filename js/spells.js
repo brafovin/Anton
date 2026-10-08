@@ -12,13 +12,17 @@ export const SPELLS = {
   blitz:   { id: 'blitz',   name: 'Blitzschlag',     fp: 22, cast: 0.90, color: 0xcfe0ff, kind: 'bolt', desc: 'Schlägt am Ziel ein' },
   heilung: { id: 'heilung', name: 'Heilendes Licht', fp: 28, cast: 1.10, color: 0xffe08a, kind: 'heal', self: true, desc: 'Stellt HP wieder her' },
   schild:  { id: 'schild',  name: 'Aschenschild',    fp: 20, cast: 0.80, color: 0x9ad0ff, kind: 'ward', self: true, desc: 'Halbiert Schaden für 10 s' },
+  // Zauber aus der offenen Welt (Beute der Minibosse)
+  frost:   { id: 'frost',   name: 'Frostsplitter',   fp: 18, cast: 0.60, color: 0x9ae0ff, kind: 'fan',  desc: 'Fächer aus Eissplittern' },
+  lanze:   { id: 'lanze',   name: 'Blitzlanze',      fp: 26, cast: 0.80, color: 0xb8c8ff, kind: 'lance', desc: 'Durchbohrt alles in einer Linie' },
+  nova:    { id: 'nova',    name: 'Glutnova',        fp: 30, cast: 0.90, color: 0xff6a20, kind: 'nova', self: true, desc: 'Flammenring um dich herum' },
 };
 
 const discGeo = new THREE.CircleGeometry(1, 32); discGeo.rotateX(-Math.PI / 2);
 
 export function createSpells(G) {
   const { scene, fx } = G;
-  const S = { shots: [], bolts: [] };
+  const S = { shots: [], bolts: [], beams: [] };
   const fwd = (y) => new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
   const mul = () => 1 + (G.player.stats.mnd - 10) * 0.045;
   const alive = (e) => !e.dead && !e.untouchable && e.state !== 'dormant';
@@ -76,6 +80,28 @@ export function createSpells(G) {
       const disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: spell.color, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); disc.scale.setScalar(2.4); g.add(disc);
       scene.add(g); S.bolts.push({ g, disc, x, z, y, t: 0, struck: false, spell, beam: null });
       Sound.play('ashCharge');
+    } else if (spell.kind === 'fan') {
+      for (let i = -2; i <= 2; i++) {
+        const a = aimYaw + i * 0.13, dir = new THREE.Vector3(Math.sin(a), t ? ((t.pos.y + 1.1) - m.y) / Math.max(5, Math.hypot(t.pos.x - m.x, t.pos.z - m.z)) : 0, Math.cos(a));
+        shoot(spell, { pos: m, dir, speed: 27, life: 0.95, r: 0.55, dmg: 30, size: 0.9 });
+      }
+      Sound.play('swing'); fx.flash(m, spell.color, 50, 0.2);
+    } else if (spell.kind === 'lance') {
+      const f = fwd(aimYaw), len = 17, o = P.pos.clone(); o.y += 1.2;
+      const geo = new THREE.CylinderGeometry(0.22, 0.22, len, 8, 1, true); geo.translate(0, len / 2, 0);
+      const beam = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: spell.color, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+      beam.position.copy(o); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(f.x, 0, f.z)); scene.add(beam); S.beams.push({ beam, t: 0 });
+      fx.flash(o, spell.color, 140, 0.3); G.shake(0.3); Sound.play('ash'); Sound.play('parry');
+      for (const e of G.enemies) {
+        if (!alive(e)) continue;
+        const dx = e.pos.x - o.x, dz = e.pos.z - o.z, along = dx * f.x + dz * f.z, lat = Math.abs(dx * f.z - dz * f.x);
+        if (along > 0 && along < len && lat < 1.3 + e.radius) { hit(e, 105, true, P.pos); fx.sparks(new THREE.Vector3(e.pos.x, e.pos.y + 1.2, e.pos.z), 14); }
+      }
+    } else if (spell.kind === 'nova') {
+      const c = P.pos.clone(); c.y = groundHeight(c.x, c.z);
+      fx.ring(c, { color: spell.color, r: 7, dur: 0.6 }); fx.ring(c, { color: 0xffd080, r: 4.5, dur: 0.45 }); fx.dust(c, 18); fx.add.emit(c.clone().setY(c.y + 0.5), 60, { vel: 8, up: 1.2, life: 0.8, size: 0.22, color: [1, 0.5, 0.15], gravity: 4 });
+      fx.flash(c.clone().setY(c.y + 1), spell.color, 150, 0.4); G.shake(0.5); Sound.play('bossSlam'); Sound.play('ash');
+      for (const e of G.enemies) { if (!alive(e)) continue; if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 6.6 + e.radius) hit(e, 95, true, c); }
     } else if (spell.kind === 'heal') {
       const heal = Math.round(110 * (1 + (P.stats.mnd - 10) * 0.03));
       P.hp = Math.min(P.maxHp, P.hp + heal); Sound.play('estusHeal');
@@ -129,9 +155,12 @@ export function createSpells(G) {
     }
     for (const b of S.bolts) if (b.done) { scene.remove(b.g); b.disc.material.dispose(); if (b.beam) { b.beam.geometry.dispose(); b.beam.material.dispose(); } }
     S.bolts = S.bolts.filter((b) => !b.done);
+    for (const b of S.beams) { b.t += dt; b.beam.material.opacity = Math.max(0, 1 - b.t / 0.28); b.beam.scale.set(1 + b.t * 3, 1, 1 + b.t * 3); if (b.t > 0.28) b.done = true; }
+    for (const b of S.beams) if (b.done) { scene.remove(b.beam); b.beam.geometry.dispose(); b.beam.material.dispose(); }
+    S.beams = S.beams.filter((b) => !b.done);
     // Aschenschild: Funken um den Spieler
     if (P.ward > 0 && Math.random() < 0.4) { const a = rand(6.28), p = P.pos.clone(); p.x += Math.cos(a) * 0.9; p.z += Math.sin(a) * 0.9; p.y += rand(0.2, 1.8); fx.add.emit(p, 1, { vel: 0.3, up: 1, life: 0.7, size: 0.14, color: [0.55, 0.8, 1], gravity: -0.5, spread: 0.02 }); }
   };
-  S.clear = () => { S.shots.forEach((s) => { scene.remove(s.sp); }); S.shots = []; S.bolts.forEach((b) => scene.remove(b.g)); S.bolts = []; };
+  S.clear = () => { S.shots.forEach((s) => { scene.remove(s.sp); }); S.shots = []; S.bolts.forEach((b) => scene.remove(b.g)); S.bolts = []; S.beams.forEach((b) => scene.remove(b.beam)); S.beams = []; };
   return S;
 }

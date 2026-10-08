@@ -130,9 +130,9 @@ export function makeSaya() {
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
-export function makeSword({ len = 0.8, width = 0.06, color = 0x8a7a6a, rusty = true, glow = 0 } = {}) {
+export function makeSword({ len = 0.8, width = 0.06, color = 0x8a7a6a, rusty = true, glow = 0, glowColor = 0xff5a10 } = {}) {
   const g = new THREE.Group();
-  const steel = mat(color, { metalness: 0.7, roughness: rusty ? 0.7 : 0.3, emissive: glow ? 0xff5a10 : 0x000000, emissiveIntensity: glow });
+  const steel = mat(color, { metalness: 0.7, roughness: rusty ? 0.7 : 0.3, emissive: glow ? glowColor : 0x000000, emissiveIntensity: glow });
   const dark = mat(0x2a2018, { roughness: 0.9 });
   const gold = mat(0x8a7030, { metalness: 0.7, roughness: 0.4 });
   const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 8), dark); grip.position.y = -0.12; g.add(grip);
@@ -332,6 +332,8 @@ export function makeHumanoid(o) {
   // Waffe
   const mkWeapon = (n) => n === 'katana' ? makeKatana() : n === 'kingbow' ? makeBow() : n === 'kingsword' ? makeSword({ len: 1.8, width: 0.21, color: 0xe6d49a, rusty: false, glow: 1.5 }) : n === 'ironblade' ? makeSword({ len: 1.4, width: 0.14, color: 0x9a9ea8, rusty: false }) : n === 'staff' ? makeStaff() : n === 'club' ? makeClub() : n === 'scythe' ? makeScythe()
     : n === 'greatsword' ? makeSword({ len: 1.45, width: 0.15, color: 0x3a3438, rusty: false, glow: 0.4 })
+    : n === 'keule' ? makeClub() : n === 'sichel' ? makeScythe()
+    : n === 'mondklinge' ? makeSword({ len: 1.2, width: 0.11, color: 0xb4ccf4, rusty: false, glow: 0.7, glowColor: 0x4a78ff })
       : makeSword({ len: 0.75, width: 0.06, color: O.weaponColor ?? 0x8a7a6a, rusty: O.weaponRusty ?? true });
   h.weapons = {};
   for (const n of (O.weapons || [O.weapon])) { const w = mkWeapon(n); w.visible = n === O.weapon; torso.add(w); h.weapons[n] = w; }
