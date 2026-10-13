@@ -2,6 +2,8 @@
 
 Ein 3D-Mittelalter-Soulslike im Browser (Three.js, alle Modelle, Texturen und Sounds sind prozedural – keine externen Assets).
 
+> **Neu im Repo:** [F1 26](f1/README.md) – ein Formel-1-Spiel zur Saison 2026 mit 11 Teams, 22 Fahrern, 8 echten Strecken, Weltmeisterschaft und 2-Spieler-Splitscreen. Start: Webserver wie unten, dann `http://localhost:8000/f1/` öffnen.
+
 ## Starten
 
 Die Dateien müssen über einen lokalen Webserver geliefert werden (ES-Module):
